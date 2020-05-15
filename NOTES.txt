@@ -1,0 +1,20 @@
+
+
+## DEFINE PATH TO SAVED DATA
+To generate a behavior dataset, run:
+~/Dropbox/dynamic/check_rats/build_data_set_ephys.m
+
+Saved model results are available at:
+Dropbox/spikes/model/
+
+
+
+## HOW TO RUN THE CODE
+# SEQUENCE PLOTS
+# STA PLOTS 
+# TUNING CURVES 
+
+
+
+
+
