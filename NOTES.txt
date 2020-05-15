@@ -7,10 +7,14 @@ To generate a behavior dataset, run:
 Saved model results are available at:
 Dropbox/spikes/model/
 
-
-
 ## HOW TO RUN THE CODE
+# BEHAVIOR/MODEL RESULTS  
+    In the folder behavior_only
+    I think most of this code is in a separate repo I need to deal with
+  
 # SEQUENCE PLOTS
+    in the folder ephys_summary
+
 # STA PLOTS 
 # TUNING CURVES 
 
