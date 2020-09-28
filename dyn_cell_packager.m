@@ -17,10 +17,10 @@
 function [data] = dyn_cell_packager(cellid, varargin)
 
 p = inputParser();
-addParameter(p, 'repack', false)
-addParameter(p, 'datadir', [])
-addParameter(p, 'dyn_path', [])
-addParameter(p, 'do_save', true)
+addParameter(p, 'repack', false);
+addParameter(p, 'datadir', []);
+addParameter(p, 'dyn_path', []);
+addParameter(p, 'do_save', true);
 addParameter(p, 'file_prefix',  'cell_packager_data_');
 addParameter(p, 'krn_width',   0.1); % kernel std (in secs)  
 addParameter(p, 'krn_type', 'halfgauss'); % 'halfgauss' or 'fullgauss' for causal or acausal filter

@@ -57,7 +57,7 @@ if ~exist(save_dir,'dir')
 end
 
 if ~force && exist(save_path, 'file')
-    warning('loading database from file...\n will not update with new cells')
+    warning('loading database from file. Will not update new cells')
     load(save_path);
 else
     fprintf('Attempting to connect to bdata');
