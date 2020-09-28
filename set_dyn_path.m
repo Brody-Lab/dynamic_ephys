@@ -9,20 +9,22 @@ end
 
 switch user
     case 'Tyler'
-        spikes_dir          = '~/projects/pbups_dyn/data/phys'
+        spikes_dir          = '~/projects/pbups_dyn/data/phys';
     case 'Alex'
         spikes_dir          = '~/Dropbox/spikes';
     otherwise
         fprintf('you should pick a spikes directory')
         keyboard
 end
-celldat_filename    = 'dyn_multi_db.mat'
+spikes_fig_dir      = '~/Dropbox/spikes/figures';
+
+celldat_filename    = 'dyn_multi_db.mat';
 celldat_dir         = fullfile(spikes_dir, 'cell_packager_data');
 spikes_bin_dir      = fullfile(spikes_dir, 'bin');
 tuning_curves_dir   = fullfile(spikes_bin_dir, 'tuning_curves');
 ratter_dir          = '~/ratter';
 tim_code_dir        = fullfile(ratter_dir, 'Manuscripts/TimHanks/PBupsPhys/Code/');
-
+p.psth_fig_dir      = fullfile(spikes_fig_dir, 'PSTH');
 p.celldat_filename  = celldat_filename;
 p.celldat_dir       = celldat_dir;
 p.spikes_bin_dir    = spikes_bin_dir;
