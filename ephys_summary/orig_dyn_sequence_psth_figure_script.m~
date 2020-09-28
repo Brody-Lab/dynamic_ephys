@@ -1,26 +1,9 @@
-function [] = rat_sequence(THISRAT)
-addpath ~/ratter/Manuscripts/TimHanks/PBupsPhys/Code/
-addpath ~/ratter/Manuscripts/TimHanks/PBupsPhys/Code/Carlosbin
-addpath ~/ratter/ExperPort/bin
-addpath ~/ratter/Analysis/Pbups
-addpath ~/ratter/ExperPort/MySQLUtility
-addpath ~/ratter/ExperPort/Analysis
-addpath ~/ratter/ExperPort/Analysis/SameDifferent/
-addpath ~/ratter/ExperPort/HandleParam
-addpath ~/ratter/Analysis/helpers
-addpath ~/Dropbox/spikes/cell_packager_data
-addpath ~/Dropbox/spikes/bin
-addpath ~/Dropbox/spikes/bin/tuning_curves/
+close all
+clear all
+dp = set_dyn_path
+
 %% get full cell_list; *all* single units recorded in pbups project
 cell_list = dyn_cells_db;   % That has to be run once to create cell_list
-rats = [cell_list{2:end,3}];
-%THISRAT = 'H037';
-H037 = ismember(rats, 'H037');
-H066 = ismember(rats, 'H066');
-H084 = ismember(rats, 'H084');
-H129 = ismember(rats, 'H129');
-H191 = ismember(rats, 'H191');
-
 %% compile a bunch of psths aligned to the center poke time and the center out time
 % produce a stim on aligned plot and a center out aligned plot
 cin_align_ind = 9;
@@ -31,8 +14,7 @@ cout_align_ind = 8;
 long_trial_dur = 1;
 long_trials_only = false;
 
-select_str = ['strcmp(region,''fof'') & normmean > .5 & strcmp(ratname,''' THISRAT ''')'];
-
+select_str = 'strcmp(region,''fof'') & normmean > .5' ;
 cellids = cell2mat(extracting(cell_list, 'cellid', select_str));
 psr = cell2mat(extracting(cell_list, 'prefsideright', select_str));
 prefp = cell2mat(extracting(cell_list, 'prefp', select_str));
@@ -214,14 +196,93 @@ fig.PaperPosition = [0 0 10 10];
 fig.PaperPositionMode = 'Manual';
 fig.PaperSize = [10 10];
 
-print(fh1,['~/Dropbox/spikes/figures/PSTH/sequence_plot_' THISRAT ] , '-dsvg')
+print(fh1,fullfile(dp.psth_fig_dir,'sequence_plot') , '-depsc')
 
 corr(sortA, sortB, 'type', 'kendall')
 
-%good_cellids = cellids(good_cells);
-%sorted_cellids = good_cellids(sortA);
-%sorted_stim_cells = sorted_cellids(1:60);
-%sorted_post_stim_cells = sorted_cellids(61:end);
-%save(['~/Dropbox/spikes/bin/ephys_summary/sorted_cells_' THISRAT '.mat'],'sorted_cellids','sorted_stim_cells','sorted_post_stim_cells')
+good_cellids = cellids(good_cells);
+sorted_cellids = good_cellids(sortA);
+sorted_stim_cells = sorted_cellids(1:60);
+sorted_post_stim_cells = sorted_cellids(61:end);
+save(fullfile(dp./ephys_summary/sorted_cells.mat','sorted_cellids','sorted_stim_cells','sorted_post_stim_cells')
 
+
+keyboard
+%% PLOT AVERAGE PSTH
+% redo this so that the cells actually line up with preferred non-preferred
+
+
+pref_r = nanmean(cin_psth_hit(:,:,2,1),2) > nanmean(cin_psth_hit(:,:,3,1),2);
+switch 0
+    case 0
+        cell_to_plot = 16857;
+%        cell_to_plot = 17784;
+%        cell_to_plot = 18181;
+        good_cells = cellids == cell_to_plot;
+        titlestr = ['cell ' num2str(cell_to_plot)];
+    case 1
+        good_cells = nanmean(cin_psth(:,:,1,1),2) > 10;
+        titlestr = 'all cells with FR > 10';
+end
+cin_psth_hit_pref = nanmean(vertcat(cin_psth_hit(good_cells&pref_r,:,2,1), cin_psth_hit(good_cells&~pref_r,:,3,1)),1);
+cin_psth_err_pref = nanmean(vertcat(cin_psth_err(good_cells&pref_r,:,2,1), cin_psth_err(good_cells&~pref_r,:,3,1)),1);
+cin_psth_hit_nonpref = nanmean(vertcat(cin_psth_hit(good_cells&~pref_r,:,2,1), cin_psth_hit(good_cells&pref_r,:,3,1)),1);
+cin_psth_err_nonpref = nanmean(vertcat(cin_psth_err(good_cells&~pref_r,:,2,1), cin_psth_err(good_cells&pref_r,:,3,1)),1);
+cout_psth_hit_pref = nanmean(vertcat(cout_psth_hit(good_cells&pref_r,:,2,1), cout_psth_hit(good_cells&~pref_r,:,3,1)),1);
+cout_psth_err_pref = nanmean(vertcat(cout_psth_err(good_cells&pref_r,:,2,1), cout_psth_err(good_cells&~pref_r,:,3,1)),1);
+cout_psth_hit_nonpref = nanmean(vertcat(cout_psth_hit(good_cells&~pref_r,:,2,1), cout_psth_hit(good_cells&pref_r,:,3,1)),1);
+cout_psth_err_nonpref = nanmean(vertcat(cout_psth_err(good_cells&~pref_r,:,2,1), cout_psth_err(good_cells&pref_r,:,3,1)),1);
+
+% figure out color
+cmap = color_set(2);
+if pref_r(good_cells)
+    nonpref_col = cmap(1,:);
+    pref_col = cmap(2,:);
+else
+    nonpref_col = cmap(2,:);
+    pref_col = cmap(1,:);
+end
+
+
+ylims = [0 1.1*max([max(cin_psth_hit_pref); max(cin_psth_hit_nonpref); max(cin_psth_err_pref); max(cin_psth_err_nonpref);max(cout_psth_hit_pref); max(cout_psth_hit_nonpref); max(cout_psth_err_pref); max(cout_psth_err_nonpref)])];
+fh2 = figure(2); clf
+subplot(1,2,1); hold on
+plot(cin_t,cin_psth_hit_pref,   '-' ,'linewidth',2,'color',pref_col)
+plot(cin_t,cin_psth_hit_nonpref,'-' ,'linewidth',2,'color',nonpref_col)
+plot(cin_t,cin_psth_err_pref,   '--','linewidth',2,'color',pref_col)
+plot(cin_t,cin_psth_err_nonpref,'--','linewidth',2,'color',nonpref_col)
+xlabel('Time from stim on (s)')
+ylabel('mean FR (Hz)')
+set(gca,'fontsize',16)
+pbaspect([1.5 1 1])
+xlim([-1 2])
+ylim(ylims)
+
+subplot(1,2,2); hold on;
+plot(cout_t,cout_psth_hit_pref,     '-' ,'linewidth',2,'color',pref_col)
+plot(cout_t,cout_psth_hit_nonpref,  '-' ,'linewidth',2,'color',nonpref_col)
+plot(cout_t,cout_psth_err_pref,     '--','linewidth',2,'color',pref_col)
+plot(cout_t,cout_psth_err_nonpref,  '--','linewidth',2,'color',nonpref_col)
+xlabel('Time from stim off (s)')
+ylabel('mean FR (Hz)')
+set(gca,'fontsize',16)
+xlim([-2.5 1])
+ylim(ylims)
+if pref_r(good_cells)
+    hl=legend('go R hit','go L hit',' go R error','go L error','location','northwest')
+else
+    hl=legend('go L hit','go R hit',' go L error','go R error','location','northwest')
+end
+box(hl,'off')
+plot(subplot(121),[0 0], ylim, 'k--','linewidth',1)
+plot(subplot(122),[0 0], ylim, 'k--','linewidth',1)
+pbaspect([1.5 1 1])
+%suptitle(titlestr)
+set(fh2, 'paperorientation','landscape')
+fig = gcf;
+fig.PaperUnits = 'inches';
+fig.PaperPosition = [0 0 10 10];
+fig.PaperPositionMode = 'Manual';
+fig.PaperSize = [10 10];
+print(fh2, ['~/Dropbox/spikes/figures/PSTH/cell_' num2str(cell_to_plot) ], '-dsvg')
 

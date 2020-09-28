@@ -1,9 +1,6 @@
 close all
 clear all
-
-set_dyn_path
-
-
+dp = set_dyn_path
 %% get full cell_list; *all* single units recorded in pbups project
 cell_list = dyn_cells_db;   % That has to be run once to create cell_list
 %% compile a bunch of psths aligned to the center poke time and the center out time
@@ -24,8 +21,8 @@ ncells = size(cellids);
 
 for cc = 1:ncells
     try
-    fprintf([num2str(cc) '...'])
-    d=dyn_cell_packager(cellids(cc));
+    if mod(cc,50)==0, fprintf([num2str(cc) '...']); end
+    d=dyn_cell_packager(cellids(cc),'datadir',dp.celldat_dir);
     cin_frates = d.frate{cin_align_ind};
     cout_frates = d.frate{cout_align_ind};
     
@@ -256,7 +253,7 @@ fig.PaperPosition = [0 0 10 10];
 fig.PaperPositionMode = 'Manual';
 fig.PaperSize = [10 10];
 
-print('~/Dropbox/spikes/figures/PSTH/choice_sequence','-depsc')
+print(fullfile(dp.psth_fig_dir, 'choice_sequence'),'-depsc')
 
 
 %%%% PLOT SEQUENCE PLOT
@@ -318,7 +315,7 @@ fig.PaperPosition = [0 0 10 10];
 fig.PaperPositionMode = 'Manual';
 fig.PaperSize = [10 10];
 
-print('~/Dropbox/spikes/figures/PSTH/choice_sequence_A','-depsc')
+print(fullfile(dp.psth_fig_dir, 'choice_sequence_A'),'-depsc')
 
 
 %%%% PLOT SEQUENCE PLOT
@@ -380,5 +377,5 @@ fig.PaperPosition = [0 0 10 10];
 fig.PaperPositionMode = 'Manual';
 fig.PaperSize = [10 10];
 
-print('~/Dropbox/spikes/figures/PSTH/choice_sequence_B','-depsc')
+print(fullfile(dp.psth_fig_dir, 'choice_sequence_B'),'-depsc')
 

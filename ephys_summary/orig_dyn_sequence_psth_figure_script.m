@@ -1,18 +1,7 @@
 close all
 clear all
+dp = set_dyn_path
 
-addpath ~/ratter/Manuscripts/TimHanks/PBupsPhys/Code/
-addpath ~/ratter/Manuscripts/TimHanks/PBupsPhys/Code/Carlosbin
-addpath ~/ratter/ExperPort/bin
-addpath ~/ratter/Analysis/Pbups
-addpath ~/ratter/ExperPort/MySQLUtility
-addpath ~/ratter/ExperPort/Analysis
-addpath ~/ratter/ExperPort/Analysis/SameDifferent/
-addpath ~/ratter/ExperPort/HandleParam
-addpath ~/ratter/Analysis/helpers
-addpath ~/Dropbox/spikes/cell_packager_data
-addpath ~/Dropbox/spikes/bin
-addpath ~/Dropbox/spikes/bin/tuning_curves/
 %% get full cell_list; *all* single units recorded in pbups project
 cell_list = dyn_cells_db;   % That has to be run once to create cell_list
 %% compile a bunch of psths aligned to the center poke time and the center out time
@@ -171,7 +160,7 @@ end
 tA = cin_t(cin_ind);
 tB = cout_t(cout_ind);
 
-
+%%
 %%%% PLOT SEQUENCE PLOT
 fh1 = figure(1); clf
 set(fh1,'paperpositionmode','auto')
@@ -207,7 +196,8 @@ fig.PaperPosition = [0 0 10 10];
 fig.PaperPositionMode = 'Manual';
 fig.PaperSize = [10 10];
 
-print(fh1,'~/Dropbox/spikes/figures/PSTH/sequence_plot' , '-depsc')
+seqplotfname = fullfile(dp.psth_fig_dir,'sequence_plot');
+print(fh1, seqplotfname , '-depsc')
 
 corr(sortA, sortB, 'type', 'kendall')
 
@@ -215,7 +205,7 @@ good_cellids = cellids(good_cells);
 sorted_cellids = good_cellids(sortA);
 sorted_stim_cells = sorted_cellids(1:60);
 sorted_post_stim_cells = sorted_cellids(61:end);
-save('~/Dropbox/spikes/bin/ephys_summary/sorted_cells.mat','sorted_cellids','sorted_stim_cells','sorted_post_stim_cells')
+save(fullfile(dp.spikes_bin_dir, '/ephys_summary/sorted_cells.mat'),'sorted_cellids','sorted_stim_cells','sorted_post_stim_cells')
 
 
 keyboard
@@ -229,6 +219,7 @@ switch 0
         cell_to_plot = 16857;
 %        cell_to_plot = 17784;
 %        cell_to_plot = 18181;
+        cell_to_plot    = 18938
         good_cells = cellids == cell_to_plot;
         titlestr = ['cell ' num2str(cell_to_plot)];
     case 1
@@ -295,5 +286,5 @@ fig.PaperUnits = 'inches';
 fig.PaperPosition = [0 0 10 10];
 fig.PaperPositionMode = 'Manual';
 fig.PaperSize = [10 10];
-print(fh2, ['~/Dropbox/spikes/figures/PSTH/cell_' num2str(cell_to_plot) ], '-dsvg')
+print(fh2, fullfile(dp.psth_fig_dir, ['cell_' num2str(cell_to_plot) ]), '-dsvg')
 
