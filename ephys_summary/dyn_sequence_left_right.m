@@ -1,18 +1,9 @@
 close all
 clear all
 
-addpath ~/ratter/Manuscripts/TimHanks/PBupsPhys/Code/
-addpath ~/ratter/Manuscripts/TimHanks/PBupsPhys/Code/Carlosbin
-addpath ~/ratter/ExperPort/bin
-addpath ~/ratter/Analysis/Pbups
-addpath ~/ratter/ExperPort/MySQLUtility
-addpath ~/ratter/ExperPort/Analysis
-addpath ~/ratter/ExperPort/Analysis/SameDifferent/
-addpath ~/ratter/ExperPort/HandleParam
-addpath ~/ratter/Analysis/helpers
-addpath ~/Dropbox/spikes/cell_packager_data
-addpath ~/Dropbox/spikes/bin
-addpath ~/Dropbox/spikes/bin/tuning_curves/
+set_dyn_path
+
+
 %% get full cell_list; *all* single units recorded in pbups project
 cell_list = dyn_cells_db;   % That has to be run once to create cell_list
 %% compile a bunch of psths aligned to the center poke time and the center out time
