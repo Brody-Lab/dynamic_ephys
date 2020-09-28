@@ -1,6 +1,6 @@
-function [singles all_cells] = dyn_get_cells()
+function [singles, all_cells] = dyn_get_cells()
 
-ratnames = {'H037', 'H066', 'H084', 'H129'};
+ratnames = {'H037', 'H066', 'H084', 'H129', 'H191'};
 all_cells =[];
 single = [];
 for rr = 1:length(ratnames)

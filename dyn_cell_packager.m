@@ -7,7 +7,7 @@
 % OPTIONAL PARAMS:
 % ----------------
 %
-%   force     Default 0. If 0 and saved file exists, just load save file,
+%   repack    Default 0. If 0 and saved file exists, just load save file,
 %             if 1 recompile the data.
 %
 %   save_package   Default 1.  Save compiled data in a file.
@@ -16,21 +16,41 @@
 
 function [data] = dyn_cell_packager(cellid, varargin)
 
+p = inputParser();
+addParameter(p, 'repack', false)
+addParameter(p, 'datadir', [])
+addParameter(p, 'dyn_path', [])
+addParameter(p, 'do_save', true)
+addParameter(p, 'file_prefix',  'cell_packager_data_');
+addParameter(p, 'krn_width',   0.1); % kernel std (in secs)  
+addParameter(p, 'krn_type', 'halfgauss'); % 'halfgauss' or 'fullgauss' for causal or acausal filter
+addParameter(p, 'bin_size',  0.025); % (in secs)
+parse(p, varargin{:});
+par     = p.Results;
 
-pairs = { ...
-	'force'        0   ; ...
-    'repack'       0   ; ...
-	'datadir'  	   '~/Dropbox/spikes/cell_packager_data/'  ; ...
-	'file_prefix'  'cell_packager_data_'  ; ...
-	'save_package'    1   ; ...
-    'krn_width'    0.1; ...         % kernel std (in secs)  
-    'krn_type'     'halfgauss'; ... % either 'halfgauss' causal filter or 'fullgauss' acausal filter
-    'bin_size'     0.025; ...       % (in secs)
-}; parseargs(varargin, pairs);
+repack      = par.repack;
+datadir     = par.datadir; 
+do_save     = par.do_save;
+file_prefix = par.file_prefix;
+krn_width   = par.krn_width;
+krn_type    = par.krn_type;
+bin_size    = par.bin_size;
+
+if isempty(par.datadir)
+    if isempty(par.dyn_path)
+        dp      = set_dyn_path;
+    else
+        dp      = par.dyn_path;
+    end
+    datadir = dp.celldat_dir;
+end
+    
+filename = sprintf('%s%i.mat', file_prefix, cellid);
+save_path = fullfile(datadir, filename);
 
 if ~exist(datadir, 'dir'), mkdir(datadir); end;
-if ~force && exist([datadir filesep file_prefix num2str(cellid) '.mat'], 'file')
-	load([datadir filesep file_prefix num2str(cellid) '.mat']);
+if ~repack && exist(save_path, 'file')
+	load(save_path);
 	return;
 end;
 
@@ -51,9 +71,9 @@ data.brainsideright = bdata('select recorded_on_right from cells where cellid="{
 data.sessiondate  = data.sessiondate{1};
 data.ngood_trials = numel(vec_data.good);
 % smoothing and binning info
-data.krn_width = krn_width;
-data.bin_size = bin_size;
-data.krn_type = krn_type;
+data.krn_width  = krn_width;
+data.bin_size   = bin_size;
+data.krn_type   = krn_type;
 
 eibid = bdata('select eibid from cells where cellid="{S}"',cellid);
 
@@ -73,7 +93,7 @@ end
 % Calculate individual trial rate functions and get spike counts for different alignments
 
 % Aligments are specified in the function called on the next line: align_LUT
-[align_strs, align_args] = dyn_align_LUT(2);
+    [align_strs, align_args] = dyn_align_LUT(2);
 % loop through each alignment and get smoothed rate functions and spike counts
 for i=1:numel(align_strs)
     [data.frate{i}, data.frate_t{i}] = make_rate_functions(cellid, 'array_data', array_data, 'vec_data', vec_data,...
@@ -184,7 +204,7 @@ end
 % Calcualte time-dependent p-values
 % This is done for pairs of alignments and condition sorting as specified
 % in the function stats_LUT. 
-[stats_strs, stats_aligns, stats_conds] = stats_LUT;
+[stats_strs, stats_aligns, stats_conds] = dyn_stats_LUT;
 for i=1:numel(stats_strs)
     stat_ind = stats_aligns(i);   
     conds = eval(stats_conds{i});
@@ -212,8 +232,8 @@ data.lapse_rate_gamma = max(ag);    % gamma used to calculate "lapse rate"
 data.min_gamma = min(ag);       % the smallest gamma included in data
 
 % saves packaged data as mat file so that it doesn't need re-packaging
-if save_package,
-	save([datadir filesep file_prefix num2str(cellid) '.mat'], 'data');
+if do_save
+    save(save_path, 'data');
 end;
 
 

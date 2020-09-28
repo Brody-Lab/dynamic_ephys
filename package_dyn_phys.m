@@ -47,17 +47,24 @@ function [array_data vec_data sessid ratname] = package_dyn_phys(cellid, varargi
 
 
 %% Default Parameters
-ex_cbreak_end = 1;      % excludes trials with NIC ending with legal_cbreak
-save_to_file = 0;       % saves packaged data to a file
-force = false;          % forces re-calculation even if file exists
-save_path = '~/Dropbox/spikes/cell_packager_data/'; % default save folder 
+p = inputParser();
+addParameter(p, 'save_to_file', 1); % saves packaged data to a file
+addParameter(p, 'repack', false); % forces re-calculation even if file exists
+addParameter(p, 'save_path', '~/Dropbox/spikes/cell_packager_data/');% default save folder 
+parse(p, varargin{:});
+% TO DO:
+% add error checking for NIC ending with legal cbreak
+% ex_cbreak_end = 1;      % excludes trials with NIC ending with legal_cbreak         
+save_path       = p.Results.save_path;
+save_to_file    = p.Results.save_to_file;
+repack          = p.Results.repack;
 
 % override based on varargin
 %opts = overridedefaults(who, varargin);
 
 % checks if data is already saved to file and loads it in that case
 filename = [save_path 'phys_data_' num2str(cellid) '.mat'];
-if ~force && exist(filename,'file')==2
+if ~repack && exist(filename,'file')==2
     load(filename);
     return;
 end

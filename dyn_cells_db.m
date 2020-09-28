@@ -5,26 +5,65 @@ function cell_list = dyn_cells_db(varargin)
 % Each column saves one scalar value for each cell. These are used for cell
 % selection for further analysis.
 
+p = inputParser();
+addParameter(p, 'force', false)
+addParameter(p, 'repack_each', false)
+addParameter(p, 'save_dir', [])
+addParameter(p, 'save_name', [])
+addParameter(p, 'dyn_path', [])
+addParameter(p, 'do_save', true)
+addParameter(p, 'krn_type', 'halfgauss');
+addParameter(p, 'krn_width', .1);
+parse(p, varargin{:});
+par     = p.Results;
 
-% Default Params 
-force = 0; 
-force_each = 0;
-repack_each = 0;
-save_dir = '~/Dropbox/spikes/cell_packager_data'; 
-save_db = true;  
-% override based on varargin
-opts = overridedefaults(who, varargin);
-save_name = 'dyn_multi_db.mat';
+if isempty(par.dyn_path)
+    dp      = set_dyn_path;
+else
+    dp      = par.dyn_path;
+end
 
-save_path = fullfile(save_dir, save_name);
+force       = par.force; 
+repack_each = par.repack_each;
+save_dir    = par.save_dir; 
+save_name   = par.save_name; 
+do_save     = par.do_save;  
+krn_type    = par.krn_type;
+krn_width   = par.krn_width;
 
+if isempty(par.save_name)
+    save_name = dp.celldat_filename;
+end
+if isempty(par.save_dir)
+    save_dir = dp.celldat_dir;
+end
+
+save_path   = fullfile(save_dir, save_name);
+
+if ~exist(save_dir,'dir')
+    in = input(sprintf(['Save directory doesn''t exist\n'...
+        '%s\n would you like to create it and continue (y/n)?'],save_dir), 's');
+    if lower(in) == 'y'
+        mkdir(save_dir);
+    else
+        in2 = input('continue without saving? (y/n)','s');
+        if lower(in2) == 'y'
+            warning('continuing without saving')
+        else
+            warning('quitting without retrieving cells');
+            return
+        end
+    end  
+end
 
 if ~force && exist(save_path, 'file')
+    warning('loading database from file...\n will not update with new cells')
     load(save_path);
 else
-    
-        
-    [~, multi] = dyn_get_cells()
+    fprintf('Attempting to connect to bdata');
+    bdata('connect');
+    fprintf('Getting cell list\n');
+    [singles, multi] = dyn_get_cells();
     
     cell_list = {'cellnum' 'region' 'ratname' 'cellid' 'sessid' 'sessiondate' 'lr' 'hitfrac' 'mingamma' 'brainsideright' ...
         'prefsideright' 'prefp' 'normmean' 'prefsideright_mv' 'prefp_mv' 'min_p' 'prefsideright_cout100' 'prefp_cout100' ...
@@ -34,21 +73,16 @@ else
         'prefoutcomehit_cout100' 'hitprefp_cout100'...
         'prefoutcomehit_stimcout' 'hitprefp_stimcout'};
     
-    % load all single units
-    %singles = get_cells('pbups_all');
-    
-    
     for i=1:numel(multi)
         fprintf('Packaging cell %d of %d \n', i, numel(multi));
-%         data = cell_packager(singles(i),'krn_type','fullgauss','krn_width',0.05);
 
-        data = dyn_cell_packager(multi(i),'krn_type','halfgauss','krn_width',0.1,...
-            'datadir' , save_dir, 'force', force_each, 'repack', repack_each);
-        stim_index = strmatch('stimend',data.align_strs,'exact');
+        data = dyn_cell_packager(multi(i),'krn_type',krn_type,'krn_width',krn_width,...
+            'datadir' , save_dir, 'repack', repack_each);
+        stim_index      = strmatch('stimend',data.align_strs,'exact');
         stim_cout_index = strmatch('stimstart-cout-mask',data.align_strs,'exact');
-        mv_index = strmatch('postmove',data.align_strs,'exact');
-        cout100_index = strmatch('cout100',data.align_strs,'exact');
-        stats_index = strmatch('cpokeend-choice-all',data.stats_strs,'exact');
+        mv_index        = strmatch('postmove',data.align_strs,'exact');
+        cout100_index   = strmatch('cout100',data.align_strs,'exact');
+        stats_index     = strmatch('cpokeend-choice-all',data.stats_strs,'exact');
         cell_list = [cell_list ; ...
             {i data.region data.ratname data.cellid data.sessid data.sessiondate ...
             data.lapse_rate mean(data.trials.hit) data.min_gamma data.brainsideright ...
@@ -60,10 +94,9 @@ else
             data.prefoutcomehit{mv_index} data.hitprefp{mv_index}  ...
             data.prefoutcomehit{cout100_index} data.hitprefp{cout100_index} ...
             data.prefoutcomehit{stim_cout_index} data.hitprefp{stim_cout_index}}]; %#ok<*AGROW>
-
     end;
     
-    if save_db,
+    if do_save
         if ~exist(save_dir, 'dir'), mkdir(save_dir); end;
         save(save_path, 'cell_list');
     end
