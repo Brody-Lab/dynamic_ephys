@@ -1,9 +1,10 @@
-function plot_population_STA(which_switch, savefig,correction, bad_strength) 
+function plot_population_STA(which_switch, savefig, correction, bad_strength) 
 
-
-%which_switch = 'generative';
+if nargin < 1
+    which_switch = 'generative';
+end
 if nargin < 2
-    savefig = 0;
+    savefig = 1;
 end
 if nargin < 3
     correction = 2;
@@ -11,7 +12,11 @@ end
 if nargin < 4
     bad_strength = 0;
 end
-[res, dprime, pvals,cellids, computed,not_computed] = load_STA_population(which_switch, 0,1, bad_strength);
+
+dp = set_dyn_path;
+
+[res, dprime, pvals,cellids, computed,not_computed] = ...
+    load_STA_population(which_switch, 0,1, bad_strength);
 
 % make map of time points for which each cell is encoding signficantly
 %figure(1); clf
@@ -82,12 +87,14 @@ fig.PaperSize = [8 8];
 
 if savefig
     set(gcf,'renderer','opengl')
-    print(fig, ['../figures/STA/' which_switch 'switch_encoding' correction_str],'-depsc','-opengl')
+    fn = fullfile(dp.sta_fig_dir, [which_switch 'switch_encoding' correction_str]);
+    print(fig, fn,'-depsc','-opengl')
 end
 
 %%%%%%%
 if strcmp(which_switch,'model')
-    load('ephys_summary/sorted_cells.mat')
+    % this sorted cells file is created by orig_dyn_sequence_psth
+    load(fullfile(dp.ephys_summary_dir, 'sorted_cells.mat'));
     % sorted_cellids, sorted_post_stim_cells, sorted_stim_cells
     cellids_sorted = cellids(sort_ind);
     for i=1:length(sorted_post_stim_cells)
@@ -102,7 +109,8 @@ if strcmp(which_switch,'model')
     end
     if savefig
         set(gcf,'renderer','opengl')
-        print(fig, ['../figures/STA/' which_switch 'switch_encoding' correction_str '_sequence_labels'],'-depsc','-opengl')
+        fn = fullfile(dp.sta_fig_dir, [which_switch 'switch_encoding' correction_str '_sequence_labels']);
+        print(fig, fn,'-depsc','-opengl')
     end
 end
 
@@ -135,10 +143,11 @@ fig.PaperPositionMode = 'Manual';
 fig.PaperSize = [4 4];
 
 if savefig
-print(fig, ['../figures/STA/fraction_' which_switch 'switch_encoding' correction_str '.svg'],'-dsvg')
-
-% Save data from this analysis
-save(['../figures/STA/fraction_data_' which_switch correction_str '.mat'], 'time_vec','average_siggy','n')
+    figsavefname = ['fraction_' which_switch 'switch_encoding' correction_str '.svg'];
+    print(fig, fullfile(dp.sta_fig_dir, figsavefname) ,'-dsvg')
+    datasavefname = ['fraction_data_' which_switch correction_str '.mat'];
+    % Save data from this analysis
+    save(fullfile(dp.sta_fig_dir, datasavefname), 'time_vec','average_siggy','n')
 end
 
 %%%% look at distribution of dprime values
@@ -158,7 +167,8 @@ fig.PaperPosition = [0 0 4 4];
 fig.PaperPositionMode = 'Manual';
 fig.PaperSize = [4 4];
 if savefig
-    print(fig, ['../figures/STA/distribution_dprime_' which_switch '.svg'],'-dsvg')
+    figsavefname = ['distribution_dprime_' which_switch '.svg'];
+    print(fig, fullfile(dp.sta_fig_dir, figsavefname),'-dsvg')
 end
 
 %%%% look for consistent encoding cells
@@ -291,7 +301,8 @@ end
 numrows = size(plot_map,1);
 ylim([0 numrows+1])
 if savefig
-    print(fig, ['../figures/STA/' which_switch '_switch_labeled_switch_encoding' correction_str],'-depsc','-opengl')
+    fn = [which_switch '_switch_labeled_switch_encoding' correction_str];
+    print(fig, fullfile(dp.sta_fig_dir, fn),'-depsc','-opengl')
 end
 
 
@@ -309,8 +320,10 @@ fig.PaperPosition = [0 0 4 4];
 fig.PaperPositionMode = 'Manual';
 fig.PaperSize = [4 4];
 if savefig
-    print(fig, ['../figures/STA/distribution_switch_times_' which_switch correction_str '.svg'],'-dsvg')
-    save(['../figures/STA/switch_times_' which_switch correction_str '.mat'], 'middle_ts');
+    fn = ['distribution_switch_times_' which_switch correction_str '.svg'];
+    print(fig, fullfile(dp.sta_fig_dir, fn),'-dsvg')
+    fn = ['switch_times_' which_switch correction_str '.mat'];
+    save(fullfile(dp.sta_fig_dir, fn), 'middle_ts');
 end
 
 figure(6); clf; hold on;
@@ -328,7 +341,8 @@ fig.PaperPosition = [0 0 4 4];
 fig.PaperPositionMode = 'Manual';
 fig.PaperSize = [4 4];
 if savefig
-    print(fig, ['../figures/STA/distribution_switch_times_histogram_' which_switch correction_str '.svg'],'-dsvg')
+    fn = ['distribution_switch_times_histogram_' which_switch correction_str '.svg'];
+    print(fig, fullfile(dp.sta_fig_dir, fn),'-dsvg')
 end
 
 keyboard
