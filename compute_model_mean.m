@@ -1,23 +1,18 @@
-function [] = compute_model_mean(rat,sessid, save_dir)
+function [] = compute_model_mean(rat, sessid)
 
     disp('computing model responses')
-    addpath ~/Dropbox/dynamic/model_fits/analytical_model/
-    addpath ~/ratter/ExperPort/MySQLUtility
-    addpath ~/ratter/Analysis/Pbups
-    addpath ~/ratter/Analysis/helpers
-    addpath ~/ratter/ExperPort
-    addpath ~/ratter/ExperPort/Analysis
-    addpath ~/ratter/ExperPort/Analysis/SameDifferent/
-    addpath ~/ratter/ExperPort/Utility
-    addpath ~/ratter/ExperPort/bin
-    addpath ~/ratter/Manuscripts/TimHanks/PBupsPhys/Code/Carlosbin
+    
+    dp = set_dyn_path;
+    save_dir = dp.model_mean_dir;
+    
 
     % load data
     S = load_session_data(sessid);
     data = format_data(S);
 
     % load params
-    load(['/home/alex/Dropbox/dynamic/model_fits/ANALYSIS/ephys/fit_analysis_analytical' rat '.mat'])
+    fname = ['fit_analytical_' rat '.mat'];
+    load(fullfile(dp.model_fits_dir, fname))
     params = fit.final;
 
     % compute model output for each trial
