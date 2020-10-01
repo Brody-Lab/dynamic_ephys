@@ -4,6 +4,7 @@ dp = set_dyn_path
 
 %% get full cell_list; *all* single units recorded in pbups project
 cell_list = dyn_cells_db;   % That has to be run once to create cell_list
+
 %% compile a bunch of psths aligned to the center poke time and the center out time
 % produce a stim on aligned plot and a center out aligned plot
 cin_align_ind = 9;
@@ -22,7 +23,9 @@ ncells = size(cellids);
 
 for cc = 1:ncells
     try
-    fprintf([num2str(cc) '...'])
+    if mod(cc,25)==0
+        fprintf([num2str(cc) '...'])
+    end
     d=dyn_cell_packager(cellids(cc));
     cin_frates = d.frate{cin_align_ind};
     cout_frates = d.frate{cout_align_ind};
@@ -106,7 +109,6 @@ end
 % correlations between sequential orderings in splits of the data are quite
 % different and I don't know what to make of that
 
-
 % determine whether to plot the sequence using the sorting data or using
 % the heldout data
 plot_sorting_data = true;
@@ -136,7 +138,7 @@ combo_psthB = [cin_psth_hit_pref_xval2(:,cin_ind) cout_psth_hit_pref_xval2(:,cou
 %combo_psthA = [cin_psth_hit_pref_xval1(:,:) cout_psth_hit_pref_xval1(:,:)];
 %combo_psthB = [cin_psth_hit_pref_xval2(:,:) cout_psth_hit_pref_xval2(:,:)];
 
-[combo_sortedA, sortA] = sort_by_peak(combo_psthA);
+[combo_sortedA, sortA, sortAt] = sort_by_peak(combo_psthA);
 [combo_sortedB, sortB] = sort_by_peak(combo_psthB);
 if plot_sorting_data
     psth_all = [cin_psth_hit_pref_xval1(:,cin_ind) cout_psth_hit_pref_xval1(:,cout_ind)];
@@ -203,9 +205,10 @@ corr(sortA, sortB, 'type', 'kendall')
 
 good_cellids = cellids(good_cells);
 sorted_cellids = good_cellids(sortA);
-sorted_stim_cells = sorted_cellids(1:60);
-sorted_post_stim_cells = sorted_cellids(61:end);
-save(fullfile(dp.spikes_bin_dir, '/ephys_summary/sorted_cells.mat'),'sorted_cellids','sorted_stim_cells','sorted_post_stim_cells')
+prestim = find(sortAt>find(tA>0,1),1);
+sorted_stim_cells = sorted_cellids(1:prestim);
+sorted_post_stim_cells = sorted_cellids(prestim+1:end);
+save(fullfile(dp.ephys_summary_dir, 'sorted_cells.mat'),'sorted_cellids','sorted_stim_cells','sorted_post_stim_cells')
 
 
 keyboard
@@ -279,6 +282,7 @@ box(hl,'off')
 plot(subplot(121),[0 0], ylim, 'k--','linewidth',1)
 plot(subplot(122),[0 0], ylim, 'k--','linewidth',1)
 pbaspect([1.5 1 1])
+hl.Position = hl.Position + [-.45 .175 0 0];
 %suptitle(titlestr)
 set(fh2, 'paperorientation','landscape')
 fig = gcf;
