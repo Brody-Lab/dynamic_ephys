@@ -2,20 +2,10 @@
 % Set Workspace
 close all; clear all;
 disp('Analyzing cells!')
-cd /home/alex/Dropbox/spikes/bin
-
-% Set Path
-addpath ~/ratter/ExperPort/MySQLUtility
-addpath ~/ratter/Analysis/Pbups
-addpath ~/ratter/Analysis/helpers
-addpath ~/ratter/ExperPort
-addpath ~/ratter/ExperPort/Analysis
-addpath ~/ratter/ExperPort/Analysis/SameDifferent/
-addpath ~/ratter/ExperPort/Utility
-addpath ~/ratter/ExperPort/bin
-addpath ~/ratter/svn_papers/TimHanks/PBupsPhys/Code/Carlosbin
-datapath = '/home/alex/Dropbox/spikes/data/';
-figpath = '/home/alex/Dropbox/spikes/figures/';
+dp = set_dyn_path;
+datapath = dp.spikes_dir;
+figpath = dp.fig_dir;
+savepath = fullfile(datapath, 'all_cells.mat');
 
 % Setup parameters
 p.reload    = 1;
@@ -25,8 +15,8 @@ p.sort_by_state = -1;
 p.click_triggered = 1;
 p.sort_by_state_dur = 'none';
 p.firing_map_plot_trajectories = 0;
- 
-rats = {'H037', 'H066', 'H084', 'H129', 'H140'};
+
+rats = ratlist;
 allspikes = struct();
 for i=1:length(rats)
     p.ratname   = rats{i};
@@ -43,8 +33,8 @@ for i=1:length(rats)
 end
 
 % save spike info
-save([datapath 'all_cells.mat'], 'allspikes')
-
+save(savepath, 'allspikes')
+%%
 % for each cell, get all the info.
 for i=1:length(allspikes.cellid)
     p.ratname = allspikes.ratname{i};
@@ -70,8 +60,8 @@ for i=1:length(allspikes.cellid)
 end
 
 % resave database with statistics
-save([datapath 'all_cells.mat'], 'allspikes')
-
+save(savepath, 'allspikes')
+%%
 dex = allspikes.mean_fr > 5;
 % 40% cells have firing rate > 5 hz
 % 15% of cells have dprime > 0.1
