@@ -2,23 +2,14 @@
 % Set Workspace
 close all; clear all;
 disp('Analyzing cells!')
-cd /home/alex/Dropbox/spikes/bin
-
-% Set Path
-addpath ~/ratter/ExperPort/MySQLUtility
-addpath ~/ratter/Analysis/Pbups
-addpath ~/ratter/Analysis/helpers
-addpath ~/ratter/ExperPort
-addpath ~/ratter/ExperPort/Analysis
-addpath ~/ratter/ExperPort/Analysis/SameDifferent/
-addpath ~/ratter/ExperPort/Utility
-addpath ~/ratter/ExperPort/bin
-addpath ~/ratter/Manuscripts/TimHanks/PBupsPhys/Code/Carlosbin
-datapath = '/home/alex/Dropbox/spikes/data/';
-figpath  = '/home/alex/Dropbox/spikes/figures/';
+dp = set_dyn_path;
+datapath = dp.spikes_dir;
+figpath = dp.fig_dir;
+allcellspath = fullfile(datapath, 'all_cells.mat');
+model_dir = dp.model_dir;
 
 % get list of cells
-load('../data/all_cells.mat')
+load(allcellspath)
 rats    = unique(allspikes.ratname);
 cells   = unique(allspikes.cellid);
 sessids = unique(allspikes.sessid);
@@ -42,7 +33,7 @@ for i=1:length(allspikes.cellid)
     [array_data, vec_data, cellid, sessid] = get_behavior_data(datapath, allspikes.cellid(i), allspikes.sessid(i), p);
 
     % load just mean model trajectory for each trial
-    load(['../model/model_mean_' num2str(allspikes.sessid(i)) '.mat'])
+    load(fullfile(model_dir, ['model_mean_' num2str(allspikes.sessid(i)) '.mat']))
     model_mean = model_mean(vec_data.good);
     
     % compute model analysis
