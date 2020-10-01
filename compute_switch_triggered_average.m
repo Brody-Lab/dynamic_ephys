@@ -42,19 +42,23 @@ addParamValue(parser, 'vec_data', []);
 addParamValue(parser, 'include_str', 'data.trials.hit == 1');
 addParamValue(parser, 'clear_bad_strengths', 1);
 addParamValue(parser, 'bad_strength', 0);
-addParamValue(parser, 'save_dir', '~/Dropbox/spikes/cell_packager_data');
-addParamValue(parser, 'model_dir', '~/Dropbox/spikes/model/');
+addParamValue(parser, 'save_dir', '');
+addParamValue(parser, 'model_dir', '');
 addParamValue(parser, 'save_file', 1);
 addParamValue(parser, 'force', 0); % determines whether to recompute
 addParamValue(parser, 'mask_other_switch', 0); % determines whether to recompute
 addParamValue(parser, 'fit_line', 1); % determines method for quantifying state strength
 
-
-
-
-
 parse(parser,varargin{:});
 params = parser.Results;
+dp = set_dyn_path;
+if isempty(params.save_dir)
+    params.save_dir = dp.celldat_dir;
+end
+if isempty(params.model_dir)
+    params.model_dir = dp.model_dir;
+end
+
 
 % decide how to interpret first input
 if isnumeric(data)
