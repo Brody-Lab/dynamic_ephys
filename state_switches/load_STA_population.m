@@ -1,35 +1,23 @@
-function [res, dprime, pvals,cellids,computed, not_computed] = load_STA_population(which_switch, this_force, slim_data, bad_strength)
+function [res, dprime, pvals,cellids,computed, not_computed] = ...
+    load_STA_population(which_switch, this_force, slim_data, bad_strength)
 %which_switch = 'generative'; % 'model' or 'generative' or 'accumulation'
-
-cd ~/Dropbox/spikes/bin
-addpath ~/ratter/Manuscripts/TimHanks/PBupsPhys/Code/
-addpath ~/ratter/Manuscripts/TimHanks/PBupsPhys/Code/Carlosbin
-addpath ~/ratter/svn_papers/TimHanks/PBupsPhys/Code/
-addpath ~/ratter/svn_papers/TimHanks/PBupsPhys/Code/Carlosbin
-addpath ~/ratter/ExperPort/bin
-addpath ~/ratter/Analysis/Pbups
-addpath ~/ratter/ExperPort/MySQLUtility
-addpath ~/ratter/ExperPort/Analysis
-addpath ~/ratter/ExperPort/Analysis/SameDifferent/
-addpath ~/ratter/ExperPort/HandleParam
-addpath ~/ratter/Analysis/helpers
-addpath ~/Dropbox/spikes/cell_packager_data/
-addpath ~/Dropbox/spikes/bin/tuning_curves
-
 if nargin < 2
     this_force = 0;
 end
 if nargin < 3
     slim_data = 1;
-end
-
-if ~this_force && exist(['../cell_packager_data/population_STA_' which_switch '_' num2str(bad_strength) '.mat']) == 2
-    load(['../cell_packager_data/population_STA_' which_switch '_' num2str(bad_strength) '.mat']);
+end  
+select_str = 'normmean > .5';
+dp = set_dyn_path;
+sta_fn = ['population_STA_' which_switch '_' num2str(bad_strength) '.mat'];
+sta_file = fullfile(dp.spikes_dir, sta_fn);
+if ~this_force && exist(sta_file,'file')
+    load(sta_file);
 else
     % get the list of cells
     cell_list = dyn_cells_db;
     % only look at cells with reasonable firing rates during the trial
-    select_str = 'normmean > .5';
+    
     save_switch = [which_switch '_' num2str(bad_strength)];
 
     %%%%% logic here for rat specific model
@@ -48,7 +36,10 @@ else
     nn = 1;
      for cc = nn:length(cellids)
          try
-             res{nn} =  compute_switch_triggered_average(cellids(cc),'post',2,'which_switch',which_switch, 'n_shuffles', 1000,'save_file',1,'mask_other_switch',1, 'bad_strength', bad_strength);
+             res{nn} =  compute_switch_triggered_average(cellids(cc),...
+                 'post',2,'which_switch',which_switch, ...
+                 'n_shuffles', 1000,'save_file',1,...
+                 'mask_other_switch',1, 'bad_strength', bad_strength);
              res{nn}.STR_right_shuff = [];
              res{nn}.STR_left_shuff  = [];
              res{nn}.STR_right_real  = [];
@@ -79,7 +70,7 @@ else
          cc = ccall;
          end
      end
-    save(['../cell_packager_data/population_STA_' save_switch '.mat'],'cellids','dprime','pvals','cc','res','not_computed','computed')
+    save(sta_filename,'cellids','dprime','pvals','cc','res','not_computed','computed')
 end
 
 
