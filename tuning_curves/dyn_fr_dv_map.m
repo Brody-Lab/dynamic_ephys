@@ -113,7 +113,7 @@ else
     % loop through cells
     for ci=1:n_cells
         fprintf('Joint FR-DV analysis on cell %d of %d \n', ci, numel(cellids));
-        try
+        
 %        rat = bdata('select ratname from cells where cellid="{S}"',cellids(ci));
 
         [x, frbins, Pjoints, fr_given_as, fr_var_given_as] = ...
@@ -123,7 +123,7 @@ else
             'n_iter',n_iter, 'param_scale_num', param_scale_num, ...
             'param_scale_factor', param_scale_factor, 'force_bin', force_bin,'force_dv',force_dv,...
             'datadir',datadir);%, 'bootstrap', bootstrap);
-
+        try
 
         % Do we need to flip cell?
         fga_ta_temp = nanmean(fr_given_as(time_bins,:)- nanmean(fr_given_as(time_bins,:),2),1);           

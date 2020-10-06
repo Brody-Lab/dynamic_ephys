@@ -30,6 +30,7 @@ spikes_bin_dir      = fullfile(spikes_dir, 'bin');
 tuning_curves_dir   = fullfile(spikes_bin_dir, 'tuning_curves');
 ratter_dir          = '~/ratter';
 tim_code_dir        = fullfile(ratter_dir, 'Manuscripts/TimHanks/PBupsPhys/Code/');
+p.project_dir       = project_dir;
 p.behav_data_dir    = fullfile(project_dir, 'data');
 p.tuning_curve_dir  = tuning_curves_dir;
 p.model_fits_dir    = fullfile(project_dir, 'results');
