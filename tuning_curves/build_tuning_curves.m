@@ -1,21 +1,10 @@
 close all
 clear all
 
-cd ~/Dropbox/spikes/bin/tuning_curves/
 
-addpath ~/ratter/Manuscripts/TimHanks/PBupsPhys/Code/
-addpath ~/ratter/Manuscripts/TimHanks/PBupsPhys/Code/Carlosbin
-addpath ~/ratter/svn_papers/TimHanks/PBupsPhys/Code/
-addpath ~/ratter/svn_papers/TimHanks/PBupsPhys/Code/Carlosbin
-addpath ~/ratter/ExperPort/bin
-addpath ~/ratter/Analysis/Pbups
-addpath ~/ratter/ExperPort/MySQLUtility
-addpath ~/ratter/ExperPort/Analysis
-addpath ~/ratter/ExperPort/Analysis/SameDifferent/
-addpath ~/ratter/ExperPort/HandleParam
-addpath ~/ratter/Analysis/helpers
-addpath ~/Dropbox/spikes/cell_packager_data/
-addpath ~/Dropbox/spikes/bin
+dp = set_dyn_path;
+
+
 warning('off','MATLAB:interp1:NaNinY');
 warning('off','MATLAB:divideByZero');
 
@@ -23,6 +12,8 @@ warning('off','MATLAB:divideByZero');
 cell_list = dyn_cells_db('force',0);   % That has to be run once to create cell_list
 region      = 'fof';
 select_str  = ['strcmp(region,''' region ''') &  normmean>1'];
+select_str  = ['strcmp(region,''' region ''') '];
+
 cellids     = cell2mat(extracting(cell_list, 'cellid', select_str));
 rats     = cell2mat(extracting(cell_list, 'ratname', select_str));
 alignment   = 'stimstart-cout-mask'; %'cpokeout'
@@ -45,9 +36,12 @@ p.plot_res                  = 3;
 %cellid = [18181 18185 17799 17784 16875 18172 17870 16847 17855 17803 18466]
 %cellid = [-1 -2 -3 -4 -5];
 %cellids = [-1 -11 -2 -20 -21 -22 -23 -24 -3 -30 -31 -32];
-results = dyn_fr_dv_map(cellids, t0s, n_dv_bins, p,'lag', lag, 'krn_width', krn_width, 'alignment', alignment, 'var_weight', false, 'force_frdv',force_frdv,'force_bin',force_bin,'force_dv', force_dv,'norm_type',norm_type);
+results = dyn_fr_dv_map(cellids, t0s, n_dv_bins, p,...
+    'lag', lag, 'krn_width', krn_width, 'alignment', alignment, ...
+    'var_weight', false, 'force_frdv',force_frdv,'force_bin',force_bin,...
+    'force_dv', force_dv,'norm_type',norm_type);
 
-
+%%
 if 0
 good_cells = results.cell_dex;
 good_rats = rats(good_cells,:);

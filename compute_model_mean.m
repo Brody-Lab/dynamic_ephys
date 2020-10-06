@@ -1,18 +1,25 @@
-function [] = compute_model_mean(rat, sessid)
+function [model] = compute_model_mean(rat, sessid)
 
     disp('computing model responses')
     
     dp = set_dyn_path;
     save_dir = dp.model_mean_dir;
-    
+    save_mn_path = fullfile(save_dir,['model_mean_' num2str(sessid) '.mat']);
+    save_posterior_path = fullfile(save_dir, ['model_posterior_' num2str(sessid) '.mat']);
 
     % load data
     S = load_session_data(sessid);
     data = format_data(S);
 
     % load params
-    fname = ['fit_analytical_' rat '.mat'];
-    load(fullfile(dp.model_fits_dir, fname))
+    fit_file = fullfile(dp.model_fits_dir, ['fit_analytical_' rat '.mat']);
+    if ~exist(fit_file, 'file')
+        fit_rat_analytical(rat, 'data_dir', dp.behav_data_dir, ...
+            'results_dir', dp.model_fits_dir);
+    else
+       f = load(fit_file,'fit');
+       fit = f.fit;
+    end
     params = fit.final;
 
     % compute model output for each trial
@@ -29,9 +36,9 @@ function [] = compute_model_mean(rat, sessid)
     model_p.ratname = rat;
     s = whos('model');
     if s.bytes > 2e9
-        save([save_dir 'model_posterior_' num2str(sessid) '.mat'], '-v7.3', 'model','model_p')
+        save(save_posterior_path, '-v7.3', 'model','model_p')
     else
-        save([save_dir 'model_posterior_' num2str(sessid) '.mat'], 'model','model_p')
+        save(save_posterior_path, 'model','model_p')
     end
 
     % save separate file with just mean because its more compact and sufficient for some analyses
@@ -39,6 +46,6 @@ function [] = compute_model_mean(rat, sessid)
         model_mean(k).mean  = model(k).posterior.mean;
         model_mean(k).T     = model(k).posterior.T;
     end
-    save([save_dir 'model_mean_' num2str(sessid) '.mat'], 'model_mean','model_p')
+    save(save_mn_path, 'model_mean','model_p')
 end
 

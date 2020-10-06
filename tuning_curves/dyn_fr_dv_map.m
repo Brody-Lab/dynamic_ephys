@@ -1,4 +1,4 @@
- function results = dyn_fr_dv_map(cellids, t0s, n_dv_bins, p,varargin)
+ function results = dyn_fr_dv_map(cellids, t0s, n_dv_bins, ops, varargin)
 % function fr_dv_map(cellids, t0s, n_dv_bins, varargin)
 %
 % Function that performs analysis of firing rate's relationship to
@@ -21,46 +21,50 @@
 % 
 % %%% Default Parameters (change with varargin)
 
-
-%%% Default Parameters
-lag = 0.2;                              % click lag: 0.2 
-time_edges = [];                        % first and last time over which to calculate average; if empty use all t0s
-var_weight = true;                      % weight mean by inverse variance if true
-frbins = 0:0.1:50;                      % bins for FR in joint distribution
-dt = 0.01;                              % model dt
-alignment = 'stimstart-cout-mask';      % string matching one of align_strs in align_LUT
-direction = 'backward';                 % 'forward' or 'backward'
-krn_width = [];                         % forces neural data to have this kernel width; if empty, uses whatever is in data
-fr_dt = [];                             % forces neural data to have this bin size; if empty, uses whatever is in data
-krn_type = 'halfgauss';                 % forces neural data to have this kernel type
-norm_type = 'div';                      % type of firing rate normalization; 'div' is divisive, 'z' is z-score
-flip_bool = '~data.prefsideright{align_ind}';      % boolean choice for each cellid of whether to flip sign of DV (string evaluated in workspace); default makes pref direction the higher DV value
-force_frdv = 0;                              % force extraction from database rather than using saved file
-force_bin = 0;
-force_dv = 0;
-save_path = '~/Dropbox/spikes/cell_packager_data/'; 
-save_filename = 'unknown';              % a name to specify this particular map (perhaps the group of cells used)
-save_map = true;                       % whether to save the map as one big file
-axes_in = [];                           % axis to use for time plot; if empty, create new figure
-axes_in_ta = [];                        % axis to use for time-average plot; if empty, create new figure
-ta_color = 'k';                         % time-average axis color
-ta_offset = 0;                          % offset in x-axis data points for time-average plot
-dv_bin_edges = [];                      % if empty, makes n_dv_bins quantilized bins; otherwise, override with this 
-norm_ta = true;                         % whether to "normalize" time average between zero and one
-ta_marker = '';                         % marker type for time average plot
-connect_bound = true;                   % whether to connect the bound bin on plot to non-bound DVs with dotted line
-plot_errorbars = true;                  % plot error bars on time plot
-ta_use_colors = true;                   % whether to use different colors for different ta points     
-plot_limit = 100;                      % most extreme DV value to plot (usually make this correspond to lowest bound for any rat)
-Markersize = 2;                         % markersize of plot
-bound = inf;                            % bound for slope-fitting purposes
-n_iter = 1;                             % number of iterations for refining estimate of DV
-param_scale_num = 1;                    % parameter number to scale
-param_scale_factor = 1;                 % multiplicative factor of that parameter
+p = inputParser;
+addParameter(p, 'lag', .2) % click lag: 0.2
+addParameter(p, 'time_edges', []) % first and last time over which to calculate average; if empty use all t0s
+addParameter(p, 'var_weight', true); % weight mean by inverse variance if true
+addParameter(p, 'frbins', 0:0.1:50);  % bins for FR in joint distribution
+addParameter(p, 'dt',  0.01); % model dt
+addParameter(p, 'alignment',  'stimstart-cout-mask'); % string matching one of align_strs in dyn_align_LUT
+addParameter(p, 'direction',  'backward'); % 'forward' or 'backward'
+addParameter(p, 'krn_width',  []); % forces neural data to have this kernel width; if empty, uses whatever is in data
+addParameter(p, 'fr_dt',  []); % forces neural data to have this bin size; if empty, uses whatever is in data
+addParameter(p, 'krn_type',  'halfgauss'); % forces neural data to have this kernel type
+addParameter(p, 'norm_type',  'div'); % type of firing rate normalization; 'div' is divisive, 'z' is z-score
+addParameter(p, 'flip_bool',  '~data.prefsideright{align_ind}'); % boolean choice for each cellid of whether to flip sign of DV (string evaluated in workspace); default makes pref direction the higher DV value
+addParameter(p, 'force_frdv',  0); % force extraction from database rather than using saved file
+addParameter(p, 'force_bin',  0); 
+addParameter(p, 'force_dv',  0); 
+addParameter(p, 'save_path',  '');  
+addParameter(p, 'save_filename',  'unknown'); % a name to specify this particular map (perhaps the group of cells used)
+addParameter(p, 'save_map',  true); % whether to save the map as one big file
+addParameter(p, 'axes_in',  []); % axis to use for time plot; if empty, create new figure
+addParameter(p, 'axes_in_ta',  []); % axis to use for time-average plot; if empty, create new figure
+addParameter(p, 'ta_color',  'k'); % time-average axis color
+addParameter(p, 'ta_offset',  0); % offset in x-axis data points for time-average plot
+addParameter(p, 'dv_bin_edges',  []); % if empty, makes n_dv_bins quantilized bins; otherwise, override with this 
+addParameter(p, 'norm_ta',  true); % whether to "normalize" time average between zero and one
+addParameter(p, 'ta_marker',  ''); % marker type for time average plot
+addParameter(p, 'connect_bound',  true); % whether to connect the bound bin on plot to non-bound DVs with dotted line
+addParameter(p, 'plot_errorbars',  true); % plot error bars on time plot
+addParameter(p, 'ta_use_colors',  true); % whether to use different colors for different ta points     
+addParameter(p, 'plot_limit',  100); % most extreme DV value to plot (usually make this correspond to lowest bound for any rat)
+addParameter(p, 'Markersize',  2); % markersize of plot
+addParameter(p, 'bound',  inf); % bound for slope-fitting purposes
+addParameter(p, 'n_iter',  1); % number of iterations for refining estimate of DV
+addParameter(p, 'param_scale_num',  1); % parameter number to scale
+addParameter(p, 'param_scale_factor',  1); % multiplicative factor of that parameter
+parse(p, varargin{:});
 %bootstrap = false;                      % if true, sample with replacement across trials; used for bootstrap stats
+struct2vars(p.Results);
 
-% override based on varargin
-opts = overridedefaults(who, varargin);
+if isempty(save_path)  %#ok<NODEF>
+    dp          = set_dyn_path;
+    save_path   = dp.celldat_dir;
+    datadir     = fullfile(save_path);
+end
 
 if n_dv_bins<3
     error('You must have at least three DV bins. 1 for each bound and 1 for non-bound values.')
@@ -112,11 +116,13 @@ else
         try
 %        rat = bdata('select ratname from cells where cellid="{S}"',cellids(ci));
 
-        [x, frbins, Pjoints, fr_given_as, fr_var_given_as] = dyn_compile_binned_database(cellids(ci), t0s, n_dv_bins, p,...
+        [x, frbins, Pjoints, fr_given_as, fr_var_given_as] = ...
+            dyn_compile_binned_database(cellids(ci), t0s, n_dv_bins, ops,...
             'lag', lag, 'krn_width', krn_width, 'fr_dt', fr_dt, 'dt', dt, 'alignment', alignment,...
             'direction', direction, 'frbins', frbins, 'krn_type', krn_type, 'norm_type', norm_type,...
             'n_iter',n_iter, 'param_scale_num', param_scale_num, ...
-            'param_scale_factor', param_scale_factor, 'force_bin', force_bin,'force_dv',force_dv);%, 'bootstrap', bootstrap);
+            'param_scale_factor', param_scale_factor, 'force_bin', force_bin,'force_dv',force_dv,...
+            'datadir',datadir);%, 'bootstrap', bootstrap);
 
 
         % Do we need to flip cell?
@@ -142,8 +148,8 @@ else
             fga_cell_nresidual(t,:,ci) = fga_cell_nresidual(t,:,ci)./max(fga_cell_nresidual(t,:,ci));
         end
         frm_time(:,ci) = max(fga_cell_residual(:,:,ci)') - min(fga_cell_residual(:,:,ci)'); 
-        fga_nta     = nanmean(fga_cell_nresidual(time_bins(frm_time(:,ci) > p.min_fr_mod),:,ci),1);
-        fga_std_nta = nanstderr(fga_cell_nresidual(time_bins(frm_time(:,ci) > p.min_fr_mod),:,ci),1);
+        fga_nta     = nanmean(fga_cell_nresidual(time_bins(frm_time(:,ci) > ops.min_fr_mod),:,ci),1);
+        fga_std_nta = nanstderr(fga_cell_nresidual(time_bins(frm_time(:,ci) > ops.min_fr_mod),:,ci),1);
         min_val = min(fga_nta);        
         fga_nta = fga_nta - min_val;
         max_val = max(fga_nta);
@@ -195,7 +201,7 @@ else
             nslope_cell(ci)      = nan;
         end
         % fit sigmoid to 1D tuning curve for each normalized time bin
-        if p.fit_time_sigmoid
+        if ops.fit_time_sigmoid
         warning('off','all')
         for t = 1:size(fga_cell_nresidual,1);
             try
@@ -270,7 +276,7 @@ else
     results.nbetas_cell         = nbetas_cell;
     results.nsigmas_cell        = nsigmas_cell; 
     results.nslope_cell         = nslope_cell;
-    if p.fit_time_sigmoid
+    if ops.fit_time_sigmoid
     results.nbetas_time         = nbetas_time;
     results.nsigmas_time        = nsigmas_time; 
     results.nslope_time         = nslope_time;
@@ -292,17 +298,17 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Finished iterating across cells, now population analysis
-p.var_weight        = var_weight;
-p.cell_dex          = results.fr_modulation > p.min_fr_mod;
-results.cell_dex    = p.cell_dex;
-results.cell_num    = find(p.cell_dex);
+ops.var_weight        = var_weight;
+ops.cell_dex          = results.fr_modulation > ops.min_fr_mod;
+results.cell_dex    = ops.cell_dex;
+results.cell_num    = find(ops.cell_dex);
 results.t0s         = t0s;
 results.dv_axis     = mean(results.x_cell,2);
 results.time_bins   = time_bins;
 results.cellid      = cellids;
 
 try
-    results             = population_analysis(results,p);
+    results             = population_analysis(results,ops);
 catch me
     disp(me.message);
 end
@@ -313,7 +319,7 @@ catch me
     disp(me.message);
 end
 
-numgood = sum(p.cell_dex);
+numgood = sum(ops.cell_dex);
 fracgood = 100*(numgood/numel(cellids));
 disp(['Had ' num2str(numgood) ' good cells out of ' num2str(numel(cellids)) ' : ' num2str(fracgood) '%'])
 
@@ -322,4 +328,6 @@ if save_map,
     if ~exist(save_path, 'dir'), mkdir(save_path); end;
     save([save_path filesep save_filename '_frdvmapdata.mat'], 'results');
 end
+
+
 

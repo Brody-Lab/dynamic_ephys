@@ -12,7 +12,7 @@ function [stats_strs, stats_aligns, stats_conds] = dyn_stats_LUT
 %   stats_strs:     A list of strings that can be used to specify a
 %                       stat comparison
 %   stats_aligns:   integer specifying which alignment to choose from 
-%                       align_LUT
+%                       dyn_align_LUT
 %   stats_conds:    string specifying what data to use to assign conditions
 %                       for each trial
 

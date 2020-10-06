@@ -67,7 +67,7 @@ function [results, var_explained, var_explained_static] = compute_variance_expla
 
     % to get r(t), I need to determine the alignment index
     alignment = 'stimstart-cout-mask';
-    [align_strs, align_args] = align_LUT;
+    [align_strs, align_args] = dyn_align_LUT;
     align_ind = strmatch(alignment,align_strs,'exact');
     fr_all = data.frate{align_ind}; 
     ft = data.frate_t{align_ind};

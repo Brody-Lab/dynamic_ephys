@@ -215,7 +215,7 @@ plot(norm_by_peak(pref_psth_trim(1:10,:))')
 
 %% assemble l and r psth
 regions = {'fof'};
-[align_strs, align_args] = align_LUT;
+[align_strs, align_args] = dyn_align_LUT;
 align_str = align_strs{align_ind};
 save_plots = 0;
 minmaxfr = 0;
@@ -762,7 +762,7 @@ all_cellids = cellids;
 
 %% significant auc plot
 align_ind = 8;
-[align_strs, align_args] = align_LUT;
+[align_strs, align_args] = dyn_align_LUT;
 align_str = align_strs{align_ind};
 
 f = load(fullfile('~/projects/ppcfof_tuning/sequences/',...

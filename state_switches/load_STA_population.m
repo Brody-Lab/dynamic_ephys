@@ -70,7 +70,7 @@ else
          cc = ccall;
          end
      end
-    save(sta_filename,'cellids','dprime','pvals','cc','res','not_computed','computed')
+    save(sta_file,'cellids','dprime','pvals','cc','res','not_computed','computed')
 end
 
 

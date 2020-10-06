@@ -1,4 +1,4 @@
-% [x, frbins, Pjoints, fr_given_as,  fr_var_given_as, a_given_frs] = compile_binned_database(cellid, t0s, n_dv_bins, {'force', 0}, ...
+% [x, frbins, Pjoints, fr_given_as,  'fr_var_given_as, a_given_frs] = compile_binned_database(cellid, t0s, n_dv_bins, {'force', 0}, ...
 %         {'datadir', '~/svn_papers/TimHanks/PBupsPhys/Code/Carlosbin/compile_database_data'}, ...
 %         {'lag', 0.2}, {'frbins', 0:0.1:10}, {'dt', 0.01}, {'trialnums', []}))
 %
@@ -17,37 +17,38 @@
 %
 %  datadir   Default '~/svn_papers/TimHanks/PBupsPhys/Code/Carlosbin/compile_binned_database_data'
 %
-%  alignment string matching one of align_strs in align_LUT. This will set
+%  alignment string matching one of align_strs in dyn_align_LUT. This will set
 %            alignment of time zero of analysis (e.g., stimstart, cpokeend,
 %            cpokeout)
 %
 
 
 
-function [x, frbins, Pjoints, fr_given_as, fr_var_given_as, a_given_frs] = dyn_compile_binned_database(cellid, t0s, n_dv_bins, p,varargin)
+function [x, frbins, Pjoints, fr_given_as, fr_var_given_as, a_given_frs] = ...
+    dyn_compile_binned_database(cellid, t0s, n_dv_bins, ops, varargin)
 
-frbins=0;
-pairs = { ...
-	'lag'        0.2         ; ...
-	'frbins'     0:0.1:50    ; ...
-	'dt'         0.01        ; ...
-    'alignment'      'stimstart-cout-mask' ; ...      % string matching one of align_strs in align_LUT
-	'direction'      'backward' ; ...       % 'forward' or 'backward'
-	'trialnums'  []          ; ...
-	'use_nans'   0           ; ...
-	'datadir'          '~/Dropbox/spikes/cell_packager_data'
-	'force_bin'              0 ; ...
-    'force_dv'               0; ...
-    'krn_width'  []          ; ...      % forces neural data to have this kernel width; if empty, uses whatever is in data    'krn_type'   []          ; ...      % forces neural data to have this kernel type; if empty, uses whatever is in data
-    'krn_type'   'halfgauss' ; ...      % forces neural data to have this kernel type
-    'fr_dt'      []          ; ...      % forces neural data to have this bin size; if empty, uses whatever is in data
-    'norm_type'     'div'    ; ...      % type of firing rate normalization; 'div' is divisive, 'z' is z-score
-    'fit_version'   'byrat'   ; ...      % fit params to use; 'byrat', 'combined', 'clickdiff'
-    'n_iter'    1            ; ...      % number of iterations for refining estimate of DV
-    'param_scale_num'        1     ; ... % parameter number to scale
-    'param_scale_factor'     1     ; ... % multiplicative factor of that parameter
-}; parseargs(varargin, pairs);
-
+frbins = 0;
+p = inputParser();
+addParameter(p, 'lag',    0.2);
+addParameter(p, 'frbins', 0:0.1:50);
+addParameter(p, 'dt',     0.01);
+addParameter(p, 'alignment', 'stimstart-cout-mask');      % string matching one of align_strs in dyn_align_LUT
+addParameter(p, 'direction', 'backward' );       % 'forward' or 'backward'
+addParameter(p, 'trialnums', []);
+addParameter(p, 'use_nans',  0);
+addParameter(p, 'datadir', '');
+addParameter(p, 'force_bin', 0 );
+addParameter(p, 'force_dv',  0);
+addParameter(p, 'krn_width', []);      % forces neural data to have this kernel width; if empty, uses whatever is in data    'krn_type'   []          ; ...      % forces neural data to have this kernel type; if empty, uses whatever is in data
+addParameter(p, 'krn_type',  'halfgauss');      % forces neural data to have this kernel type
+addParameter(p, 'fr_dt', []);      % forces neural data to have this bin size; if empty, uses whatever is in data
+addParameter(p, 'norm_type', 'div');      % type of firing rate normalization; 'div' is divisive, 'z' is z-score
+addParameter(p, 'fit_version', 'byrat');      % fit params to use; 'byrat', 'combined', 'clickdiff'
+addParameter(p, 'n_iter', 1);      % number of iterations for refining estimate of DV
+addParameter(p, 'param_scale_num',    1); % parameter number to scale
+addParameter(p, 'param_scale_factor', 1); % multiplicative factor of that parameter
+parse(p, varargin{:});
+struct2vars(p.Results);
 
 % error checking
 if n_dv_bins<3
@@ -63,6 +64,12 @@ if ~exist([datadir filesep 'database.mat'], 'file')
         'krn_width' 'fr_dt' 'n_dv_bins' 'direction' ...
         'krn_type' 'norm_type' 'fit_version' 'n_iterations' ...
         'param_scale_num' 'param_scale_factor'};
+    
+%     	index_columns = {'cellid' 't0s' 'lag' 'frbins' ...
+% 		'dt' 'trialnums' 'use_nans' 'align_ind' ...
+%         'krn_width' 'fr_dt' 'direction' 'krn_type' ...
+%         'norm_type' 'fit_version' 'n_iterations' ...
+%         'param_scale_num' 'param_scale_factor'};
 	
 	database = cell(0, numel(index_columns));
 
@@ -76,7 +83,7 @@ fr_given_as = [];
 fr_var_given_as = [];
 
 % find alignment index
-align_strs = align_LUT;
+align_strs = dyn_align_LUT;
 align_ind = strmatch(alignment,align_strs,'exact');
 
 
@@ -161,11 +168,13 @@ end
 u = find(cell_row_eq(database, my_index));
 if force_bin || isempty(u) || ~exist([datadir filesep 'compiled_binned_' num2str(u) '.mat'], 'file'),
     disp('Rebinning')
-	[x, frbins, Pjoints_unbinned, ~, ~, a_given_frs] = dyn_compile_database(cellid, t0s, p,'lag', lag, ...
+	[x, frbins, Pjoints_unbinned, ~, ~, a_given_frs] = ...
+        dyn_compile_database(cellid, t0s, ops,'lag', lag, ...
 		'frbins', frbins, 'dt', dt, 'trialnums', trialnums, 'use_nans', use_nans, 'alignment', alignment,...
         'krn_width', krn_width, 'fr_dt', fr_dt, 'force_dv', force_dv, 'direction', direction, ...
         'krn_type', krn_type, 'norm_type', norm_type,'fit_version',fit_version,'n_iter',n_iter, ...
-        'param_scale_num', param_scale_num, 'param_scale_factor', param_scale_factor);
+        'param_scale_num', param_scale_num, 'param_scale_factor', param_scale_factor,...
+        'datadir',fullfile(datadir,'compile_database_data'));
 
     % calculate binned 'Pjoints', 'fr_given_as', 'fr_var_given_as' for the given n_dv_bins
     x_bound_margin = (x(2)-x(1)) * 0.5;

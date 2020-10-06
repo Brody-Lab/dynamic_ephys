@@ -17,56 +17,65 @@
 %
 %  datadir   Default '~/Papers/TimHanks/PBupsPhys/Code/Carlosbin/compile_database_data'
 %
-%  alignment string matching one of align_strs in align_LUT. This will set
+%  alignment string matching one of align_strs in dyn_align_LUT. This will set
 %            alignment of time zero of analysis (e.g., stimstart, cpokeend,
 %            cpokeout)
 %
 
 
-function [x, frbins, Pjoints, fr_given_as, fr_var_given_as, a_given_frs] = dyn_compile_database(cellid, t0s,p, varargin)
+function [x, frbins, Pjoints, fr_given_as, fr_var_given_as, a_given_frs] = ...
+    dyn_compile_database(cellid, t0s, ops, varargin)
 
 frbins=0;
-pairs = { ...
-	'lag'        0.2         ; ...
-	'frbins'     0:0.1:50    ; ...
-	'dt'         0.01        ; ...
-    'alignment'  'stimstart-cout-mask' ; ...      % string matching one of align_strs in align_LUT
-	'direction'  'backward' ; ...       % 'forward' or 'backward'
-	'trialnums'  []          ; ...
-	'use_nans'   0           ; ...
-	'datadir'    '/home/alex/Dropbox/spikes/cell_packager_data/compile_database_data'
-	'force_dv'      0  ; ...
-    'krn_width'  []          ; ...      % forces neural data to have this kernel width; if empty, uses whatever is in data    'krn_type'   []          ; ...      % forces neural data to have this kernel type; if empty, uses whatever is in data
-    'krn_type'   'halfgauss' ; ...      % forces neural data to have this kernel type
-    'fr_dt'      []          ; ...      % forces neural data to have this bin size; if empty, uses whatever is in data
-    'norm_type'     'div'    ; ...      % type of firing rate normalization; 'div' is divisive, 'z' is z-score
-    'fit_version'   'byrat'   ; ...      % fit params to use; 'byrat', 'combined', 'clickdiff'
-    'n_iter'    1             ; ...      % number of iterations for refining estimate of DV
-    'param_scale_num'        1     ; ... % parameter number to scale
-    'param_scale_factor'     1     ; ... % multiplicative factor of that parameter
-}; parseargs(varargin, pairs);
+
+p = inputParser;
+addParameter(p, 'lag',      0.2);
+addParameter(p, 'frbins',   0:0.1:50 );
+addParameter(p, 'dt',       0.01     );
+addParameter(p, 'alignment','stimstart-cout-mask');     % string matching one of align_strs in dyn_align_LUT
+addParameter(p, 'direction','backward');      % 'forward' or 'backward'
+addParameter(p, 'trialnums',[] );
+addParameter(p, 'use_nans', 0  );
+addParameter(p, 'datadir',  '');
+addParameter(p, 'force_dv',    0 );
+addParameter(p, 'krn_width',[] );      % forces neural data to have this kernel width; if empty, uses whatever is in data    'krn_type'   []          ; ...      % forces neural data to have this kernel type; if empty, uses whatever is in data
+addParameter(p, 'krn_type', 'halfgauss');     % forces neural data to have this kernel type
+addParameter(p, 'fr_dt',    [] );      % forces neural data to have this bin size; if empty, uses whatever is in data
+addParameter(p, 'norm_type',   'div' );      % type of firing rate normalization; 'div' is divisive, 'z' is z-score
+addParameter(p, 'fit_version', 'byrat');      % fit params to use; 'byrat', 'combined', 'clickdiff'
+addParameter(p, 'n_iter',  1    );      % number of iterations for refining estimate of DV
+addParameter(p, 'param_scale_num',      1  ); % parameter number to scale
+addParameter(p, 'param_scale_factor',   1  ); % multiplicative factor of that parameter
+parse(p, varargin{:});
+struct2vars(p.Results);
+
+database_file = fullfile(datadir, 'database.mat');
 
 
 if ~exist(datadir, 'dir')
 	mkdir(datadir);
 end;
-if ~exist([datadir filesep 'database.mat'], 'file')	
-    
+if ~exist(database_file, 'file')	
 	index_columns = {'cellid' 't0s' 'lag' 'frbins' ...
 		'dt' 'trialnums' 'use_nans' 'align_ind' ...
         'krn_width' 'fr_dt' 'direction' 'krn_type' ...
         'norm_type' 'fit_version' 'n_iterations' ...
         'param_scale_num' 'param_scale_factor'};
+%     
+%     my_index = {cellid t0s lag frbins dt trialnums use_nans align_ind ...
+%     krn_width fr_dt dir_ind kt_ind nt_ind fit_ind n_iter ...
+%     param_scale_num param_scale_factor};
 	
 	database = cell(0, numel(index_columns));
 
-	save([datadir filesep 'database'], 'index_columns', 'database');
-end;
+	save(database_file, 'index_columns', 'database');
+else
 
-load([datadir filesep 'database']);
+    load(database_file, 'index_columns', 'database');
+end
 
 % find alignment index
-align_strs = align_LUT;
+align_strs = dyn_align_LUT;
 align_ind = strmatch(alignment,align_strs,'exact');
 
 % make direction into index for databasing
@@ -111,7 +120,9 @@ end
 % index for database
 % my_index = {cellid t0s lag frbins dt trialnums use_nans align_ind krn_width fr_dt dir_ind kt_ind nt_ind};
 % my_index = {cellid t0s lag frbins dt trialnums use_nans align_ind krn_width fr_dt dir_ind kt_ind nt_ind fit_ind};
-my_index = {cellid t0s lag frbins dt trialnums use_nans align_ind krn_width fr_dt dir_ind kt_ind nt_ind fit_ind n_iter param_scale_num param_scale_factor};
+my_index = {cellid t0s lag frbins dt trialnums use_nans align_ind ...
+    krn_width fr_dt dir_ind kt_ind nt_ind fit_ind n_iter ...
+    param_scale_num param_scale_factor};
 
 % Check if database is missing any columns from my_index
 n_missing_cols = numel(my_index) - size(database,2);
@@ -134,10 +145,14 @@ u = find(cell_row_eq(database, my_index));
 if force_dv || isempty(u) || ~exist([datadir filesep 'compiled_' num2str(u) '.mat'], 'file'),
     disp('Recompiling Joint distribution')
     % FIX: need to pass param scaling factor here
-	[x, frbins, Pjoints, fr_given_as, fr_var_given_as, a_given_frs] = dyn_compile_dv2(cellid, t0s, p,'lag', lag, ...
-		'frbins', frbins, 'dt', dt, 'trialnums', trialnums, 'use_nans', use_nans, 'alignment', alignment,...
-        'krn_width', krn_width, 'fr_dt', fr_dt, 'krn_type', krn_type, 'norm_type', norm_type, ...
-        'fit_version',fit_version,'n_iter',n_iter, 'param_scale_num', param_scale_num, ...
+	[x, frbins, Pjoints, fr_given_as, fr_var_given_as, a_given_frs] = ...
+        dyn_compile_dv2(cellid, t0s, ops,'lag', lag, ...
+		'frbins', frbins, 'dt', dt, 'trialnums', trialnums, ...
+        'use_nans', use_nans, 'alignment', alignment,...
+        'krn_width', krn_width, 'fr_dt', fr_dt, 'krn_type', krn_type,...
+        'norm_type', norm_type, ...
+        'fit_version',fit_version,'n_iter',n_iter, ...
+        'param_scale_num', param_scale_num, ...
         'param_scale_factor', param_scale_factor);
 	
 	if isempty(u),

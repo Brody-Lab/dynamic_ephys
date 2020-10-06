@@ -92,7 +92,7 @@ end
 
 % Calculate individual trial rate functions and get spike counts for different alignments
 
-% Aligments are specified in the function called on the next line: align_LUT
+% Aligments are specified in the function called on the next line: dyn_align_LUT
     [align_strs, align_args] = dyn_align_LUT(2);
 % loop through each alignment and get smoothed rate functions and spike counts
 for i=1:numel(align_strs)

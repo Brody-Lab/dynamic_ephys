@@ -2,7 +2,7 @@ function res = compute_switch_triggered_average(data,varargin)
 % function res =  compute_switch_triggered_average(data, varargin)
 %
 % Computes a switch triggered average for cells recording in the dynamic
-% clicks task. 
+% clicks task.
 %
 % input:
 % -----
@@ -19,8 +19,8 @@ function res = compute_switch_triggered_average(data,varargin)
 % res = compute_switch_triggered_average(17784, 'n_shuffles', 1000,
 %                       'array_data', adata, 'vec_data', vdata)
 % computes sta for cell 17784 using the model switches contained in
-% adata.model_switch_to_0, also recomputes sta 1000 times using 
-% shuffles of the switch times across trials 
+% adata.model_switch_to_0, also recomputes sta 1000 times using
+% shuffles of the switch times across trials
 %
 %
 % res = compute_switch_triggered_average(data, 'clear_bad_strengths', 0)
@@ -30,35 +30,34 @@ function res = compute_switch_triggered_average(data,varargin)
 % performed.
 
 % optional parameters specified by user
-parser = inputParser;
-addParamValue(parser, 'n_shuffles', 0) % whether to run a shuffle test
-addParamValue(parser, 'which_switch', 'model') % other option is 'generative'
-addParamValue(parser, 'align_ind', 1) % 1 means align to stim on and masked after stim off
-addParamValue(parser, 'norm_type', 'none') % 'div', 'log_div', 'z' are other options
-addParamValue(parser, 'post', 2) % time over which to make this plot
-addParamValue(parser, 'model_smooth_wdw', 100);
-addParamValue(parser, 'array_data', []);
-addParamValue(parser, 'vec_data', []);
-addParamValue(parser, 'include_str', 'data.trials.hit == 1');
-addParamValue(parser, 'clear_bad_strengths', 1);
-addParamValue(parser, 'bad_strength', 0);
-addParamValue(parser, 'save_dir', '');
-addParamValue(parser, 'model_dir', '');
-addParamValue(parser, 'save_file', 1);
-addParamValue(parser, 'force', 0); % determines whether to recompute
-addParamValue(parser, 'mask_other_switch', 0); % determines whether to recompute
-addParamValue(parser, 'fit_line', 1); % determines method for quantifying state strength
+p = inputParser;
+addParameter(p, 'n_shuffles', 0) % whether to run a shuffle test
+addParameter(p, 'which_switch', 'model') % other option is 'generative'
+addParameter(p, 'align_ind', 1) % 1 means align to stim on and masked after stim off
+addParameter(p, 'norm_type', 'none') % 'div', 'log_div', 'z' are other options
+addParameter(p, 'post', 2) % time over which to make this plot
+addParameter(p, 'model_smooth_wdw', 100);
+addParameter(p, 'array_data', []);
+addParameter(p, 'vec_data', []);
+addParameter(p, 'include_str', 'data.trials.hit == 1');
+addParameter(p, 'clear_bad_strengths', 1);
+addParameter(p, 'bad_strength', 0);
+addParameter(p, 'save_dir', '');
+addParameter(p, 'model_dir', '');
+addParameter(p, 'save_file', 1);
+addParameter(p, 'force', 0); % determines whether to recompute
+addParameter(p, 'mask_other_switch', 0); % determines whether to recompute
+addParameter(p, 'fit_line', 1); % determines method for quantifying state strength
 
-parse(parser,varargin{:});
-params = parser.Results;
+parse(p,varargin{:});
+params = p.Results;
 dp = set_dyn_path;
 if isempty(params.save_dir)
     params.save_dir = dp.celldat_dir;
 end
 if isempty(params.model_dir)
-    params.model_dir = dp.model_dir;
+    params.model_dir = dp.model_mean_dir;
 end
-
 
 % decide how to interpret first input
 if isnumeric(data)
@@ -67,17 +66,18 @@ else
     cellid = data.cellid;
 end
 
+
 if (~isempty(params.save_dir) && ~exist(params.save_dir, 'dir')) || ...
-    (~isempty(params.model_dir) && ~exist(params.model_dir, 'dir'))
+        (~isempty(params.model_dir) && ~exist(params.model_dir, 'dir'))
     error('your default save or model directory don''t exist')
 end
 
 % determine the file path for this STA and load the file if desired
 if ~isempty(params.save_dir)
     if params.clear_bad_strengths
-    save_path = fullfile(params.save_dir, [params.which_switch '_STA_' num2str(cellid) '_' num2str(params.bad_strength) '.mat']);
+        save_path = fullfile(params.save_dir, [params.which_switch '_STA_' num2str(cellid) '_' num2str(params.bad_strength) '.mat']);
     else
-    save_path = fullfile(params.save_dir, [params.which_switch '_STA_' num2str(cellid) '.mat']);
+        save_path = fullfile(params.save_dir, [params.which_switch '_STA_' num2str(cellid) '.mat']);
     end
     if ~params.force & exist(save_path,'file')
         load(save_path,'res');
@@ -92,19 +92,23 @@ disp('computing switch triggered average')
 if isnumeric(data)
     data = dyn_cell_packager(data);
 end
+
+model_mean_fn   = sprintf('model_mean_%i.mat',data.sessid);
+model_mean_file = fullfile(params.model_dir, model_mean_fn);
+
 % load and clean up array_data and vec_data for this session
 if isempty(params.array_data) || isempty(params.vec_data)
     [params.array_data, params.vec_data, this_sessid, this_rat] = package_dyn_phys(data.cellid);
-
+    
     % set up parameters for computing model strengths
-    p.remove_initial_choice = 1;
-    p.eval_dt = 1e-3;
-    p.strength_window =.1;
-    p.clear_bad_strengths = params.clear_bad_strengths;
-    p.bad_strength = params.bad_strength;
-    p.fit_line = params.fit_line;
-else 
-    p = [];
+    ops.remove_initial_choice = 1;
+    ops.eval_dt = 1e-3;
+    ops.strength_window =.1;
+    ops.clear_bad_strengths = params.clear_bad_strengths;
+    ops.bad_strength = params.bad_strength;
+    ops.fit_line = params.fit_line;
+else
+    ops = [];
     params.model_smooth_wdw = [];
 end
 % throw out bad trials from array_data
@@ -117,12 +121,12 @@ if strcmp(params.which_switch, 'model')
     % using the saved model mean and the relevant model parameters
     if ~isfield(params.array_data, 'model_switch_to_0') ||  ~isfield(params.array_data, 'model_switch_to_1')
         % load the model mean trajectory
-        try
-        m = load(fullfile(params.model_dir, ['model_mean_' num2str(data.sessid) '.mat']));
-        model_mean = m.model_mean(params.vec_data.good);
-        catch
-            compute_model_mean(this_rat,this_sessid, params.model_dir)
-            m = load(fullfile(params.model_dir, ['model_mean_' num2str(data.sessid) '.mat']));
+        if exist(model_mean_file,'file')
+            m = load(model_mean_file);
+            model_mean = m.model_mean(params.vec_data.good);
+        else
+            compute_model_mean(this_rat,this_sessid)
+            m = load(model_mean_file);
             model_mean = m.model_mean(params.vec_data.good);
         end
         % smooth the mean model trajectory
@@ -133,8 +137,8 @@ if strcmp(params.which_switch, 'model')
         end
         % compute the model switch times
         params.array_data = compute_model_state(params.array_data, model_mean);
-        params.array_data = quantify_model_state_strength(params.array_data,p);
-        params.array_data = smooth_model_state(params.array_data,p);
+        params.array_data = quantify_model_state_strength(params.array_data,ops);
+        params.array_data = smooth_model_state(params.array_data,ops);
     end
     switch_to_0 = {params.array_data.model_switch_to_0};
     switch_to_1 = {params.array_data.model_switch_to_1};
@@ -196,7 +200,7 @@ fr_mean = nanmean(norm_ys);
 fr_residual = norm_ys - repmat(fr_mean,n_trials,1);
 
 % if desired, shuffle residual firing rates across included trials
-real_ind = 1:size(norm_ys,1);  
+real_ind = 1:size(norm_ys,1);
 test_ind = repmat(real_ind,params.n_shuffles+1,1);
 for ss = 2:params.n_shuffles
     test_ind(ss,:) = real_ind(randperm(length(real_ind)));

@@ -34,7 +34,7 @@
 %           Pjoints that did not have any info put in them will be full of
 %           NaNs; if passed as 1, they will be full of zeros.
 %
-% alignment string matching one of align_strs in align_LUT. This will set
+% alignment string matching one of align_strs in dyn_align_LUT. This will set
 %           alignment of time zero of analysis (e.g., stimstart, cpokeend,
 %           cpokeout)
 %
@@ -77,27 +77,35 @@
 % off.
 %
 
-function [constant_x, frbins, Pjoints, fr_given_as, fr_var_given_as, a_given_frs] = dyn_compile_dv2(cellid, t0s, p, varargin)
+function [constant_x, frbins, Pjoints, fr_given_as, fr_var_given_as, a_given_frs]...
+    = dyn_compile_dv2(cellid, t0s, ops, varargin)
 
 frbins=0;
-pairs = { ...
-	'lag'        0.2         ; ...
-	'frbins'     0:0.1:50    ; ...
-	'dt'         0.01        ; ...
-    'alignment'      'stimstart-cout-mask' ; ...   % string matching one of align_strs in align_LUT
-	'direction'       'backward' ; ...   % 'forward' or 'backward'
-	'trialnums'  []          ; ...
-	'use_nans'   0           ; ...
-    'krn_width'  []          ; ...      % forces neural data to have this kernel width; if empty, uses whatever is in data    'krn_type'   []          ; ...      % forces neural data to have this kernel type; if empty, uses whatever is in data
-    'krn_type'   'halfgauss' ; ...      % forces neural data to have this kernel type
-    'fr_dt'      []          ; ...      % forces neural data to have this bin size; if empty, uses whatever is in data
-    'norm_type'     'div'    ; ...      % type of firing rate normalization; 'div' is divisive, 'z' is z-score, 'none' no normalization
-    'fit_version'   'byrat'   ; ...      % fit params to use; 'byrat', 'combined'
-    'n_iter'    1            ; ...      % number of iterations for refining estimate of DV
-    'param_scale_num'        1     ; ... % parameter number to scale
-    'param_scale_factor'     1     ; ... % multiplicative factor of that parameter
-    'average_time_points'   0;
-}; parseargs(varargin, pairs);
+p = inputParser;
+addParameter(p,'lag',        0.2         );
+addParameter(p,'frbins',     0:0.1:50    );
+addParameter(p,'dt',         0.01        );
+addParameter(p,'alignment',      'stimstart-cout-mask' );   % string matching one of align_strs in dyn_align_LUT
+addParameter(p,'direction',       'backward' );   % 'forward' or 'backward'
+addParameter(p,'trialnums',  []          );
+addParameter(p,'use_nans',   0           );
+addParameter(p,'krn_width',  []          );      % forces neural data to have this kernel width; if empty, uses whatever is in data    'krn_type'   []          );      % forces neural data to have this kernel type; if empty, uses whatever is in data
+addParameter(p,'krn_type',   'halfgauss' );      % forces neural data to have this kernel type
+addParameter(p,'fr_dt',      []          );      % forces neural data to have this bin size; if empty, uses whatever is in data
+addParameter(p,'norm_type',     'div'    );      % type of firing rate normalization; 'div' is divisive, 'z' is z-score, 'none' no normalization
+addParameter(p,'fit_version',   'byrat'   );      % fit params to use; 'byrat', 'combined'
+addParameter(p,'n_iter',    1            );      % number of iterations for refining estimate of DV
+addParameter(p,'param_scale_num',        1     ); % parameter number to scale
+addParameter(p,'param_scale_factor',     1     ); % multiplicative factor of that parameter
+addParameter(p,'average_time_points',   0);
+parse(p,varargin{:})
+struct2vars(p.Results);
+
+dp = set_dyn_path;
+model_p_dir = dp.model_mean_dir;
+spike_data_dir = dp.spikes_dir;
+
+
 
 % check for bad inputs on fit_version
 if ~strcmp(fit_version, 'byrat')
@@ -111,6 +119,9 @@ if cellid < 0
 else
     data = dyn_cell_packager(cellid);
 end
+
+model_posterior_fn = fullfile(model_p_dir, ...
+    sprintf('model_posterior_%i.mat',data.sessid));
 
 
 % make sure krn_width, krn_type and fr_dt are correct; otherwise re-package with correct values
@@ -154,7 +165,7 @@ a_given_frs     = [];
 total_mass      = zeros(numel(t0s),1);
 
 % find alignment index
-[align_strs, align_args] = align_LUT;
+[align_strs, align_args] = dyn_align_LUT;
 align_ind = strmatch(alignment,align_strs,'exact');
 
 % find the offset between model time and fr time based on the alignment
@@ -170,12 +181,16 @@ ss_times = data.trials.stim_start; % stim_start is ref event for model
 mt_offset = ref_times - ss_times;  % offset between model and fr_t on each trial
 
 % load model posterior for all trials
-load(['/home/alex/Dropbox/spikes/model/model_posterior_' num2str(data.sessid) '.mat']);
+if ~exist(model_posterior_fn,'file')
+    model = compute_model_mean(data.ratname, data.sessid);
+else
+    load(model_posterior_fn, 'model');
+end
 
 % Need to filter trials from model to match data variable
-p.reload    = 0;
-p.ratname   = data.ratname;
-[~, vec_data, ~,~] = get_behavior_data('/home/alex/Dropbox/spikes/data/', data.cellid, data.sessid,p);
+ops.reload    = 0;
+ops.ratname   = data.ratname;
+[~, vec_data, ~,~] = get_behavior_data(spike_data_dir, data.cellid, data.sessid,ops);
 model = model(vec_data.good);
 
 
@@ -320,10 +335,10 @@ for ti=1:numel(trials)
             a_given_frs     = zeros(numel(t0s), numel(frbins));
         end
      
-        mask_after_stim_firing  = p.mask_after_stim_firing; 
-        mask_stim_firing        = p.mask_stim_firing; 
-        average_a_vals          = p.average_a_vals;
-        average_fr              = p.average_fr;
+        mask_after_stim_firing  = ops.mask_after_stim_firing; 
+        mask_stim_firing        = ops.mask_stim_firing; 
+        average_a_vals          = ops.average_a_vals;
+        average_fr              = ops.average_fr;
 
         if mask_stim_firing && mask_after_stim_firing
             error('You cant mask stimulus firing and after-stimulus firing')

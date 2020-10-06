@@ -1,7 +1,7 @@
 function plot_population_STA(which_switch, savefig, correction, bad_strength) 
 
 if nargin < 1
-    which_switch = 'generative';
+    which_switch = 'model';
 end
 if nargin < 2
     savefig = 1;
