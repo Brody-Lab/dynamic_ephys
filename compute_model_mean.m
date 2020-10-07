@@ -14,7 +14,7 @@ function [model] = compute_model_mean(rat, sessid)
     % load params
     fit_file = fullfile(dp.model_fits_dir, ['fit_analytical_' rat '.mat']);
     if ~exist(fit_file, 'file')
-        fit_rat_analytical(rat, 'data_dir', dp.behav_data_dir, ...
+        fit = fit_rat_analytical(rat, 'data_dir', dp.behav_data_dir, ...
             'results_dir', dp.model_fits_dir);
     else
        f = load(fit_file,'fit');
