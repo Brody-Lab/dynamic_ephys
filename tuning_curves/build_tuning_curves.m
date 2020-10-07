@@ -1,21 +1,31 @@
-close all
-clear all
+function build_tuning_curves(rats)
+
+if nargin < 1
+    rats = [];
+end
 
 
 dp = set_dyn_path;
-
 
 warning('off','MATLAB:interp1:NaNinY');
 warning('off','MATLAB:divideByZero');
 
 %% get good cells 
-cell_list = dyn_cells_db('force',0);   % That has to be run once to create cell_list
+cell_list   = dyn_cells_db('force',0);   % That has to be run once to create cell_list
 region      = 'fof';
 select_str  = ['strcmp(region,''' region ''') &  normmean>1'];
 select_str  = ['strcmp(region,''' region ''') '];
 
 cellids     = cell2mat(extracting(cell_list, 'cellid', select_str));
-rats     = cell2mat(extracting(cell_list, 'ratname', select_str));
+
+ratnames    = cell2mat(extracting(cell_list, 'ratname', select_str));
+if isempty(rats)
+    keep    = true(size(cellids));
+else
+    keep    = ismember(num2cell(ratnames,2), rats);
+end
+cellids     = cellids(keep);
+
 alignment   = 'stimstart-cout-mask'; %'cpokeout'
 lag         = 0;            %0.2;
 t0s         = 0:0.025:1.9-lag;  % triggers rebinning and recompiling
@@ -28,7 +38,7 @@ norm_type   = 'none';
 p.mask_after_stim_firing    = 1;
 p.mask_stim_firing          = 0;
 p.average_a_vals            = 1;
-p.average_fr                = 1;w
+p.average_fr                = 1;
 p.min_fr_mod                = 1;
 p.fit_time_sigmoid          = 0;
 p.use_nresidual             = 1;
