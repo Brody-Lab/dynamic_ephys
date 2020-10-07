@@ -1,4 +1,4 @@
-function build_tuning_curves(rats)
+function res =build_tuning_curves(rats)
 
 if nargin < 1
     rats = [];
@@ -46,14 +46,14 @@ p.plot_res                  = 3;
 %cellid = [18181 18185 17799 17784 16875 18172 17870 16847 17855 17803 18466]
 %cellid = [-1 -2 -3 -4 -5];
 %cellids = [-1 -11 -2 -20 -21 -22 -23 -24 -3 -30 -31 -32];
-results = dyn_fr_dv_map(cellids, t0s, n_dv_bins, p,...
+res = dyn_fr_dv_map(cellids, t0s, n_dv_bins, p,...
     'lag', lag, 'krn_width', krn_width, 'alignment', alignment, ...
     'var_weight', false, 'force_frdv',force_frdv,'force_bin',force_bin,...
     'force_dv', force_dv,'norm_type',norm_type);
 
 %%
 if 0
-good_cells = results.cell_dex;
+good_cells = res.cell_dex;
 good_rats = rats(good_cells,:);
 counts = zeros(4,2);
 counts(1,1) = sum(all(ismember(rats,'H037'),2));
@@ -69,16 +69,16 @@ h066 = all(ismember(rats,'H066'),2);
 h084 = all(ismember(rats,'H084'),2);
 h129 = all(ismember(rats,'H129'),2);
 
-results = compute_variance_explained(results, 18185,1)
+res = compute_variance_explained(res, 18185,1)
 figure; hold on;
-%celldex = find(results.cellid == 18181);
+%celldex = find(res.cellid == 18181);
 %celldex = 2;
-%plot_cell(results, results.cellid(celldex));
-%figure; plot(results.t0s, results.frm_time(:,celldex), 'k');
-%figure; plot(results.t0s, results.var_explained(:,celldex),'r')
+%plot_cell(res, res.cellid(celldex));
+%figure; plot(res.t0s, res.frm_time(:,celldex), 'k');
+%figure; plot(res.t0s, res.var_explained(:,celldex),'r')
 
-results = decompose_tuning_curves(results);
-plot_decomposition_analysis(results)
+res = decompose_tuning_curves(res);
+plot_decomposition_analysis(res)
 end
 
 
