@@ -5,7 +5,8 @@ x = ['Loading data for ' rat];
 disp(x);
 
 % Pull session data from server
-[sessids, n_done] = bdata('select sessid, n_done_trials from sessions where ratname regexp "{S}" and protocol="PBupsDyn"',char(rat) );
+[sessids, n_done] = bdata(['select sessid, n_done_trials from sessions '...
+ 'where ratname regexp "{S}" and protocol="PBupsDyn"'],char(rat) );
 
 if length(sessids) > p.ns
     sessids = sessids(end-p.ns:end);
