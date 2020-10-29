@@ -17,6 +17,7 @@ for i=1:length(S.sessid)
     data(c).genEndState = S.pd{i}.bupsdata{j}.genEndState;
     data(c).genSwitchTimes = S.pd{i}.bupsdata{j}.genSwitchTimes;
     data(c).correctAnswer =  S.pd{i}.bupsdata{j}.correctAnswer;
+    data(c).evidenceRatio = S.pd{i}.bupsdata{j}.evidenceRatio;
     c= c + 1;
 
     end

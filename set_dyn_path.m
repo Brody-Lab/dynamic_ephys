@@ -26,7 +26,7 @@ end
 celldat_filename    = 'dyn_multi_db.mat';
 celldat_dir         = fullfile(spikes_dir, 'cell_packager_data');
 spikes_bin_dir      = fullfile(spikes_dir, 'bin');
-
+p.ratlist           = ratlist;
 tuning_curves_dir   = fullfile(spikes_bin_dir, 'tuning_curves');
 ratter_dir          = '~/ratter';
 tim_code_dir        = fullfile(ratter_dir, 'Manuscripts/TimHanks/PBupsPhys/Code/');
@@ -42,6 +42,9 @@ p.model_mean_dir    =  fullfile(project_dir,'model_mean');
 p.model_dir         =  fullfile(project_dir,'model');
 p.spikes_dir        = spikes_dir;
 p.fig_dir           = fig_dir;
+p.figpath_root      = fig_dir;
+p.figpath_psych_acc = 'psycho_';
+p.model_color       = [1 .6 .6];
 p.psth_fig_dir      = fullfile(fig_dir, 'PSTH');
 p.sta_fig_dir       = fullfile(fig_dir, 'STA');
 p.celldat_filename  = celldat_filename;
@@ -66,7 +69,7 @@ p.clearViolations   = 0;
 p.color             = 'b';
 p.compare_color     = ['b', 'r'];
 p.optimal_color     = 'k';
-p.model_color       = 'm';
+%p.model_color       = 'm';
 p.nice_color        = {[0 140 54]./255, [48 127 255]./255 };
 p.savefigure        = 1;
 p.figcols           = 3;
