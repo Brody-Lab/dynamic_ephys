@@ -168,6 +168,8 @@ for i=1:ntrials,
     data.trials.genSwitchTimes{i} = array_data(i).genSwitchTimes;
     data.trials.switch_to_0{i} = array_data(i).switch_to_0;
     data.trials.switch_to_1{i} = array_data(i).switch_to_1;
+    data.trials.evidenceRatio(i) = array_data(i).evidenceRatio;
+    data.trials.end_state_dur(i) = array_data(i).end_state_dur;
 
 end;
 

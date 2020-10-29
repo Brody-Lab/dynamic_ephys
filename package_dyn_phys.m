@@ -221,7 +221,11 @@ for gi = 1:length(good),
     array_data(g).rate_1        = pd.bupsdata{gtrial}.rate_1;
     array_data(g).rate_2        = pd.bupsdata{gtrial}.rate_2;
     array_data(g).correctAnswer = pd.bupsdata{gtrial}.correctAnswer;
-
+    array_data(g).evidenceRatio = pd.bupsdata{gtrial}.evidenceRatio;
+    array_data(g).end_state_dur = pd.bupsdata{gtrial}.T;
+    if ~isempty(array_data(g).genSwitchTimes);
+        array_data(g).end_state_dur = array_data(g).end_state_dur- pd.bupsdata{gtrial}.genSwitchTimes(end);
+    end
     % neural and head position data
     sp_inds = spikes >= state_0_exits(gtrial) & spikes < state_0_entries(gtrial);
 %     hp_inds = hp_ts >= state_0_exits(gtrial) & hp_ts < state_0_entries(gtrial);
@@ -237,8 +241,6 @@ for gi = 1:length(good),
     % parsed events history
 %%    array_data(g).parsed_events = peh(gtrial);
 end
-
-
 
 % remove bad "no click" trials from good list
 good = good(good_clicks);
@@ -258,6 +260,7 @@ vec_data.state_0_entries= state_0_entries(good);
 vec_data.good           = good;
 vec_data.stim_dur       = T(good);
 vec_data.last_switch    = vec_data.last_switch;
+
 
 % put data together, so your mind doesnt explode trying to constantly realign things
 for i=1:length(array_data)
