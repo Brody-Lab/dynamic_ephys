@@ -7,8 +7,10 @@ cell_list = dyn_cells_db;   % That has to be run once to create cell_list
 
 %% compile a bunch of psths aligned to the center poke time and the center out time
 % produce a stim on aligned plot and a center out aligned plot
-cin_align_ind = 9;
-cout_align_ind = 8;
+align_strs      = dyn_align_LUT;
+cout_align_ind  = find(ismember(align_strs,'cpokeout'));
+cin_align_ind   = find(ismember(align_strs,'stimstart-cout-mask'));
+
 
 % turn long_trials_only on if you want to only use the long trials for the
 % figures
@@ -16,10 +18,15 @@ long_trial_dur = 1;
 long_trials_only = false;
 
 select_str = 'strcmp(region,''fof'') & normmean > .5' ;
+%select_str = 'cellid==18181'
 cellids = cell2mat(extracting(cell_list, 'cellid', select_str));
 psr = cell2mat(extracting(cell_list, 'prefsideright', select_str));
 prefp = cell2mat(extracting(cell_list, 'prefp', select_str));
+normmean = cell2mat(extracting(cell_list, 'normmean', select_str));
 ncells = size(cellids);
+
+rind = 3;
+lind = 2;
 
 for cc = 1:ncells
     try
@@ -49,6 +56,7 @@ for cc = 1:ncells
         cout_psth_err = nan(length(cellids),cout_ntp,3,3);
         
     end 
+    
     poke_r = d.trials.rat_dir==1;
     poke_l = d.trials.rat_dir==-1;
     hit = d.trials.hit==1;
@@ -74,30 +82,30 @@ for cc = 1:ncells
         end
         % hits & errors combined
         cin_psth(cc,:,1,xx)    = nanmean(cin_frates(good,:));
-        cin_psth(cc,:,2,xx)    = nanmean(cin_frates(good&poke_l,:));
-        cin_psth(cc,:,3,xx)    = nanmean(cin_frates(good&poke_r,:));
+        cin_psth(cc,:,lind,xx)    = nanmean(cin_frates(good&poke_l,:));
+        cin_psth(cc,:,rind,xx)    = nanmean(cin_frates(good&poke_r,:));
         
         cout_psth(cc,:,1,xx)   = nanmean(cout_frates(good,:));
-        cout_psth(cc,:,2,xx)   = nanmean(cout_frates(good&poke_l,:));
-        cout_psth(cc,:,3,xx)   = nanmean(cout_frates(good&poke_r,:));
+        cout_psth(cc,:,lind,xx)   = nanmean(cout_frates(good&poke_l,:));
+        cout_psth(cc,:,rind,xx)   = nanmean(cout_frates(good&poke_r,:));
         
         % hits only
         cin_psth_hit(cc,:,1,xx)    = nanmean(cin_frates(hit&good,:));
-        cin_psth_hit(cc,:,2,xx)    = nanmean(cin_frates(hit&good&poke_l,:));
-        cin_psth_hit(cc,:,3,xx)    = nanmean(cin_frates(hit&good&poke_r,:));
+        cin_psth_hit(cc,:,lind,xx)    = nanmean(cin_frates(hit&good&poke_l,:));
+        cin_psth_hit(cc,:,rind,xx)    = nanmean(cin_frates(hit&good&poke_r,:));
         
         cout_psth_hit(cc,:,1,xx)   = nanmean(cout_frates(hit&good,:));
-        cout_psth_hit(cc,:,2,xx)   = nanmean(cout_frates(hit&good&poke_l,:));
-        cout_psth_hit(cc,:,3,xx)   = nanmean(cout_frates(hit&good&poke_r,:));
+        cout_psth_hit(cc,:,lind,xx)   = nanmean(cout_frates(hit&good&poke_l,:));
+        cout_psth_hit(cc,:,rind,xx)   = nanmean(cout_frates(hit&good&poke_r,:));
         
         % errors only
         cin_psth_err(cc,:,1,xx)    = nanmean(cin_frates(err&good,:));
-        cin_psth_err(cc,:,2,xx)    = nanmean(cin_frates(err&good&poke_l,:));
-        cin_psth_err(cc,:,3,xx)    = nanmean(cin_frates(err&good&poke_r,:));
+        cin_psth_err(cc,:,lind,xx)    = nanmean(cin_frates(err&good&poke_l,:));
+        cin_psth_err(cc,:,rind,xx)    = nanmean(cin_frates(err&good&poke_r,:));
         
         cout_psth_err(cc,:,1,xx)   = nanmean(cout_frates(err&good,:));
-        cout_psth_err(cc,:,2,xx)   = nanmean(cout_frates(err&good&poke_l,:));
-        cout_psth_err(cc,:,3,xx)   = nanmean(cout_frates(err&good&poke_r,:));
+        cout_psth_err(cc,:,lind,xx)   = nanmean(cout_frates(err&good&poke_l,:));
+        cout_psth_err(cc,:,rind,xx)   = nanmean(cout_frates(err&good&poke_r,:));
     end
     catch
         disp(cellids(cc))
@@ -118,20 +126,20 @@ cout_ind = cout_t>-.25;
 save_name = 'sequence_plot';
 
 good_cells = mean(cin_psth_hit(:,cin_ind,1,1),2) > 2;
-pref_r = nanmean(cin_psth_hit(:,:,2,1),2) > nanmean(cin_psth_hit(:,:,3,1),2);
+pref_r = nanmean(cin_psth_hit(:,:,rind,1),2) > nanmean(cin_psth_hit(:,:,lind,1),2);
 
-cin_psth_hit_pref           = vertcat(cin_psth_hit(good_cells&pref_r,:,2,1), ...
-    cin_psth_hit(good_cells&~pref_r,:,3,1));
-cout_psth_hit_pref          = vertcat(cout_psth_hit(good_cells&pref_r,:,2,1),...
-    cout_psth_hit(good_cells&~pref_r,:,3,1));
+cin_psth_hit_pref           = vertcat(cin_psth_hit(good_cells&pref_r,:,rind,1), ...
+    cin_psth_hit(good_cells&~pref_r,:,lind,1));
+cout_psth_hit_pref          = vertcat(cout_psth_hit(good_cells&pref_r,:,rind,1),...
+    cout_psth_hit(good_cells&~pref_r,:,lind,1));
 cin_psth_hit_pref_xval1     = vertcat(cin_psth_hit(good_cells&pref_r,:,2,2), ...
-    cin_psth_hit(good_cells&~pref_r,:,3,2));
+    cin_psth_hit(good_cells&~pref_r,:,lind,2));
 cout_psth_hit_pref_xval1    = vertcat(cout_psth_hit(good_cells&pref_r,:,2,2), ...
-    cout_psth_hit(good_cells&~pref_r,:,3,2));
+    cout_psth_hit(good_cells&~pref_r,:,lind,2));
 cin_psth_hit_pref_xval2     = vertcat(cin_psth_hit(good_cells&pref_r,:,2,3),...
-    cin_psth_hit(good_cells&~pref_r,:,3,3));
+    cin_psth_hit(good_cells&~pref_r,:,lind,3));
 cout_psth_hit_pref_xval2    = vertcat(cout_psth_hit(good_cells&pref_r,:,2,3),...
-    cout_psth_hit(good_cells&~pref_r,:,3,3));
+    cout_psth_hit(good_cells&~pref_r,:,lind,3));
 
 combo_psthA = [cin_psth_hit_pref_xval1(:,cin_ind) cout_psth_hit_pref_xval1(:,cout_ind)];
 combo_psthB = [cin_psth_hit_pref_xval2(:,cin_ind) cout_psth_hit_pref_xval2(:,cout_ind)];
@@ -147,16 +155,16 @@ if plot_sorting_data
         psth_all(i,:) = norm_by_peak(psth_all(i,:));
     end 
 
-    psthL = psth_all(:,1:sum(cin_ind));
-    psthR = psth_all(:,sum(cin_ind)+1:end);
+    psth_cin = psth_all(:,1:sum(cin_ind));
+    psth_cout = psth_all(:,sum(cin_ind)+1:end);
 %    psthL = psth_all(:,1:120);
 %    psthR = psth_all(:,121:end);
 %    psthL = psthL(:,cin_ind);
 %    psthR = psthR(:,cout_ind);    
 
 else
-    psthL = cin_psth_hit_pref_xval2(:,cin_ind);
-    psthR = cout_psth_hit_pref_xval2(:,cout_ind);
+    psth_cin = cin_psth_hit_pref_xval2(:,cin_ind);
+    psth_cout = cout_psth_hit_pref_xval2(:,cout_ind);
 end
     
 tA = cin_t(cin_ind);
@@ -168,7 +176,7 @@ fh1 = figure(1); clf
 set(fh1,'paperpositionmode','auto')
 subplot(121)
 %imagesc(norm_by_peak(psthL(sortA,:)),'x',tA,[0 1]);
-imagesc(psthL(sortA,:),'x',tA,[0 1])
+imagesc(psth_cin(sortA,:),'x',tA,[0 1])
 hold on
 plot([0 0], ylim, 'k', 'linewidth', 2);
 xlim([-0.25 0.98])
@@ -181,7 +189,7 @@ pause(1)
 
 subplot(122)
 %imagesc(norm_by_peak(psthR(sortA,:)),'x',tB,[0 1]);
-imagesc(psthR(sortA,:),'x',tB,[0 1]);
+imagesc(psth_cout(sortA,:),'x',tB,[0 1]);
 hold on
 plot([0 0], ylim, 'k', 'linewidth', 2)
 xlim([-0.25 0.98])
@@ -210,85 +218,194 @@ sorted_stim_cells = sorted_cellids(1:prestim);
 sorted_post_stim_cells = sorted_cellids(prestim+1:end);
 save(fullfile(dp.ephys_summary_dir, 'sorted_cells.mat'),'sorted_cellids','sorted_stim_cells','sorted_post_stim_cells')
 
+%% PREF/NONPREF pop average PSTH
+mn_fr       = nanmean(cin_psth_hit(:,:,1,1),2);
+good_cint   = cin_t >= -.5 & cin_t <= 1.5;
+good_coutt  = cout_t >= -1.5 & cout_t <= 1;
 
-keyboard
-%% PLOT AVERAGE PSTH
-% redo this so that the cells actually line up with preferred non-preferred
+switch 1
+    case 0
+        good_cells  = mn_fr > 1 & prefp < .01;
+        pref_r = nanmean(cin_psth_hit(:,:,rind,1),2) > nanmean(cin_psth_hit(:,:,lind,1),2);
+        pref_l = ~pref_r;
+    case 1
+        good_cells  = mn_fr > 1 & prefp < .01;
+        pref_r = psr == 1;
+        pref_l = 0   == psr;
+           
+end
 
+cin_pref_psth = [cin_psth_hit(pref_r,good_cint,rind,1); ...
+    cin_psth_hit(pref_l,good_cint,lind,1)];
+cin_npref_psth = [cin_psth_hit(pref_r,good_cint,lind,1); ...
+    cin_psth_hit(pref_l,good_cint,rind,1)];
 
-pref_r = nanmean(cin_psth_hit(:,:,2,1),2) > nanmean(cin_psth_hit(:,:,3,1),2);
+cout_pref_psth = [cout_psth_hit(pref_r,good_coutt,rind,1); ...
+    cout_psth_hit(pref_l,good_coutt,lind,1)];
+cout_npref_psth = [cout_psth_hit(pref_r,good_coutt,lind,1); ...
+    cout_psth_hit(pref_l,good_coutt,rind,1)];
+
+cin_pref_psth_err = [cin_psth_err(pref_r,good_cint,rind,1); ...
+    cin_psth_err(pref_l,good_cint,lind,1)];
+cin_npref_psth_err = [cin_psth_err(pref_r,good_cint,lind,1); ...
+    cin_psth_err(pref_l,good_cint,rind,1)];
+
+cout_pref_psth_err = [cout_psth_err(pref_r,good_coutt,rind,1); ...
+    cout_psth_err(pref_l,good_coutt,lind,1)];
+cout_npref_psth_err = [cout_psth_err(pref_r,good_coutt,lind,1); ...
+    cout_psth_err(pref_l,good_coutt,rind,1)];
+
 switch 0
     case 0
-        cell_to_plot = 16857;
-%        cell_to_plot = 17784;
-%        cell_to_plot = 18181;
-        cell_to_plot    = 18938
-        good_cells = cellids == cell_to_plot;
-        titlestr = ['cell ' num2str(cell_to_plot)];
-    case 1
-        good_cells = nanmean(cin_psth(:,:,1,1),2) > 10;
-        titlestr = 'all cells with FR > 10';
+        mn_fr_t0 = 1;
+    case 1 
+        mn_fr_t0 = max([cin_pref_psth cout_pref_psth],[],2);
+    case 2
+        mn_fr_t0 = normmean([find(pref_r); find(pref_l)]);     
 end
-cin_psth_hit_pref = nanmean(vertcat(cin_psth_hit(good_cells&pref_r,:,2,1), cin_psth_hit(good_cells&~pref_r,:,3,1)),1);
-cin_psth_err_pref = nanmean(vertcat(cin_psth_err(good_cells&pref_r,:,2,1), cin_psth_err(good_cells&~pref_r,:,3,1)),1);
-cin_psth_hit_nonpref = nanmean(vertcat(cin_psth_hit(good_cells&~pref_r,:,2,1), cin_psth_hit(good_cells&pref_r,:,3,1)),1);
-cin_psth_err_nonpref = nanmean(vertcat(cin_psth_err(good_cells&~pref_r,:,2,1), cin_psth_err(good_cells&pref_r,:,3,1)),1);
-cout_psth_hit_pref = nanmean(vertcat(cout_psth_hit(good_cells&pref_r,:,2,1), cout_psth_hit(good_cells&~pref_r,:,3,1)),1);
-cout_psth_err_pref = nanmean(vertcat(cout_psth_err(good_cells&pref_r,:,2,1), cout_psth_err(good_cells&~pref_r,:,3,1)),1);
-cout_psth_hit_nonpref = nanmean(vertcat(cout_psth_hit(good_cells&~pref_r,:,2,1), cout_psth_hit(good_cells&pref_r,:,3,1)),1);
-cout_psth_err_nonpref = nanmean(vertcat(cout_psth_err(good_cells&~pref_r,:,2,1), cout_psth_err(good_cells&pref_r,:,3,1)),1);
-
-% figure out color
-cmap = color_set(2);
-if pref_r(good_cells)
-    nonpref_col = cmap(1,:);
-    pref_col = cmap(2,:);
-else
-    nonpref_col = cmap(2,:);
-    pref_col = cmap(1,:);
-end
+%good_cells = [cellids(pref_r); cellids(pref_l)] == 18181;
 
 
-ylims = [0 1.1*max([max(cin_psth_hit_pref); max(cin_psth_hit_nonpref); max(cin_psth_err_pref); max(cin_psth_err_nonpref);max(cout_psth_hit_pref); max(cout_psth_hit_nonpref); max(cout_psth_err_pref); max(cout_psth_err_nonpref)])];
-fh2 = figure(2); clf
-subplot(1,2,1); hold on
-plot(cin_t,cin_psth_hit_pref,   '-' ,'linewidth',2,'color',pref_col)
-plot(cin_t,cin_psth_hit_nonpref,'-' ,'linewidth',2,'color',nonpref_col)
-plot(cin_t,cin_psth_err_pref,   '--','linewidth',2,'color',pref_col)
-plot(cin_t,cin_psth_err_nonpref,'--','linewidth',2,'color',nonpref_col)
-xlabel('Time from stim on (s)')
-ylabel('mean FR (Hz)')
-set(gca,'fontsize',16)
-pbaspect([1.5 1 1])
-xlim([-1 2])
-ylim(ylims)
+cin_pref_psth = cin_pref_psth./mn_fr_t0;
+cin_npref_psth = cin_npref_psth./mn_fr_t0;
+cout_pref_psth = cout_pref_psth./mn_fr_t0;
+cout_npref_psth = cout_npref_psth./mn_fr_t0;
 
-subplot(1,2,2); hold on;
-plot(cout_t,cout_psth_hit_pref,     '-' ,'linewidth',2,'color',pref_col)
-plot(cout_t,cout_psth_hit_nonpref,  '-' ,'linewidth',2,'color',nonpref_col)
-plot(cout_t,cout_psth_err_pref,     '--','linewidth',2,'color',pref_col)
-plot(cout_t,cout_psth_err_nonpref,  '--','linewidth',2,'color',nonpref_col)
-xlabel('Time from stim off (s)')
-ylabel('mean FR (Hz)')
-set(gca,'fontsize',16)
-xlim([-2.5 1])
-ylim(ylims)
-if pref_r(good_cells)
-    hl=legend('go R hit','go L hit',' go R error','go L error','location','northwest')
-else
-    hl=legend('go L hit','go R hit',' go L error','go R error','location','northwest')
-end
-box(hl,'off')
-plot(subplot(121),[0 0], ylim, 'k--','linewidth',1)
-plot(subplot(122),[0 0], ylim, 'k--','linewidth',1)
-pbaspect([1.5 1 1])
-hl.Position = hl.Position + [-.45 .175 0 0];
-%suptitle(titlestr)
-set(fh2, 'paperorientation','landscape')
-fig = gcf;
-fig.PaperUnits = 'inches';
-fig.PaperPosition = [0 0 10 10];
-fig.PaperPositionMode = 'Manual';
-fig.PaperSize = [10 10];
-print(fh2, fullfile(dp.psth_fig_dir, ['cell_' num2str(cell_to_plot) ]), '-dsvg')
+cin_pref_psth_err = cin_pref_psth_err./mn_fr_t0;
+cin_npref_psth_err = cin_npref_psth_err./mn_fr_t0;
+cout_pref_psth_err = cout_pref_psth_err./mn_fr_t0;
+cout_npref_psth_err = cout_npref_psth_err./mn_fr_t0;
+
+cin_pref_psth_good = cin_pref_psth(good_cells,:);
+cin_pref_psth_mn = nanmean(cin_pref_psth_good,1);
+cin_npref_psth_good = cin_npref_psth(good_cells,:);
+cin_npref_psth_mn = nanmean(cin_npref_psth_good,1);
+
+cout_pref_psth_good = cout_pref_psth(good_cells,:);
+cout_pref_psth_mn = nanmean(cout_pref_psth_good,1);
+cout_npref_psth_good = cout_npref_psth(good_cells,:);
+cout_npref_psth_mn = nanmean(cout_npref_psth_good,1);
+
+cin_pref_psth_good_err = nanmean(cin_pref_psth_err(good_cells,:),1);
+cin_npref_psth_good_err = nanmean(cin_npref_psth_err(good_cells,:),1);
+
+cout_pref_psth_good_err = nanmean(cout_pref_psth_err(good_cells,:),1);
+cout_npref_psth_good_err = nanmean(cout_npref_psth_err(good_cells,:),1);
+
+psths = [cin_pref_psth_mn cout_pref_psth_mn; ...
+    cin_npref_psth_mn cout_npref_psth_mn; ...
+    cin_pref_psth_good_err cout_pref_psth_good_err; ...
+    cin_npref_psth_good_err cout_npref_psth_good_err];
+
+
+pref_color =[.5 .3 .75];
+npref_color = hsv2rgb(rgb2hsv(1-pref_color).*[1 .25 1]);
+
+
+fh = figure(2); clf
+
+ax(1) = subplot(121);hold(ax(1),'on');
+ax(2) = subplot(122);hold(ax(2),'on');
+
+plot(ax(1),[ 0 0], [0 100],'k')
+plot(ax(2),[ 0 0], [0 100],'k')
+ylims = ([floor(min(psths(:))*10)/10 ceil(max(psths(:))*10)/10])
+ylim(ax(1),ylims)
+ylim(ax(2),ylims)
+xlim(ax(1), [cin_t(find(good_cint,1,'first')) cin_t(find(good_cint,1,'last'))])
+xlim(ax(2), [cout_t(find(good_coutt,1,'first')) cout_t(find(good_coutt,1,'last'))])
+
+plot(ax(1),cin_t(good_cint),cin_pref_psth_mn,'color',pref_color,'linewidth',2)
+plot(ax(1),cin_t(good_cint),cin_npref_psth_mn,'color',npref_color,'linewidth',2)
+plot(ax(1),cin_t(good_cint),cin_pref_psth_good_err,'--','color',pref_color,'linewidth',1)
+plot(ax(1),cin_t(good_cint),cin_npref_psth_good_err,'--','color',npref_color,'linewidth',1)
+
+
+plot(ax(2),cout_t(good_coutt),cout_pref_psth_mn,'color',pref_color,'linewidth',2)
+plot(ax(2),cout_t(good_coutt),cout_npref_psth_mn,'color',npref_color,'linewidth',2)
+plot(ax(2),cout_t(good_coutt),cout_pref_psth_good_err,'--','color',pref_color,'linewidth',1)
+plot(ax(2),cout_t(good_coutt),cout_npref_psth_good_err,'--','color',npref_color,'linewidth',1)
+
+linkaxes(ax,'y')
+
+
+%xlim(ax(1),[-1.1 1.95])
+%xlim(ax(2),[-1.95 1.55])
+
+ax(2).YColor = 'w';
+ax(1).TickDir = 'out';
+ax(2).TickDir = 'out';
+
+%ylabel(ax(1), {'population average' 'normalizeed firing rate'})
+ylabel(ax(1), {'normalizeed firing rate'})
+xlabel(ax(1), 'time from stim onset (s)') 
+xlabel(ax(2), 'from movement (s)')
+set(fh,'position',[7 5 6 3 ],'papersize',[5 3],'paperpositionmode','auto')
+
+print(fh, fullfile(dp.psth_fig_dir, 'population_psth'),...
+    '-dsvg', '-painters')
+
+
+
+cin_pref_psth_good = cin_pref_psth;
+cin_npref_psth_good = cin_npref_psth;
+
+cout_pref_psth_good = cout_pref_psth;
+cout_npref_psth_good = cout_npref_psth;
+
+pref_combo = [cin_pref_psth_good cout_pref_psth_good];
+
+normsort = @(A,B) sort_by_peak(norm_by_peak(A,B),B);
+%normsort = @(A,B) sort_by_peak(A,B);
+cax = [0 1]
+
+fh=figure(3); clf
+set(fh,'position',[2 5 4.5 6 ],'papersize',[5 3],'paperpositionmode','auto')
+
+s(1)=subplot(221)
+imagesc(normsort(cin_pref_psth_good, pref_combo),'x',cin_t(good_cint))
+caxis(cax)
+s(2)=subplot(222)
+imagesc(normsort(cout_pref_psth_good, pref_combo),'x',cout_t(good_coutt))
+caxis(cax)
+
+s(3)=subplot(223)
+imagesc(normsort(cin_npref_psth_good, pref_combo),'x',cin_t(good_cint))
+caxis(cax)
+s(4)=subplot(224)
+imagesc(normsort(cout_npref_psth_good, pref_combo),'x',cout_t(good_coutt))
+caxis(cax)
+colormap(flipud(gray.^.7))
+ylabel(subplot(221),'cell # (sorted by peak)')
+ylabel(subplot(223),'cell # (sorted as above)')
+hold(s(1),'on')
+hold(s(2),'on')
+hold(s(3),'on')
+hold(s(4),'on')
+plot(s(1),[ 0 0], [0 1000],'k')
+plot(s(2),[ 0 0], [0 1000],'k')
+plot(s(3),[ 0 0], [0 1000],'k')
+plot(s(4),[ 0 0], [0 1000],'k')
+
+set(subplot(221),'ytick',[300 600])
+set(subplot(223),'ytick',[300 600])
+set(subplot(222),'ytick',[])
+set(subplot(224),'ytick',[])
+set(subplot(222),'ytick',[])
+set(subplot(224),'ytick',[]) 
+xlabel(subplot(223),'time from stim onset (s)')
+xlabel(subplot(224),'from movement (s)')
+
+cb = colorbar
+cb.Position = cb.Position + [0 .3 .052 -.2]
+
+%colormap(flipud(colormapBlues.^.5))
+%%
+good_cells  = mn_fr > 1 & prefp < .05;
+
+edges = [-2 -.8:.2:.8 2]
+example_cell_psth('cells',cellids(good_cells),'meta',1,'type','chrono',...
+    'edges',edges,'norm','onset')
+%%
+example_cell_psth('cells',cellids(good_cells),'meta',1,'type','logR')
 
