@@ -69,6 +69,11 @@ p.clearViolations   = 0;
 p.color             = 'b';
 p.compare_color     = ['b', 'r'];
 p.optimal_color     = 'k';
+p.model_color       = [255 140 140]/255.;
+cm2                 = color_set(2);
+p.left_color        = cm2(1,:);
+p.right_color        = cm2(2,:);
+
 %p.model_color       = 'm';
 p.nice_color        = {[0 140 54]./255, [48 127 255]./255 };
 p.savefigure        = 1;
