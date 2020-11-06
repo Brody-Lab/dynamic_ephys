@@ -1,4 +1,4 @@
-function example_cell_psth(varargin)
+function ax = example_cell_psth(varargin)
 
 
 p = inputParser;
@@ -8,6 +8,8 @@ addParameter(p,'meta',0)
 addParameter(p,'norm','none') %'none','onset','peak'
 addParameter(p,'flip',0)
 addParameter(p,'pause',0)
+addParameter(p,'top_color','')
+addParameter(p,'bot_color','')
 addParameter(p,'edges',[])
 
 
@@ -47,7 +49,7 @@ align_strs  = dyn_align_LUT;
 min_t = 0;
 
 gamma       = [];
-T           = []; 
+T           = [];
 sides       = [];
 poke_r      = [];
 hit         = [];
@@ -82,13 +84,13 @@ for cc = 1:ncells
         this_poke_r = ~this_poke_r;
     end
     gamma   = [gamma; this_gamma];
-
+    
     sides   = [sides; this_sides];
     poke_r  = [poke_r; this_poke_r];
     hit     = [hit; d.trials.hit==1];
     evR     = [evR; d.trials.evidenceRatio(:)];
     end_state_s = [end_state_s; d.trials.end_state_dur(:)];
-
+    
     switch norm
         case 'onset'
             norm_mult = d.norm_mean;
@@ -110,35 +112,56 @@ switch type
     case 'logR'
         logR = log(evR)./abs(gamma);
         if isempty(edges)
-        edges = percentile(abs(logR),[30 70 ]);
-        edges = sort([-Inf; -edges; 0; edges; Inf]);
+            edges = percentile(abs(logR),[30 70 ]);
+            edges = sort([-Inf; -edges; 0; edges; Inf]);
         end
         [~, ~, bins] = histcounts(logR,edges);
         show_errors = 0;
         if meta
             error('not sure how to flip logR yet')
         end
+        cblab = 'evR';
     case 'choice'
         bins = poke_r + 1;
         show_errors = 1;
+        cblab = 'choice';
     case 'chrono'
         chrono = end_state_s .* sides;
         if isempty(edges)
-                    nbins = 7;
-
-        edges = linspace(-2,2,nbins);
+            nbins = 7;
+            
+            edges = linspace(-2,2,nbins);
         end
         [a, b, bins] = histcounts((chrono),edges);
         show_errors = 0;
+        cblab = {'final state' 'duration (s)'};
         
 end
 nbins = length(unique(bins));
 
 if meta
-    cm = colormapRedBlue(ceil(nbins/2));
-    cm(ceil(nbins/2)+1,:) = [];
+    %%
+    top = [.65 .2 .75];
+    top = [.75 .4 .75];
+    if ~isempty(p.Results.top_color)
+        top = p.Results.top_color;
+    end
+    bot = [1 1 1] - top;
+    if ~isempty(p.Results.bot_color)
+        bot = p.Results.bot_color;
+    end
+    %top = [.75 .75 .25];
+    
+    
+    
+    
+    
+    cm_bot = colormapLinear(bot, ceil(nbins/2));
+    cm_top = colormapLinear(top, ceil(nbins/2));
+    cm = [cm_bot(end:-1:2,:); cm_top(2:end,:)];
+    
 else
-cm = color_set(nbins);
+    cm = color_set(nbins);
 end
 
 err = hit == 0;
@@ -162,25 +185,25 @@ good_coutt  = cout_t > -1.5 & cout_t < .75;
 for bb = 1:nbins
     this = good & bins == bb;
     this_color = cm(bb,:);
-
-cin_hit_psth = nanmean(cin_fr(this  &  hit,good_cint)./norm_f(this&  hit));
-cout_hit_psth = nanmean(cout_fr(this  &  hit,good_coutt)./norm_f(this&  hit));
-psths = [psths ; cin_hit_psth cout_hit_psth];
-if show_errors 
-    err_color = this_color;
-    %err_color = cm_(bb,:);
-    cin_err_psth = nanmean(cin_fr(this  &  err,good_cint)./norm_f(this&  err));
-    cout_err_psth = nanmean(cout_fr(this  & err,good_coutt)./norm_f(this&  err));
-    psths = [psths ; cin_err_psth cout_err_psth];
-
-    plot(ax(1),cin_t(good_cint),cin_err_psth,'--','color',err_color,'linewidth',1);
-    plot(ax(2),cout_t(good_coutt),cout_err_psth,'--','color',err_color,'linewidth',1);
-
-end
-
-plot(ax(1),cin_t(good_cint),cin_hit_psth,'color',this_color,'linewidth',2);
-plot(ax(2),cout_t(good_coutt),cout_hit_psth,'color',this_color,'linewidth',2);
-
+    
+    cin_hit_psth = nanmean(cin_fr(this  &  hit,good_cint)./norm_f(this&  hit));
+    cout_hit_psth = nanmean(cout_fr(this  &  hit,good_coutt)./norm_f(this&  hit));
+    psths = [psths ; cin_hit_psth cout_hit_psth];
+    if show_errors
+        err_color = this_color;
+        %err_color = cm_(bb,:);
+        cin_err_psth = nanmean(cin_fr(this  &  err,good_cint)./norm_f(this&  err));
+        cout_err_psth = nanmean(cout_fr(this  & err,good_coutt)./norm_f(this&  err));
+        psths = [psths ; cin_err_psth cout_err_psth];
+        
+        plot(ax(1),cin_t(good_cint),cin_err_psth,'--','color',err_color,'linewidth',1);
+        plot(ax(2),cout_t(good_coutt),cout_err_psth,'--','color',err_color,'linewidth',1);
+        
+    end
+    
+    plot(ax(1),cin_t(good_cint),cin_hit_psth,'color',this_color,'linewidth',2);
+    plot(ax(2),cout_t(good_coutt),cout_hit_psth,'color',this_color,'linewidth',2);
+    
 end
 linkaxes(ax,'y')
 
@@ -194,9 +217,23 @@ ax(1).TickDir = 'out';
 ax(2).TickDir = 'out';
 
 ylabel(ax(1), 'firing rate (spks/s)')
-xlabel(ax(1), 'time from stim onset (s)') 
+xlabel(ax(1), 'time from stim onset (s)')
 xlabel(ax(2), 'from movement (s)')
-set(fh,'position',[5 5 6 3 ],'papersize',[5 3],'paperpositionmode','auto')
+
+%%
+colormap(cm);
+% cb = colorbar('north');
+% cb.Position = cb.Position + [.025 .1 -.15 -.05];
+cb = []
+cb = colorbar('east')
+cb.Position = cb.Position + [.1 .15 -.0 -.3];
+
+title(cb,cblab)
+set(cb,'ytick',[])
+%set(cb,'xtick',0:1,'xticklabel',b([1:2:end])) 
+%%
+
+set(fh,'position',[5 5 6 3 ],'papersize',[6 3],'paperpositionmode','auto')
 
 if ncells == 1
     group_name = num2str(cell_to_plot);

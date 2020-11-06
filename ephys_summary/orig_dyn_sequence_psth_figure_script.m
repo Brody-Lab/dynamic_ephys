@@ -24,7 +24,7 @@ psr = cell2mat(extracting(cell_list, 'prefsideright', select_str));
 prefp = cell2mat(extracting(cell_list, 'prefp', select_str));
 normmean = cell2mat(extracting(cell_list, 'normmean', select_str));
 ncells = size(cellids);
-
+%%
 rind = 3;
 lind = 2;
 
@@ -401,11 +401,91 @@ cb.Position = cb.Position + [0 .3 .052 -.2]
 
 %colormap(flipud(colormapBlues.^.5))
 %%
-good_cells  = mn_fr > 1 & prefp < .05;
+good_cells  = normmean > 5 & prefp < .01;
 
-edges = [-2 -.8:.2:.8 2]
+edges = [-2 -.8:.2:.8 2];
+pref_color  = [.8 .25 .8];
+npref_color = [.8 .65 .25];
 example_cell_psth('cells',cellids(good_cells),'meta',1,'type','chrono',...
-    'edges',edges,'norm','onset')
-%%
-example_cell_psth('cells',cellids(good_cells),'meta',1,'type','logR')
+    'edges',edges,'norm','onset','top_color',pref_color,'bot_color',npref_color)
 
+%% try dprime plot
+
+dp_cin = nan(size(cin_psth(:,:,1,1)));
+dp_cout = nan(size(cout_psth(:,:,1,1)));
+
+cc = find(prefp<.0001 & good_cells,1);
+
+good_cell_ix = find(good_cells);
+good_cell_ix = 1:ncells;
+ngood = length(good_cell_ix);
+
+nboot = 250;
+
+cout_auc = nan(ngood,nt);
+cout_p   = nan(ngood,nt);
+cout_ci  = nan(ngood,nt,2);
+fprintf('working on cell...')
+tic
+for cc = 1:ngood
+    if mod(cc,5)==0
+        toc;
+        fprintf('%i...',cc);
+        tic;
+    end
+    this_id = cellids(good_cell_ix(cc));
+    
+    d           = dyn_cell_packager(this_id);
+    cin_frates  = d.frate{cin_align_ind};
+    cout_frates = d.frate{cout_align_ind};
+    go_r        = d.trials.rat_dir==1;
+    go_l        = d.trials.rat_dir==-1;
+    psth_r           = cout_frates(go_r,:);
+    psth_l           = cout_frates(go_l,:);
+    
+    nt = size(psth_r,2);
+    
+    parfor tt = 1:nt
+        [cout_auc(cc,tt), cout_p(cc,tt), cout_ci(cc,tt,:)] = bootroc(psth_r(:,tt),psth_l(:,tt),nboot);
+    end
+end
+%%
+figure; 
+imagesc(cout_auc,'x',cout_t)
+caxis([0 1]+[1 -1].*.3)
+line([0 0],ylim,'color','k')
+colormap(colormapRedBlue)
+colorbar
+xlim([-1.75 .75])
+%%
+ax = example_cell_psth('cells',cellids(cc))
+axpos = get(ax(2),'position')
+
+ax(2).Position = axpos + [0 0 0 -.2]
+
+ax2 = axes('position', [axpos(1) .8 axpos(3) .15])
+plot(ax2, cout_t, cout_auc)
+hold(ax2,'on')
+plot(cout_t(cout_p < .05), .7 ,'k.')
+line(xlim,[0 0]+.5)
+
+xlim(ax2,get(ax(2),'xlim'))
+
+%%
+figure; histogram(prefp)
+%%
+cm = color_set(2);
+fh = figure(10); clf
+set(fh,'position',[1 1 3 3], 'papersize', [3 3])
+alvl = .05;
+pcts = [sum(psr&prefp<alvl) sum(psr==0&prefp<alvl) sum(prefp>=alvl)];
+labels = {'right' 'left' 'non-selective'};
+p= pie(pcts,labels);
+p(1).FaceColor = cm(2,:);
+p(1).EdgeColor = [1 1 1];
+p(3).FaceColor = cm(1,:);
+p(3).EdgeColor = [1 1 1];
+p(5).FaceColor = [1 1 1].*.9;
+p(5).EdgeColor = [1 1 1];
+piechartname = fullfile(dp.psth_fig_dir,'pie_chart');
+print(fh, piechartname , '-dsvg','-painters')
