@@ -85,7 +85,9 @@ D.model_switch_y = -3.75;
 D.state_switch_y = -4.75;
 
 fig = figure(1); clf
+D.plot_mean_line = 0
 plot_pdf(D)
+
 pbaspect([2.5 1 1])
 ylim([-5.75 5.75 ])
 fig.Position = [5 5 6 3]
@@ -133,7 +135,7 @@ fh2.Position = [5 9 6 3];
 ax2 = axes;
 ax2.Position = [pos(1) .25 pos(3) .2];
 hold(ax2,'on');
-state_switches = peh(which_trial).states;
+state_switches = data.genSwitchTimes;
 
     
 xlabel(ax2,'time from stim onset (s)');
@@ -156,7 +158,9 @@ plot([D.state_switches; D.state_switches],3-[0;1],...
 plot([D.model_switches; D.model_switches],4-[0;1],...
         '-','color', 'r','linewidth',2)
     
-    plot(ax2,[this_ts; this_ts],5-[0;1],'k');
+plot(ax2,[this_ts; this_ts],5-[0;1],'k');
+
+
 ylim(ax2,[0 5])
 
 
@@ -183,19 +187,53 @@ krn=(krn)/sum(krn)/bin_size;
 hold(ax3,'on')
 
 
-%x = t; y = fr;
-patch(ax3,x([1 1:end end 1]),[0 y([1:end ]) 0 0],'k')
+end_state = data.genEndState;
+odd_nstates = mod(length(state_switches)+1,2);
+
+blocks = [0 D.model_switches cend_ts];
+for ss = 1:length(blocks)-1
+    this_t = x >= blocks(ss) & x <= blocks(ss+1);
+    a = find(this_t,1,'first');
+    b = find(this_t,1,'last');
+    
+    odd_state = end_state;
+    if odd_nstates == mod(ss,2)
+        this_state = end_state;
+    else
+        this_state = ~end_state;
+    end
+    if this_state
+        this_color = dp.right_color;
+    else
+        this_color = dp.left_color;
+    end
+    
+    patch(ax3,x([a a:b b a]),[0 y(a:b) 0 0],this_color,'edgecolor',this_color)
+    plot(ax3,x(a:b),y(a:b),'color',this_color,'linewidth',1.5)
+    alpha(.5)
+    
+    this_t_ = D.T >= blocks(ss) & D.T <= blocks(ss+1);
+    a_ = find(this_t_,1,'first');
+    b_ = find(this_t_,1,'last');
+    plot(ax(1),D.T(a_:b_),D.mean(a_:b_),'color',this_color,'linewidth',2)
+
+end
+
+%
+
+% 
+% %x = t; y = fr;
 plot(ax3,[D.state_switches; D.state_switches],max(ylim)-[0;10],...
         '-','color', 'k','linewidth',2)
 plot(ax3,[D.model_switches; D.model_switches],max(ylim)-[0;10],...
         '-','color', 'r','linewidth',2)
-alpha(.25)
 box(ax3,'off')
 set(ax3,'xlim',get(ax,'xlim'))
 
 fh2_name = fullfile(dp.fig_dir,['spikes_posterior_' chosen '_choice']);
 print(fh2, fh2_name,'-dsvg','-painters')
 
+print(fig, fig_name,'-dsvg','-painters')
 
 %%
 end
