@@ -6,7 +6,7 @@ function res = compute_switch_triggered_average(data,varargin)
 %
 % input:
 % -----
-% data        - a struct prodcuded by calling package_dyn_phys for a given
+% data        - a struct produced by calling package_dyn_phys for a given
 %               cellid. if input is numeric, code assumes it is a cellid
 %               and passes it to package_dyn_phys
 %
@@ -48,6 +48,11 @@ addParameter(p, 'save_file', 1);
 addParameter(p, 'force', 0); % determines whether to recompute
 addParameter(p, 'mask_other_switch', 0); % determines whether to recompute
 addParameter(p, 'fit_line', 1); % determines method for quantifying state strength
+addParameter(p, 'condition_residual', 0); 
+addParameter(p, 'compute_residual', 1);
+addParameter(p, 'exclude_final', 0); 
+addParameter(p, 'final_only', 0); 
+
 
 parse(p,varargin{:});
 params = p.Results;
@@ -160,6 +165,19 @@ includes    = eval(params.include_str) & has_switch';
 n_trials    = sum(includes);
 switch_to_0 = switch_to_0(includes);
 switch_to_1 = switch_to_1(includes);
+
+if p.Results.exclude_final
+    switch_to_0 = cellfun(@(x) x(1:end-1), switch_to_0,'uniformoutput',0);
+    switch_to_1 = cellfun(@(x) x(1:end-1), switch_to_1,'uniformoutput',0);
+elseif p.Results.final_only
+    has_switch_to_0 = ~cellfun(@isempty,switch_to_0);
+    has_switch_to_1 = ~cellfun(@isempty,switch_to_1);
+
+    switch_to_0(has_switch_to_0) = cellfun(@(x) x(end), ...
+        switch_to_0(has_switch_to_0),'uniformoutput',0);
+    switch_to_1(has_switch_to_1) = cellfun(@(x) x(end), ...
+        switch_to_1(has_switch_to_1),'uniformoutput',0);
+end
 n_switch_to_0 = cellfun(@length, switch_to_0);
 n_switch_to_1 = cellfun(@length, switch_to_1);
 
@@ -192,13 +210,27 @@ STR_left = nan(sum(n_switch_to_0), n_lags, params.n_shuffles+1);
 
 % get data from included trials and relevant time bins
 norm_ys = norm_ys(includes,pre_bin:post_bin);
+right_trials = data.trials.rat_dir(includes)==1;
+left_trials = ~right_trials;
 
 % calculate mean firing rate
 fr_mean = nanmean(norm_ys);
 
 % compute residual firing rates by subtracting the mean from all trials
-fr_residual = norm_ys - repmat(fr_mean,n_trials,1);
-
+if ~p.Results.compute_residual
+    fr_residual = norm_ys;
+elseif p.Results.condition_residual
+    fr_residual = norm_ys;
+    left_mean   = nanmean(norm_ys(left_trials,:));
+    right_mean  = nanmean(norm_ys(right_trials,:));
+    fr_residual(left_trials,:) = norm_ys(left_trials,:) - left_mean;
+    fr_residual(right_trials,:) = norm_ys(right_trials,:) - right_mean
+    if p.Results.n_shuffles
+        error('not sure if we are handling shuffle test with a choice-conditioned residual')
+    end
+else
+    fr_residual = norm_ys - repmat(fr_mean,n_trials,1);
+end
 % if desired, shuffle residual firing rates across included trials
 real_ind = 1:size(norm_ys,1);
 test_ind = repmat(real_ind,params.n_shuffles+1,1);
@@ -219,7 +251,8 @@ for tt=1:n_trials
     this_state  = [ones(size(this_switch_1)) zeros(size(this_switch_0))];
     [this_switch, sort_dex] = sort(this_switch);
     this_state = this_state(sort_dex);
-    
+    s2 = s2_full;
+
     if params.mask_other_switch
         for m = 1:length(this_switch)
             [t_start, t_end, ind] = get_lag_params(t,this_switch(m),n_lags);
@@ -255,6 +288,7 @@ for tt=1:n_trials
                 [t_start, t_end, ind] = get_lag_params(t,this_switch_0(m),n_lags);
                 % add this STR to the matrix
                 if sum(ind)>0
+                    n_computed_switches_to_0 = n_computed_switches_to_0+1;
                     STR_left(n_computed_switches_to_0,max(1,t_start):t_end,:) = s2(ind,:);
                 end
             end
@@ -289,6 +323,8 @@ res.dprime_shuff    = squeeze(dprime(1,:,2:end));
 res.good_lags       = ~isnan(sum(res.dprime_shuff,2));
 res.pval            = nan(size(res.dprime_real));
 res.pval(res.good_lags) = nanmean(res.dprime_real(res.good_lags)'  > res.dprime_shuff(res.good_lags,:)');
+res.pval(res.good_lags) = nanmean(abs(res.dprime_real(res.good_lags))'  > abs(res.dprime_shuff(res.good_lags,:))');
+
 res.lags            = lags;
 res.params          = params;
 res.cellid          = data.cellid;
