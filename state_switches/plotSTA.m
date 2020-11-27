@@ -3,14 +3,14 @@ function res = plotSTA(cellid, which_switch, savefig)
         which_switch = 'model';
     end
     dp = set_dyn_path;
-%         res =  compute_switch_triggered_average(cellid,'post',2,...
-%           'which_switch',which_switch, 'n_shuffles', 1000,...
-%           'save_file',1,'mask_other_switch',1);
-    res =  compute_switch_triggered_average(cellid,...
-            'post',2,'exclude_final',0, 'condition_residual',0,...
-          'include_str','true(size(data.trials.hit == 1))',...
-          'which_switch',which_switch, 'n_shuffles', 250,...
-          'save_file',1,'mask_other_switch',0,'force',1);
+        res =  compute_switch_triggered_average(cellid,'post',2,...
+          'which_switch',which_switch, 'n_shuffles', 1000,...
+          'save_file',1,'mask_other_switch',1,'force',1);
+%     res =  compute_switch_triggered_average(cellid,...
+%             'post',2,'exclude_final',0, 'condition_residual',0,...
+%           'include_str','true(size(data.trials.hit == 1))',...
+%           'which_switch',which_switch, 'n_shuffles', 250,...
+%           'save_file',1,'mask_other_switch',0,'force',1);
     STR_left    = res.STR_left_real;
     STR_right   = res.STR_right_real;
     lags        = res.lags;
@@ -51,10 +51,14 @@ posdex  = (res.lags > -0.001)';
 negdex  = (res.lags <  0.001)';
 maxy = max(ylim())*.95;
 lw = 5;
-plot(res.lags(sigside==1 & negdex),sig(sigside==1 & negdex).*maxy,'color',dp.left_color,'linewidth',lw)
-plot(res.lags(sigside==0 & negdex),sig(sigside==0 & negdex).*maxy,'color',dp.right_color,'linewidth',lw)
-plot(res.lags(sigside==1 & posdex),sig(sigside==1 & posdex).*maxy,'color',dp.right_color,'linewidth',lw)
-plot(res.lags(sigside==0 & posdex),sig(sigside==0 & posdex).*maxy,'color',dp.left_color,'linewidth',lw)
+pre_left = sigside==1 & negdex;
+pre_right = sigside==0 & negdex;
+post_left = sigside==1 & posdex;
+post_right = sigside==0 & posdex;
+plot(res.lags(pre_left),sig(pre_left).*maxy,'color',dp.left_color,'linewidth',lw)
+plot(res.lags(pre_right),sig(pre_right).*maxy,'color',dp.right_color,'linewidth',lw)
+plot(res.lags(post_left),sig(post_left).*maxy,'color',dp.right_color,'linewidth',lw)
+plot(res.lags(post_right),sig(post_right).*maxy,'color',dp.left_color,'linewidth',lw)
 xlim([min_t max_t])
 
     title(['Cell ' num2str(cellid)])
