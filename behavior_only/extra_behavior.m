@@ -4,7 +4,7 @@ over = 1;
 f = [];
 d = [];
 %%
-for rr = 6:length(p.ratlist)
+for rr = 1:length(p.ratlist)
     ratname = p.ratlist{rr};
     fn = fullfile(p.behav_data_dir, [ratname '.mat']);
     fitfn = fullfile(p.model_fits_dir, ['fit_analytical_' ratname '.mat']);
@@ -69,7 +69,10 @@ for rr = 6:length(p.ratlist)
     ax.XTick = [-3 0 3];
     ax.XLim = [-3.1 3.1];
     ax.YLim = [-.02 1];
-
+    
+    plot([-.1 -.1], [.48 .495], 'w', 'linewidth', 2.5)
+    plot([-.1 -.005], [.48 .48], 'w', 'linewidth', 2.5)
+    
     ylabel('prob. go right');
     xlabel('log-odds supporting ''go right''');
     hl=legend('model','data','location','eastoutside');
@@ -151,6 +154,7 @@ for rr = 6:length(p.ratlist)
     ax.TickDir = 'out'
     ylim([.48 1])
     xlim([-.1 .1] + tedges([1 end]));
+    xlim([-.1 2.1]);
     plot([-.1 -.1], [.48 .495], 'w', 'linewidth', 2.5)
     plot([-.1 -.005], [.48 .48], 'w', 'linewidth', 2.5)
     %
@@ -270,7 +274,7 @@ for dd = 1:length(d)
     h = [data.hit]';
     
     time_from_last(has_switch) = time_from_last(has_switch) -...
-        cellf   un(@(x) x(end), {data(has_switch).genSwitchTimes})';
+        cellfun(@(x) x(end), {data(has_switch).genSwitchTimes})';
     plotPsychometric(time_from_last, h,...
         'edges',tedges, 'axHandle',ax,'compute_fit',0,'plotfit',1,...
         'ploterrorbar',0,'dataLineStyle','-','dataLineWidth',1,...
@@ -279,8 +283,10 @@ for dd = 1:length(d)
     pop_tfl{dd} = time_from_last;
     pop_h{dd}   = h;
 end
+
 pop_tfl = vertcat(pop_tfl{:});
 pop_h = vertcat(pop_h{:});
+
 plotPsychometric(pop_tfl, pop_h,...
         'edges',tedges, 'axHandle',ax,'compute_fit',0,'plotfit',1,...
         'ploterrorbar',0,'dataLineStyle','-','dataLineWidth',2,...
@@ -289,9 +295,11 @@ xlabel('final state duration (s)')
     
     ax.XGrid = 'off';
     ax.YGrid = 'off';
-    ax.TickDir = 'out'
+    ax.TickDir = 'out';
     ylim([.48 1])
     xlim([-.1 .1] + tedges([1 end]));
+    %%xlim([-.1 1.8])
+    
     plot([-.1 -.1], [.48 .495], 'w', 'linewidth', 2.5)
     plot([-.1 -.005], [.48 .48], 'w', 'linewidth', 2.5)
     %
@@ -299,7 +307,7 @@ xlabel('final state duration (s)')
     % ax.YRuler.Axle.Visible = 'off'
     % ax.YRuler.Axle.Visible = 'off'
     
-    set(ax,'ytick',[.5:.1:1])
+    set(ax,'ytick',[.5:.1:1],'xtick',[0 :.5: 2])
     ylabel('prob. correct')
     set(ax,'yticklabel',{'50' '' '' '' '' '100'})
     ylabel('prob. correct')
