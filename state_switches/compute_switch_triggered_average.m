@@ -323,7 +323,7 @@ res.dprime_shuff    = squeeze(dprime(1,:,2:end));
 res.good_lags       = ~isnan(sum(res.dprime_shuff,2));
 res.pval            = nan(size(res.dprime_real));
 res.pval(res.good_lags) = nanmean(res.dprime_real(res.good_lags)'  > res.dprime_shuff(res.good_lags,:)');
-res.pval(res.good_lags) = nanmean(abs(res.dprime_real(res.good_lags))'  > abs(res.dprime_shuff(res.good_lags,:))');
+%res.pval(res.good_lags) = nanmean(abs(res.dprime_real(res.good_lags))'  > abs(res.dprime_shuff(res.good_lags,:))');
 
 res.lags            = lags;
 res.params          = params;
