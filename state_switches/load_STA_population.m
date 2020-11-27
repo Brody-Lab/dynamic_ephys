@@ -42,13 +42,12 @@ else
                  'mask_other_switch',1, 'bad_strength', bad_strength);
              res{nn}.STR_right_shuff = [];
              res{nn}.STR_left_shuff  = [];
-             res{nn}.STR_right_real  = [];
-             res{nn}.STR_left_real   = [];
+             res{nn}.STR_right_real  = nanmean(res{nn}.STR_right_real);
+             res{nn}.STR_left_real   = nanmean(res{nn}.STR_left_real);
              res{nn}.dprime_shuff    = [];
             if slim_data
              res{nn}.params          = [];
             end
-
              disp(cc)
              nn = nn+1;
             computed(cc) = 1;
