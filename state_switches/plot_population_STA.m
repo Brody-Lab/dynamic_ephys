@@ -13,10 +13,48 @@ if nargin < 4
     bad_strength = 0;
 end
 
+force = 0;
+
 dp = set_dyn_path;
 
-[res, dprime, pvals,cellids, computed,not_computed] = ...
-    load_STA_population(which_switch, 0,1, bad_strength);
+[res, dprime, ptiles,cellids, computed,not_computed] = ...
+    load_STA_population(which_switch, force,1, bad_strength);
+
+%%
+ncells      = length(cellids);
+nlags       = length(res{1}.lags);
+leftSTA     = nan(ncells,nlags);
+rightSTA    = nan(ncells,nlags);
+for cc = 1:length(cellids)
+    leftSTA(cc,:)   = res{cc}.STR_left_real;
+    rightSTA(cc,:)  = res{cc}.STR_right_real;
+end
+%%
+diffSTA   = leftSTA - rightSTA;
+
+which_cells = 1:ncells;
+%which_cells = [21  510 474];
+fh = figure(10); clf
+set(fh, 'position',[5 5 3 6],'papersize',[3 3])
+ax = subplot(211);
+diffSTA = diffSTA(which_cells,:);
+NA = ~isnan(diffSTA);
+imagesc(diffSTA,'x',res{1}.lags,'Alphadata',NA,'parent',ax)
+set(ax,'color',[1 1 1].*.8)
+
+caxis([-2 2])
+cm = flipud(colormapLinear(dp.left_color,50));
+cm = [cm; colormapLinear(dp.right_color,50)];
+colormap(colormapRedBlue)
+colormap(cm)
+xlim([-.5 .75])
+hold on
+plot([0 0],ylim,'k--')
+%%
+ax2 = subplot(212);
+errorbar(res{1}.lags, nanmean(abs(diffSTA(:,:))),nansem(abs(diffSTA(:,:))));
+xlim([-.5 .75])
+%%
 
 % make map of time points for which each cell is encoding signficantly
 %figure(1); clf
@@ -30,7 +68,7 @@ negdex = negdex(pval_plot_lags);
 cmap = [repmat(clrs(1,:),10,1); repmat([1 1 1], 200, 1); repmat(clrs(end,:),10,1)];
 
 if correction == 1 % bonferroni corrections
-    m = numel(pvals);
+    m = numel(ptiles);
     threshold = 0.5 - 0.05/ m;
     correction_str = '_bonferroni';
 elseif correction == 2 % modified bonferroni, because tests are correlated
@@ -44,7 +82,7 @@ else
 end
 
 correction_str = [correction_str '_' num2str(bad_strength)];
-plot_map = pvals;
+plot_map = ptiles;
 plot_map(:,posdex) = 1-plot_map(:,posdex);
 if 1
     plot_map(isnan(plot_map)) = 0.5;
@@ -124,34 +162,38 @@ n = size(temp,1);
 p = movmean(average_siggy,3);
 se = 1.96.*sqrt((p.*(1-p))./n);
 time_vec            = res{1}.lags(pval_plot_lags);
+%%
 figure(2); clf;
+ax = axes;
 shadedErrorBar(time_vec, average_siggy.*100, se.*100, 'k')
 %plot(time_vec, movmean(average_siggy.*100,3), 'k','linewidth',2)
 ylim([0 20])
 hold on
 plot([.1 .1], ylim, 'r--')
 plot([0 0], [-1 100], 'k--')
-set(gca, 'fontsize',16)
 ylabel('Significant cells (% of total)')
-xlabel(['Time from ' which_switch ' switch (s)'])
+xlabel(['time from ' which_switch ' switch (s)'])
 pbaspect([1 1 1]);
-xlim([-.41 .41])
+xlim([-.45 .75])
+ax.TickDir = 'out'
+box(ax,'off')
 fig = gcf;
 fig.PaperUnits = 'inches';
-fig.PaperPosition = [0 0 4 4];
+fig.PaperPosition = [0 0 3 3];
 fig.PaperPositionMode = 'Manual';
-fig.PaperSize = [4 4];
+fig.PaperSize = [3 3];
 
 if savefig
     figsavefname = ['fraction_' which_switch 'switch_encoding' correction_str '.svg'];
-    print(fig, fullfile(dp.sta_fig_dir, figsavefname) ,'-dsvg')
+    print(fig, fullfile(dp.fig_dir, figsavefname) ,'-dsvg','-painters')
     datasavefname = ['fraction_data_' which_switch correction_str '.mat'];
     % Save data from this analysis
     save(fullfile(dp.sta_fig_dir, datasavefname), 'time_vec','average_siggy','n')
 end
-
+%%
 %%%% look at distribution of dprime values
 figure(3); clf;
+ax = axes;
 dabs = abs(dprime);
 mean_dabs = nanmean(dabs,2);
 histogram(mean_dabs(mean_dabs < 10),50, 'facecolor','k')
@@ -159,20 +201,21 @@ ylim([0 inf])%
 xlim([0 .5])
 ylabel('count')
 xlabel('mean d'' per cell')
-set(gca,'fontsize',16)
+ax.TickDir = 'out';
+box(ax,'off')
 pbaspect([1 1 1])
 fig = gcf;
 fig.PaperUnits = 'inches';
-fig.PaperPosition = [0 0 4 4];
+fig.PaperPosition = [0 0 3 3];
 fig.PaperPositionMode = 'Manual';
-fig.PaperSize = [4 4];
+fig.PaperSize = [3 3];
 if savefig
     figsavefname = ['distribution_dprime_' which_switch '.svg'];
     print(fig, fullfile(dp.sta_fig_dir, figsavefname),'-dsvg')
 end
-
+%%
 %%%% look for consistent encoding cells
-const_map   = pvals;
+const_map   = ptiles;
 const_map(const_map > 0.99)     = 1;
 const_map(const_map < 0.01)     = -1;
 const_map(const_map < 1 & const_map > -1) = 0;
@@ -345,7 +388,135 @@ if savefig
     print(fig, fullfile(dp.sta_fig_dir, fn),'-dsvg')
 end
 
+
+%%
+plot_val = (1-ptiles).*(time_vec<=0) + ptiles.*(time_vec>0);
+%plot_val = 1-ptiles;
+a = .05;
+nconsec = 8
+
+
+sigp = ptiles < a | ptiles > (1-a);
+csigp = cumsum(sigp,2);
+
+postswitchsigp = sigp.*(time_vec>0);
+movsumsig = movsum(postswitchsigp,nconsec,2);
+consecsig = movsumsig==nconsec;
+close(figure(10));
+fh = figure(10); clf
+set(fh,'position',[2 2 6 4],'papersize',[ 6 4])
+[~, i_s, j_s] = sort_by_peak(consecsig);
+
+
+ax = axes
+plotMat = plot_val(i_s(j_s>1),:);
+
+n = 20;
+sig_bins = [linspace(0, .05,n) linspace(.1,.9,n) linspace(.95, 1,n)];
+sig_val = sig_bins(1:end-1) + diff(sig_bins)/2;
+cm = flipud(colormapLinear(dp.left_color,n-1));
+cm = [cm; ones(n,3);  colormapLinear(dp.right_color,n-1)];
+
+[M, i, plotBin] = histcounts(plotMat,sig_bins);
+%plotBin = sig_val(plotBin);
+plotMat = reshape(plotBin,size(plotMat,1),size(plotMat,2));
+imagesc(plotMat,'CDataMapping','direct','x',time_vec)
+
+colormap(cm)
+%colormap(jet)
+
+caxis('auto')
+hold on
+plot([0 0],ylim,'k--')
+cb = colorbar('eastoutside')
+xlabel('time from state switch (s)')
+drawnow
+axpos = get(ax,'position');
+
+set(cb, 'position', cb.Position + [.07 0 0 -.4]);
+set(ax,'position',axpos+ [.00 0 .065 0])
+drawnow
+cb.YTick = [n-.5 size(cm,1)-n+.5];
+cb.YTickLabel = [.05 .95];
+ax.TickDir = 'out';
+title(cb,{'d'' %tile'})
+box(ax,'off')
+
+ex_y = sort([find(cellids(i_s(j_s>1)) == 18181) ...
+    find(cellids(i_s(j_s>1)) == 17784) ...
+    find(cellids(i_s(j_s>1)) == 16857)]);
+ax.YTick = ex_y;
+ax.YTickLabel = [];
+
+ylabel('cells with 10 significant conecutive timepoints')
+ylabel({'cell #' '(sorted by selectivity' 'onset post-switch)'})
+
+xlim([-.45 .75])
+
+print(fh, fullfile(dp.fig_dir, 'popSTA'), '-dsvg', '-painters')
+
+%%
+figure(11); clf
+
+imagesc(consecsig(i_s(j_s>1),:),'x',time_vec)
+i_s = i_s ;
+
+hold on
+plot([0 0],ylim,'k--')
+colorbar
+title('p<.05 for 5 consecutive timepoints','fontsize',10,'fontweight','normal')
+% 
+% 
+% plot(0, ex_y,'o','markersize',5,'markerfacecolor','m','markeredgecolor','k')
+% 
+% ex_y = find(cellids(i_s(j_s>1)) == 16857);
+% plot(0, ex_y,'o','markersize',5,'markerfacecolor','c','markeredgecolor','k')
+% 
+% ex_y = find(cellids(i_s(j_s>1)) == 17784);
+% plot(0, ex_y,'o','markersize',5,'markerfacecolor','g','markeredgecolor','k')
+
+xlim([-.5 .75])
+
+
 keyboard
+%%
+subplot(212)
+diffSTA   = leftSTA - rightSTA;
+imagesc(diffSTA(i_s(j_s>1),:),'x',res{1}.lags)
+
+%%
+
+diffSTA   = leftSTA - rightSTA;
+sig_level = sum(sigp,2);
+
+which_cells = 1:ncells;
+% [~, which_cells] = sort(sig_level);
+% which_cells = find(sig_level > 20)
+
+%which_cells = [21  510 474];
+fh = figure(10); clf
+set(fh, 'position',[5 5 3 6],'papersize',[3 3])
+ax = subplot(211);
+diffSTA = diffSTA(i_s(j_s>1),:);
+NA = ~isnan(diffSTA);
+%diffSTA = sort_by_peak(diffSTA,-abs(diffSTA))
+imagesc(diffSTA,'x',res{1}.lags,'Alphadata',NA,'parent',ax)
+set(ax,'color',[1 1 1].*.8)
+
+caxis([-1 1].*5)
+cm = flipud(colormapLinear(dp.left_color,50));
+cm = [cm; colormapLinear(dp.right_color,50)];
+colormap(colormapRedBlue)
+colormap(cm)
+xlim([-.5 .75])
+hold on
+plot([0 0],ylim,'k--')
+%%
+
+subplot(212)
+imagesc(ptiles(which_cells,:),'x',time_vec)
+caxis([0 1])
+%%
 % some debugging plotting code
 if 0
 dex = 1;
