@@ -21,7 +21,7 @@ Ls= movmean(clicks.LstdRat,smoothing);
 shadedErrorBar(clicks.timepoint,R,Rs, {'Color', p.nice_color{1}},0)  
 shadedErrorBar(clicks.timepoint,L,Ls, {'Color', p.nice_color{2}},0)  
 
-if isfield(clicks, 'RexN') & false
+if isfield(clicks, 'RexN')
 Rn = movmean(clicks.RexN,smoothing);
 Ln = movmean(clicks.LexN,smoothing);
 Rsn= movmean(clicks.RstdN,smoothing);
@@ -36,7 +36,7 @@ end
 
 xlim(clicks.xlim)
 set(gca,'fontsize',20);
-ylabel('stimulus weighting','fontsize',20)
+ylabel('relative weight','fontsize',20)
 xlabel('time from end of trial (s)', 'fontsize',20)
 axis square
 fig = gcf;
