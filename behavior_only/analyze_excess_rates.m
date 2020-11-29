@@ -1,4 +1,4 @@
-function []= analyze_excess_rates(rat, S, p)
+function clicks = analyze_excess_rates(rat, S, p)
 
 % log current step
 disp(['Plotting Excess Click Rates for ' rat]);

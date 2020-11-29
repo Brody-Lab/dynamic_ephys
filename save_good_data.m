@@ -1,4 +1,4 @@
-function [] = include_data(rat, S, p)
+function [S] = save_good_data(rat, S, p)
 
 disp(['Determining inclusion for ' rat]);
 
@@ -57,13 +57,12 @@ p.behav_data_filefn(rat)
 % save(filename, 'INCLUDE', 'session', 'trialCount','numSession','rat','p','c')
 % disp(['Data saved to: ' filename]);
 
-
+n_done = S.n_done(c.include);
+[S] = load_session_data_(session,n_done,p);
+p.population = [p.population '_' strrep(num2str(p.haz),'.','p') '_'];
 if INCLUDE & p.include.save
-    n_done = S.n_done(c.include);
     disp(['Saving data formatted for running Bings model'])
-    [S] = load_session_data_(session,n_done,p);
-    p.population = [p.population '_' strrep(num2str(p.haz),'.','p') '_'];
-    save_data(rat,S,p)
+save_data(rat,S,p)
 end
 
 

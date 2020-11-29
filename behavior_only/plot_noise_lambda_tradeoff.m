@@ -1,18 +1,19 @@
-function [] = plot_noise_lambda_tradeoff(F,group);
+function [fh ax] = plot_noise_lambda_tradeoff(F,group);
 dp = set_dyn_path;
 
 
 fh = figure(1); clf;
 ax = axes;
 hold(ax ,'on');
-load('~/Dropbox/model_fits/optimal_lambda');
+load(fullfile(dp.model_fits_dir,'optimal_lambda'));
 %yyaxis left
 %ax = gca;
 %ax.YColor = 'black';
 msz = 12;
+dp = set_dyn_path;
 if ~strcmp(group, 'BING')
 for i=1:length(C)
-    plot(C{i}.noise, -C{i}.lambda,'.','color',[1 1 1].*.025,'markersize',msz)
+    plot(C{i}.noise, -C{i}.lambda,'.','color',[1 1 1].*.025,'markersize',.8*msz)
 end
 else
     plot([0 .5], [0 0], 'k-','linewidth',2);
@@ -26,10 +27,10 @@ for i=1:length(F)
     if isstruct(F{i})
         if F{i}.se(1) < 1
         plot(F{i}.n, -F{i}.final(1),'.-','color',[1 .55 .55],...
-            'markerfacecolor',[1 .55 .55],'markersize',msz)
-        plot(F{i}.n+[F{i}.n_std, -F{i}.n_std], [-F{i}.final(1) -F{i}.final(1)],'-','color', [1 .55 .55])
+            'markerfacecolor',[1 .55 .55],'markersize',.8*msz)
+        plot(F{i}.n+[F{i}.n_std, -F{i}.n_std], [-F{i}.final(1) -F{i}.final(1)],'-','color', dp.model_color)
         se = F{i}.se(1);
-        plot([F{i}.n F{i}.n],-F{i}.final(1)+[se -se],'-','color',[1 .55 .55])
+        plot([F{i}.n F{i}.n],-F{i}.final(1)+[se -se],'-','color', dp.model_color)
         end
     end
 end
