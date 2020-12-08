@@ -135,7 +135,7 @@ for rr = 1:length(rats)
         ind = switch_count >= stbins(ii-1) & switch_count < stbins(ii);
         [~,res] = plotPsychometric(time_from_last(ind), h(ind),...
             'edges',tedges, 'axHandle',ax,'compute_fit',0,'plotfit',1,...
-            'dataLineStyle','o','dataMarkerSize',6,'dataFaceColor',cm(ii-1,:))
+            'dataLineStyle','o','dataMarkerSize',4.5,'dataFaceColor',cm(ii-1,:))
         
     end
     xlabel('final state duration (s)')
@@ -178,8 +178,9 @@ for rr = 1:length(rats)
     load(excess_path,'clicks');
     %%
     figure(4); clf
-    [fh ax] = plot_excess_rates(clicks,'fig_num',4,...
-        'left_color',p.left_color,'right_color',p.right_color);
+    
+    [fh ax] = plot_excess_rates(clicks,'plot_model', 1, 'fig_num',4,...
+        'model_color',p.model_color,'left_color',p.left_color,'right_color',p.right_color);
     
     set(fh,'position',[11 5 fw fw], 'paperposition',[0 0 fw fw], ...
         'papersize',[fw+.5 fw+.5]);

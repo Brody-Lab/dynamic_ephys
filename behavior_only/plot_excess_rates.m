@@ -3,8 +3,9 @@ function [fig, ax] = plot_excess_rates(clicks,varargin)
 p = inputParser;
 addParameter(p, 'plot_model', 0);
 addParameter(p,'fig_num',[]);
-addParameter(p,'left_color',[]);
-addParameter(p,'right_color',[]);
+addParameter(p,'left_color',[48 127 255]./255);
+addParameter(p,'right_color',[0 140 54]./255);
+addParameter(p,'model_color',[]);
 parse(p,varargin{:});
 plot_model = p.Results.plot_model;
 
@@ -15,7 +16,7 @@ else
 end
 ax = axes;
 smoothing = 25;
-%nice_color        = {[0 140 54]./255, [48 127 255]./255 };
+%nice_color        = {,  };
 
 hold on;
 %plot(clicks.timepoint, clicks.RexRat, 'color', p.nice_color{1});
@@ -25,9 +26,6 @@ L = movmean(clicks.LexRat,smoothing);
 Rs= movmean(clicks.RstdRat,smoothing);
 Ls= movmean(clicks.LstdRat,smoothing);
 
-shadedErrorBar(clicks.timepoint,R,Rs, {'Color', p.Results.right_color},0)  
-shadedErrorBar(clicks.timepoint,L,Ls, {'Color', p.Results.left_color},0)  
-
 if plot_model & isfield(clicks, 'RexN')
 Rn = movmean(clicks.RexN,smoothing);
 Ln = movmean(clicks.LexN,smoothing);
@@ -35,9 +33,20 @@ Rsn= movmean(clicks.RstdN,smoothing);
 Lsn= movmean(clicks.LstdN,smoothing);
 
 
-shadedErrorBar(clicks.timepoint,Rn,Rsn,'m',0)  
-shadedErrorBar(clicks.timepoint,Ln,Lsn, 'm',0)  
+shadedErrorBar(clicks.timepoint,Rn,Rsn,{'color',p.Results.model_color},0)  
+shadedErrorBar(clicks.timepoint,Ln,Lsn, {'color',p.Results.model_color},0)  
+%plot(clicks.timepoint,Rn,'color',p.Results.model_color,'linewidth',2)
+%hold on
+%plot(clicks.timepoint,Ln,'color',p.Results.model_color,'linewidth',2)
 end
+
+h1 = shadedErrorBar(clicks.timepoint,R,Rs, {'Color', p.Results.right_color},1)  
+h2 = shadedErrorBar(clicks.timepoint,L,Ls, {'Color', p.Results.left_color},1)  
+delete h1.mainLine;
+delete h2.mainLine;
+
+
+
 
 %plot(clicks.timepoint, clicks.fitRat.a.*exp(clicks.fitRat.b.*clicks.timepoint),'r');
 
