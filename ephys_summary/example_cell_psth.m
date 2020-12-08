@@ -1,9 +1,10 @@
-function ax = example_cell_psth(varargin)
+function [fh ax] = example_cell_psth(varargin)
 
 
 p = inputParser;
 addParameter(p,'cells',[ 16857 17784 18181 ]);
 addParameter(p,'type','choice'); %evR, chrono
+addParameter(p,'separate_hits',1);
 addParameter(p,'meta',0)
 addParameter(p,'norm','none') %'none','onset','peak'
 addParameter(p,'flip',0)
@@ -11,9 +12,18 @@ addParameter(p,'pause',0)
 addParameter(p,'top_color','')
 addParameter(p,'bot_color','')
 addParameter(p,'edges',[])
-
-
+addParameter(p,'min_t',0)
+addParameter(p,'fig_num',1)
+addParameter(p,'repack',0)
+addParameter(p,'cintrange',[-1 1.5])
+addParameter(p,'couttrange',[-1.5 .75])
+addParameter(p, 'cinstr', 'stimstart-cout-mask');
 parse(p,varargin{:});
+
+cintrange = p.Results.cintrange;
+couttrange = p.Results.couttrange;
+cinstr = p.Results.cinstr;
+
 cell_to_plot = p.Results.cells;
 type = p.Results.type;
 meta = p.Results.meta;
@@ -21,6 +31,8 @@ norm = p.Results.norm;
 flip = p.Results.flip;
 do_pause = p.Results.pause;
 edges = p.Results.edges;
+separate_hits = p.Results.separate_hits;
+fig_num     = p.Results.fig_num;
 
 if length(cell_to_plot) > 1 & ~meta
     for cc = 1:length(cell_to_plot)
@@ -39,14 +51,12 @@ end
 
 dp = set_dyn_path;
 %%
-repack = 0;
+repack = p.Results.repack;
 ncells = length(cell_to_plot);
 
 align_strs  = dyn_align_LUT;
 
-
-
-min_t = 0;
+min_t = p.Results.min_t;
 
 gamma       = [];
 T           = [];
@@ -59,8 +69,6 @@ cout_fr     = [];
 norm_f      = [];
 end_state_s = [];
 
-
-
 for cc = 1:ncells
     d       = dyn_cell_packager(cell_to_plot(cc),'repack',repack);
     
@@ -69,7 +77,7 @@ for cc = 1:ncells
     end
     
     coutind = find(ismember(d.align_strs,'cpokeout'));
-    cinind  = find(ismember(d.align_strs,'stimstart-cout-mask'));
+    cinind  = find(ismember(d.align_strs,cinstr));
     stimind = strmatch('stimend',d.align_strs,'exact');
     if meta & p.Results.flip == 0
         flip(cc) = ~d.prefsideright{stimind};
@@ -168,7 +176,7 @@ err = hit == 0;
 
 good = T > min_t;
 
-fh = figure(1); clf
+fh = figure(fig_num); clf
 
 ax(1) = subplot(121);hold(ax(1),'on');
 ax(2) = subplot(122);hold(ax(2),'on');
@@ -177,17 +185,22 @@ plot(ax(1),[ 0 0], [0 100],'k')
 plot(ax(2),[ 0 0], [0 100],'k')
 
 psths = [];
-
-good_cint   = cin_t > -1 & cin_t < 1.5;
-good_coutt  = cout_t > -1.5 & cout_t < .75;
+ 
+good_cint   = cin_t > cintrange(1) & cin_t < cintrange(2);
+good_coutt  = cout_t > couttrange(1) & cout_t < couttrange(2);
 
 
 for bb = 1:nbins
     this = good & bins == bb;
     this_color = cm(bb,:);
+    if separate_hits
+        trials = this & hit;
+    else
+        trials = this;
+    end
     
-    cin_hit_psth = nanmean(cin_fr(this  &  hit,good_cint)./norm_f(this&  hit));
-    cout_hit_psth = nanmean(cout_fr(this  &  hit,good_coutt)./norm_f(this&  hit));
+    cin_hit_psth = nanmean(cin_fr(trials,good_cint)./norm_f(trials));
+    cout_hit_psth = nanmean(cout_fr(trials,good_coutt)./norm_f(trials));
     psths = [psths ; cin_hit_psth cout_hit_psth];
     if show_errors
         err_color = this_color;
@@ -201,16 +214,16 @@ for bb = 1:nbins
         
     end
     
-    plot(ax(1),cin_t(good_cint),cin_hit_psth,'color',this_color,'linewidth',2);
-    plot(ax(2),cout_t(good_coutt),cout_hit_psth,'color',this_color,'linewidth',2);
+    plot(ax(1),cin_t(good_cint),cin_hit_psth,'color',this_color,'linewidth',1.5);
+    plot(ax(2),cout_t(good_coutt),cout_hit_psth,'color',this_color,'linewidth',1.5);
     
 end
 linkaxes(ax,'y')
 
 ylim(ax(1),([floor(min(psths(:))*10)/10 ceil(max(psths(:))*10)/10]))
 
-xlim(ax(1),[cin_t(find(good_cint,1,'first')) cin_t(find(good_cint,1,'last'))])
-xlim(ax(2),[cout_t(find(good_coutt,1,'first')) cout_t(find(good_coutt,1,'last'))])
+xlim(ax(1),cintrange)
+xlim(ax(2),couttrange)
 
 %ax(2).YColor = 'w';
 ax(1).TickDir = 'out';
