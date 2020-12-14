@@ -52,16 +52,15 @@ addParameter(p, 'condition_residual', 0);
 addParameter(p, 'compute_residual', 1);
 addParameter(p, 'exclude_final', 0); 
 addParameter(p, 'final_only', 0); 
-
-
 parse(p,varargin{:});
-params = p.Results;
+p = p.Results;
+
 dp = set_dyn_path;
-if isempty(params.save_dir)
-    params.save_dir = dp.celldat_dir;
+if isempty(p.save_dir)
+    p.save_dir = dp.celldat_dir;
 end
-if isempty(params.model_dir)
-    params.model_dir = dp.model_mean_dir;
+if isempty(p.model_dir)
+    p.model_dir = dp.model_mean_dir;
 end
 
 % decide how to interpret first input
@@ -72,22 +71,22 @@ else
 end
 
 
-if (~isempty(params.save_dir) && ~exist(params.save_dir, 'dir')) || ...
-        (~isempty(params.model_dir) && ~exist(params.model_dir, 'dir'))
+if (~isempty(p.save_dir) && ~exist(p.save_dir, 'dir')) || ...
+        (~isempty(p.model_dir) && ~exist(p.model_dir, 'dir'))
     error('your default save or model directory don''t exist')
 end
 
 % determine the file path for this STA and load the file if desired
-if ~isempty(params.save_dir)
-    if params.clear_bad_strengths
-        save_path = fullfile(params.save_dir, [params.which_switch '_STA_' num2str(cellid) '_' num2str(params.bad_strength) '.mat']);
+if ~isempty(p.save_dir)
+    if p.clear_bad_strengths
+        save_path = fullfile(p.save_dir, [p.which_switch '_STA_' num2str(cellid) '_' num2str(p.bad_strength) '.mat']);
     else
-        save_path = fullfile(params.save_dir, [params.which_switch '_STA_' num2str(cellid) '.mat']);
+        save_path = fullfile(p.save_dir, [p.which_switch '_STA_' num2str(cellid) '.mat']);
     end
-    if ~params.force & exist(save_path,'file')
+    if ~p.force & exist(save_path,'file')
         load(save_path,'res');
         return
-    elseif ~exist(params.save_dir,'dir') | isempty(params.save_dir)
+    elseif ~exist(p.save_dir,'dir') | isempty(p.save_dir)
         warning('save dir incorrectly specified')
     end
 end
@@ -98,115 +97,51 @@ if isnumeric(data)
     data = dyn_cell_packager(data);
 end
 
-model_mean_fn   = sprintf('model_mean_%i.mat',data.sessid);
-model_mean_file = fullfile(params.model_dir, model_mean_fn);
-
 % load and clean up array_data and vec_data for this session
-if isempty(params.array_data) || isempty(params.vec_data)
-    [params.array_data, params.vec_data, this_sessid, this_rat] = package_dyn_phys(data.cellid);
-    
-    % set up parameters for computing model strengths
-    ops.remove_initial_choice = 1;
-    ops.eval_dt = 1e-3;
-    ops.strength_window =.1;
-    ops.clear_bad_strengths = params.clear_bad_strengths;
-    ops.bad_strength = params.bad_strength;
-    ops.fit_line = params.fit_line;
-else
-    ops = [];
-    params.model_smooth_wdw = [];
-end
-% throw out bad trials from array_data
-params.array_data = cleanup_array_data(params.array_data, params.vec_data);
-% add generative state switches to array_data
-params.array_data = compute_state_switches(params.array_data);
-% decide either to use the model or generative switches
-if strcmp(params.which_switch, 'model')
-    % if array_data wasn't passed in with model switches, compute them
-    % using the saved model mean and the relevant model parameters
-    if ~isfield(params.array_data, 'model_switch_to_0') ||  ~isfield(params.array_data, 'model_switch_to_1')
-        % load the model mean trajectory
-        if exist(model_mean_file,'file')
-            m = load(model_mean_file);
-            model_mean = m.model_mean(params.vec_data.good);
-        else
-            compute_model_mean(this_rat,this_sessid)
-            m = load(model_mean_file);
-            model_mean = m.model_mean(params.vec_data.good);
-        end
-        % smooth the mean model trajectory
-        if ~isempty(params.model_smooth_wdw)
-            for j = 1:length(model_mean)
-                model_mean(j).mean = movmean(model_mean(j).mean, params.model_smooth_wdw);
-            end
-        end
-        % compute the model switch times
-        params.array_data = compute_model_state(params.array_data, model_mean);
-        params.array_data = quantify_model_state_strength(params.array_data,ops);
-        params.array_data = smooth_model_state(params.array_data,ops);
-    end
-    switch_to_0 = {params.array_data.model_switch_to_0};
-    switch_to_1 = {params.array_data.model_switch_to_1};
-    %stim_start = vec_data.stim_start(includes);
-elseif strcmp(params.which_switch, 'generative')
-    switch_to_0 = {params.array_data.switch_to_0};
-    switch_to_1 = {params.array_data.switch_to_1};
-    %stim_start = vec_data.stim_start(includes);
-elseif strcmp(params.which_switch, 'accumulation')
-    params.array_data = compute_accumulation_state_switches(params.array_data);
-    switch_to_0 = {params.array_data.accumulation_switch_to_0};
-    switch_to_1 = {params.array_data.accumulation_switch_to_1};
-else
-    error('which_switch improperly specified')
-end
+[switch_to_0, switch_to_1, p.array_data, p.vec_data] = ...
+    get_switches(cellid, 'which_switch',p.which_switch,...
+    'array_data',p.array_data,'vec_data',p.vec_data,...
+    'clear_bad_strengths', p.clear_bad_strengths, ...
+    'bad_strength', p.bad_strength, 'fit_line', p.fit_line,...
+    'exclude_final', p.exclude_final, 'final_only', p.final_only);
+
 % decide which trials to analyze and which to discard
 has_switch  = (cellfun(@length, switch_to_0) + cellfun(@length, switch_to_1)) > 0;
-includes    = eval(params.include_str) & has_switch';
+includes    = eval(p.include_str) & has_switch';
 n_trials    = sum(includes);
+
 switch_to_0 = switch_to_0(includes);
 switch_to_1 = switch_to_1(includes);
 
-if p.Results.exclude_final
-    switch_to_0 = cellfun(@(x) x(1:end-1), switch_to_0,'uniformoutput',0);
-    switch_to_1 = cellfun(@(x) x(1:end-1), switch_to_1,'uniformoutput',0);
-elseif p.Results.final_only
-    has_switch_to_0 = ~cellfun(@isempty,switch_to_0);
-    has_switch_to_1 = ~cellfun(@isempty,switch_to_1);
-
-    switch_to_0(has_switch_to_0) = cellfun(@(x) x(end), ...
-        switch_to_0(has_switch_to_0),'uniformoutput',0);
-    switch_to_1(has_switch_to_1) = cellfun(@(x) x(end), ...
-        switch_to_1(has_switch_to_1),'uniformoutput',0);
-end
 n_switch_to_0 = cellfun(@length, switch_to_0);
 n_switch_to_1 = cellfun(@length, switch_to_1);
 
 % normalize firing rates
-switch params.norm_type
+switch p.norm_type
     case 'none'
-        norm_ys = data.frate{params.align_ind};
+        norm_ys = data.frate{p.align_ind};
     case 'div'
-        norm_ys = data.frate{params.align_ind} ./ data.norm_mean;
+        norm_ys = data.frate{p.align_ind} ./ data.norm_mean;
     case 'log_div'
-        norm_ys = log(data.frate{params.align_ind} ./ data.norm_mean);
+        norm_ys = log(data.frate{p.align_ind} ./ data.norm_mean);
     case 'z'
-        norm_ys = (data.frate{params.align_ind} - data.norm_mean) ./ data.norm_std;
+        norm_ys = (data.frate{p.align_ind} - data.norm_mean) ./ data.norm_std;
     otherwise
         error('norm_type not recognized')
 end
 
 % time axis
-t               = data.frate_t{params.align_ind};
+t               = data.frate_t{p.align_ind};
 [~, pre_bin]    = min(abs(t));
-[~, post_bin]   = min(abs(t-params.post));
+[~, post_bin]   = min(abs(t-p.post));
 t               = t(pre_bin:post_bin);
 % lags are time differences between switches and spikes
 lags    = [-fliplr(t(pre_bin+1:post_bin)) t(pre_bin:post_bin)];
 n_lags  = length(lags);
 
 % initialize switch triggered response for matrix for each side
-STR_right = nan(sum(n_switch_to_1), n_lags, params.n_shuffles+1);
-STR_left = nan(sum(n_switch_to_0), n_lags, params.n_shuffles+1);
+STR_right = nan(sum(n_switch_to_1), n_lags, p.n_shuffles+1);
+STR_left = nan(sum(n_switch_to_0), n_lags, p.n_shuffles+1);
 
 % get data from included trials and relevant time bins
 norm_ys = norm_ys(includes,pre_bin:post_bin);
@@ -217,15 +152,15 @@ left_trials = ~right_trials;
 fr_mean = nanmean(norm_ys);
 
 % compute residual firing rates by subtracting the mean from all trials
-if ~p.Results.compute_residual
+if ~p.compute_residual
     fr_residual = norm_ys;
-elseif p.Results.condition_residual
+elseif p.condition_residual
     fr_residual = norm_ys;
     left_mean   = nanmean(norm_ys(left_trials,:));
     right_mean  = nanmean(norm_ys(right_trials,:));
     fr_residual(left_trials,:) = norm_ys(left_trials,:) - left_mean;
     fr_residual(right_trials,:) = norm_ys(right_trials,:) - right_mean
-    if p.Results.n_shuffles
+    if p.n_shuffles
         error('not sure if we are handling shuffle test with a choice-conditioned residual')
     end
 else
@@ -233,8 +168,8 @@ else
 end
 % if desired, shuffle residual firing rates across included trials
 real_ind = 1:size(norm_ys,1);
-test_ind = repmat(real_ind,params.n_shuffles+1,1);
-for ss = 2:params.n_shuffles
+test_ind = repmat(real_ind,p.n_shuffles+1,1);
+for ss = 2:p.n_shuffles
     test_ind(ss,:) = real_ind(randperm(length(real_ind)));
 end
 
@@ -253,7 +188,7 @@ for tt=1:n_trials
     this_state = this_state(sort_dex);
     s2 = s2_full;
 
-    if params.mask_other_switch
+    if p.mask_other_switch
         for m = 1:length(this_switch)
             [t_start, t_end, ind] = get_lag_params(t,this_switch(m),n_lags);
             s2 = s2_full;
@@ -326,11 +261,11 @@ res.pval(res.good_lags) = nanmean(res.dprime_real(res.good_lags)'  > res.dprime_
 %res.pval(res.good_lags) = nanmean(abs(res.dprime_real(res.good_lags))'  > abs(res.dprime_shuff(res.good_lags,:))');
 
 res.lags            = lags;
-res.params          = params;
+res.params          = p;
 res.cellid          = data.cellid;
 
 % save results
-if ~isempty(params.save_dir) && params.save_file
+if ~isempty(p.save_dir) && p.save_file
     save(save_path,'res');
 end
 
