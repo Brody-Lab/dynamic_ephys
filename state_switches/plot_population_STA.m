@@ -30,6 +30,13 @@ for cc = 1:length(cellids)
     rightSTA(cc,:)  = res{cc}.STR_right_real;
 end
 %%
+cout_auc_file = fullfile(dp.ephys_summary_dir,'cout_auc.mat');
+cf = load(cout_auc_file,'cellids','good_cells');
+good_ind = ismember(cellids,cf.cellids(cf.good_cells));
+
+
+
+
 diffSTA   = leftSTA - rightSTA;
 
 which_cells = 1:ncells;
@@ -154,7 +161,7 @@ end
 
 
 % look at fraction of significant cells
-temp                = abs(temp);
+temp                = abs(temp(good_ind,:));
 bin_temp            = temp;
 bin_temp(temp > 0)  = 1;
 average_siggy       = sum(bin_temp,1)./size(temp,1);
@@ -393,7 +400,7 @@ end
 plot_val = (1-ptiles).*(time_vec<=0) + ptiles.*(time_vec>0);
 %plot_val = 1-ptiles;
 a = .05;
-nconsec = 8
+nconsec = 2
 
 
 sigp = ptiles < a | ptiles > (1-a);
@@ -405,11 +412,25 @@ consecsig = movsumsig==nconsec;
 close(figure(10));
 fh = figure(10); clf
 set(fh,'position',[2 2 6 4],'papersize',[ 6 4])
-[~, i_s, j_s] = sort_by_peak(consecsig);
+
+switch 1
+    case 0
+        consecsig = consecsig(good_ind,:);
+        %consecsig(:,end) = nconsec;
+        plot_val = plot_val(ind,:);
+    case 1
+        consecsig = consecsig(good_ind,:);
+        consecsig(:,end) = nconsec;
+        plot_val = plot_val(good_ind,:);
+    case 2
+end
+[~, i_s, j_s] = sort_by_peak(consecsig(:,:));
+
+plotMat = plot_val(i_s(j_s>1),:);
 
 
 ax = axes
-plotMat = plot_val(i_s(j_s>1),:);
+
 
 n = 20;
 sig_bins = [linspace(0, .05,n) linspace(.1,.9,n) linspace(.95, 1,n)];
@@ -445,8 +466,8 @@ box(ax,'off')
 ex_y = sort([find(cellids(i_s(j_s>1)) == 18181) ...
     find(cellids(i_s(j_s>1)) == 17784) ...
     find(cellids(i_s(j_s>1)) == 16857)]);
-ax.YTick = ex_y;
-ax.YTickLabel = [];
+%ax.YTick = ex_y;
+%ax.YTickLabel = [];
 
 ylabel('cells with 10 significant conecutive timepoints')
 ylabel({'cell #' '(sorted by selectivity' 'onset post-switch)'})
