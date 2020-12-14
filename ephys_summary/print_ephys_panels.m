@@ -357,8 +357,8 @@ psths = [cin_pref_psth_mn cout_pref_psth_mn; ...
     cin_npref_psth_good_err cout_npref_psth_good_err];
 
 
-pref_color = [.5 .3 .75];
-npref_color = hsv2rgb(rgb2hsv(1-pref_color).*[1 .25 1]);
+%pref_color = [.5 .3 .75];
+%npref_color = hsv2rgb(rgb2hsv(1-pref_color).*[1 .25 1]);
 
 % 
 % cin_pref_psth_good = cin_pref_psth;
@@ -372,7 +372,6 @@ pref_combo = [cin_pref_psth_good cout_pref_psth_good];
 normsort = @(A,B) sort_by_peak(norm_by_peak(A,B),B);
 %normsort = @(A,B) sort_by_peak(A,B);
 cax = [0 1]
-
 fh=figure(3); clf
 
 s(1)=subplot(221);
@@ -382,13 +381,15 @@ s(2)=subplot(222);
 imagesc(normsort(cout_pref_psth_good, pref_combo),'x',cout_t(good_coutt));
 caxis(cax);
 
+
+%colormap(jet)
 s(3)=subplot(223);
 imagesc(normsort(cin_npref_psth_good, pref_combo),'x',cin_t(good_cint))
 caxis(cax);
 s(4)=subplot(224);
 imagesc(normsort(cout_npref_psth_good, pref_combo),'x',cout_t(good_coutt))
 caxis(cax);
-colormap(flipud(gray.^.7));
+%colormap(flipud(gray.^.7));
 ylabel(s(3),'cell # (sorted by peak time)')
 %ylabel(subplot(223),'cell # (sorted as above)')
 hold(s(1),'on')
@@ -399,6 +400,13 @@ plot(s(1),[ 0 0], [0 1000],'k')
 plot(s(2),[ 0 0], [0 1000],'k')
 plot(s(3),[ 0 0], [0 1000],'k')
 plot(s(4),[ 0 0], [0 1000],'k')
+% 
+% colormap(s(2),flipud(colormapLinear(pref_color).^1))
+% colormap(s(1),colormapLinear(pref_color).^.55)
+% colormap(s(3),colormapLinear(npref_color).^1)
+% colormap(s(4),colormapLinear(npref_color).^1)
+
+colormap(colormapLinear([1 1 1].*.0).^.55)
 
 set(subplot(221),'ytick',[300 600])
 set(subplot(223),'ytick',[300 600])
@@ -423,7 +431,7 @@ for ii = 1:4
 
 end
 set(s(1),'XTickLabel',[]); set(s(2),'XTickLabel',[])
-colormap((colormapLinear([1 1 1].*0,50).^.7))
+%colormap((colormapLinear([1 1 1].*0,50).^.7))
 print(fh, fullfile(dp.psth_fig_dir, 'sequence_plot'),...
     '-dsvg', '-painters')
 
@@ -474,7 +482,7 @@ end
 else
     load(cout_auc_file);
 end
-save(cout_auc_file,'cout_t','cout_auc','cout_p','cout_ci','nboot');
+save(cout_auc_file,'cellids','good_cells','cout_t','cout_auc','cout_p','cout_ci','nboot');
 %%
 fh = figure(10); clf;
 np      = 10;
