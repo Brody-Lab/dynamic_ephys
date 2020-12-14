@@ -137,6 +137,13 @@ p.model.compute     = 0;
 p.model.plot        = 0;
 
 
+p.fw = 2.5;
+p.msz = 12;
+p.fsz = 10.5;
+set(0, 'defaultaxesfontsize',p.fsz);
+set(0,'defaultaxeslinewidth',1)
+
+
 if pathup
     addpath(tim_code_dir, fullfile(tim_code_dir, 'Carlosbin'))
     addpath(fullfile(ratter_dir, 'ExperPort/bin'))
