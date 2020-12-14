@@ -7,7 +7,7 @@ end
 if nargin < 3
     slim_data = 1;
 end  
-select_str = 'normmean > .5';
+select_str = 'normmean > 0';
 dp = set_dyn_path;
 sta_fn = ['population_STA_' which_switch '_' num2str(bad_strength) '.mat'];
 sta_file = fullfile(dp.spikes_dir, sta_fn);
