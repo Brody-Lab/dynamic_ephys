@@ -50,12 +50,16 @@ function [array_data vec_data sessid ratname] = package_dyn_phys(cellid, varargi
 p = inputParser();
 addParameter(p, 'save_to_file', 1); % saves packaged data to a file
 addParameter(p, 'repack', false); % forces re-calculation even if file exists
-addParameter(p, 'save_path', '~/Dropbox/spikes/cell_packager_data/');% default save folder 
+addParameter(p, 'save_path', []); % default save folder 
 parse(p, varargin{:});
 % TO DO:
 % add error checking for NIC ending with legal cbreak
 % ex_cbreak_end = 1;      % excludes trials with NIC ending with legal_cbreak         
+dp = set_dyn_path;
 save_path       = p.Results.save_path;
+if isempty(save_path)
+    save_path   = dp.spikes_dir;
+end
 save_to_file    = p.Results.save_to_file;
 repack          = p.Results.repack;
 
@@ -210,6 +214,7 @@ for gi = 1:length(good),
         vec_data.bup_diff(g) = length(right_bups) - length(left_bups);
     end
     
+    array_data(g).trialnum  = gtrial;
     array_data(g).left_bups = left_bups + stim_start_delay(gtrial) + cpoke_start(gtrial);
     array_data(g).right_bups = right_bups + stim_start_delay(gtrial) + cpoke_start(gtrial);
 
