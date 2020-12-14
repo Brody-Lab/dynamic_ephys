@@ -1,4 +1,11 @@
-function [array_data] = quantify_model_state_strength(array_data,p);
+function [array_data] = quantify_model_state_strength(array_data,varargin)
+p = inputParser;
+addParameter(p,'eval_dt',1e-3);
+addParameter(p,'strength_window',.1);
+addParameter(p,'fit_line',1);
+parse(p,varargin{:});
+p = p.Results;
+
 % calculates the strength of each model state change.
 % does so by calculating the mean model trajectory in the window before and after each state change
 nw = ceil(p.strength_window/p.eval_dt);
