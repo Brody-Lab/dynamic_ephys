@@ -50,7 +50,7 @@ if ndims(results.fga_cell) == 2
     nsigma              = results.nsigmas_cell;
     flipcond            = results.flipdex;
     frm_time            = results.frm_time;
-    var_expl            = results.var_explained;
+    %var_expl            = results.var_explained;
     tuning_cell         = results.tuning_cell;
     tuning_fr           = results.tuning_fr;
     tuning_fa           = results.tuning_fa;
@@ -72,7 +72,7 @@ else
     nsigma              = results.nsigmas_cell(celldex,:);
     flipcond            = results.flipdex(celldex);
     frm_time            = results.frm_time(:,celldex);
-    var_expl            = results.var_explained(:,celldex);
+    %var_expl            = results.var_explained(:,celldex);
     tuning_cell         = results.tuning_cell(:,:,celldex);
     tuning_fr           = results.tuning_fr(:,celldex);
     tuning_fa           = results.tuning_fa(:,celldex);
