@@ -1,4 +1,4 @@
-function [array_data] = smooth_model_state(array_data,p);
+function [array_data] = smooth_model_state(array_data,varargin);
 % This function remove several types of possible degenerate model state change predictions
 %
 % If p.remove_initial_choice, the first state change from no prediction to either L/R is removed
@@ -13,6 +13,13 @@ function [array_data] = smooth_model_state(array_data,p);
 % Useful debugging trials. Cell 16898, Trials 6, 15, 17, 34, 65, 81
 %
 %
+p = inputParser();
+addParameter(p,'remove_initial_choice',1)
+addParameter(p,'clear_bad_strengths',1);
+addParameter(p,'bad_strength',0);
+parse(p,varargin{:});
+p = p.Results;
+
 
 % Remove start of trial state change "initial choice"
 if p.remove_initial_choice
