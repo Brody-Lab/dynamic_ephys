@@ -1,4 +1,14 @@
-function [array_data, vec_data, cellid, sessid] = get_behavior_data(datapath, cellid, sessid, p)
+function [array_data, vec_data, cellid, sessid] = ...
+    get_behavior_data(datapath, cellid, sessid, p)
+
+if ~isfield(p,'ratname')
+    this_rat    = bdata('select ratname from sessions where sessid={S}',sessid);
+    p.ratname   = this_rat{1};
+end
+if ~isfield(p,'reload')
+    p.reload = 0;
+end
+
 
 disp(['cellid_' num2str(cellid) '_sessid_' num2str(sessid) '_rat_' p.ratname])
 
