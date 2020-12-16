@@ -56,6 +56,7 @@ addParameter(p, 'bound',  inf); % bound for slope-fitting purposes
 addParameter(p, 'n_iter',  1); % number of iterations for refining estimate of DV
 addParameter(p, 'param_scale_num',  1); % parameter number to scale
 addParameter(p, 'param_scale_factor',  1); % multiplicative factor of that parameter
+addParameter(p, 'do_flip', 0);
 parse(p, varargin{:});
 %bootstrap = false;                      % if true, sample with replacement across trials; used for bootstrap stats
 struct2vars(p.Results);
@@ -128,7 +129,7 @@ else
         % Do we need to flip cell?
         fga_ta_temp = nanmean(fr_given_as(time_bins,:)- nanmean(fr_given_as(time_bins,:),2),1);           
         flip_cond  = mean(fga_ta_temp(x>0)) < mean(fga_ta_temp(x<0));
-        if flip_cond
+        if do_flip & flip_cond
             fr_given_as     = flipdim(fr_given_as,2);
             fr_var_given_as = flipdim(fr_var_given_as,2);
             flipdex(ci)     = 1;

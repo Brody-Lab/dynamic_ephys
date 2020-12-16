@@ -4,8 +4,8 @@ celldex = 1;
 savefig = 0;
 plot_sigmoid = 1;
 plot_nice = 1;
-res = 5;
-if length(varargin) > 0 
+mvmnsz = 5;
+if length(varargin) > 0
     celldex = varargin{1};
     if numel(celldex) > 1
         % more than one cell, recursively plot them
@@ -23,14 +23,14 @@ if length(varargin) > 0
     end
     if nargin > 2
         savefig = varargin{2};
-        if savefig        
+        if savefig
             disp('Saving figures')
         end
     end
 end
 cellid = results.cellid(celldex);
 if nargin > 3
-    res = varargin{3};
+    mvmnsz = varargin{3};
 end
 
 
@@ -80,16 +80,16 @@ else
     svd_sigma           = results.svd_sigmas_cell(celldex,:);
 end
 
-if ~flipcond
+if flipcond
     fga_cell            = flipdim(fga_cell,2);
     fga_cell_residual   = flipdim(fga_cell_residual,2);
     fga_cell_nresidual  = flipdim(fga_cell_nresidual,2);
     fga_ta_cell         = flipdim(fga_ta_cell,1);
     fga_nta_cell        = flipdim(fga_nta_cell,1);
-    fga_ta_unorm_cell   = flipdim(fga_ta_unorm_cell,1); 
+    fga_ta_unorm_cell   = flipdim(fga_ta_unorm_cell,1);
     tuning_cell         = flipdim(tuning_cell,2);
     tuning_fa           = flipdim(tuning_fa,1);
-
+    
 end
 % plot fga_ta_cell, with sigmoid for both cases
 n_dv_bins = numel(fga_ta_cell);
@@ -98,16 +98,12 @@ clrs = color_set(n_dv_bins);
 markersize = 2;
 
 figure(1); clf;
-%%%% Plot r(a,t) 
-subplot(3,4,1);hold on; set(gca, 'fontsize',12);
-for i=1:res:n_dv_bins
-    if res > 1
-        plot(results.t0s, movmean(fga_cell(:,i),res), '-', 'color', clrs(i,:), 'Markerfacecolor', clrs(i,:), 'MarkerSize', markersize);
+%%%% Plot r(a,t)
 
-    else
-        plot(results.t0s, fga_cell(:,i), '-', 'color', clrs(i,:), 'Markerfacecolor', clrs(i,:), 'MarkerSize', markersize);
-    end
-end
+ax = subplot(3,4,1);cla; hold on; 
+set(ax,'ColorOrder',clrs(1:mvmnsz:end,:),'NextPlot','ReplaceChildren',...
+    'fontsize',12)
+plot(ax,results.t0s,movmean(fga_cell(:,1:mvmnsz:end),5),'-')
 ylabel('Firing Rate (Hz)')
 xlabel('Time (s)')
 title(['Cell ' num2str(cellid) ' r(a,t)'])
@@ -115,15 +111,11 @@ title(['Cell ' num2str(cellid) ' r(a,t)'])
 ylim([0 inf])
 ylims1 = ylim;
 
-%%%% Plot Delta r(a,t) 
-subplot(3,4,2);hold on; set(gca, 'fontsize',12);
-for i=1:res:n_dv_bins
-    if res > 1
-    plot(results.t0s, movmean(fga_cell_residual(:,i),res), '-', 'color', clrs(i,:), 'Markerfacecolor', clrs(i,:), 'MarkerSize', markersize);
-    else
-    plot(results.t0s, fga_cell_residual(:,i), '-', 'color', clrs(i,:), 'Markerfacecolor', clrs(i,:), 'MarkerSize', markersize);
-    end
-end
+%%%% Plot Delta r(a,t)
+ax = subplot(3,4,2);
+set(ax,'ColorOrder',clrs(1:mvmnsz:end,:),'NextPlot','ReplaceChildren',...
+    'fontsize',12)
+plot(ax,results.t0s,movmean(fga_cell_residual(:,1:mvmnsz:end),5),'-')
 ylabel('\Delta FR (Hz)')
 xlabel('Time (s)')
 title('\Delta r(a,t)')
@@ -131,24 +123,18 @@ title('\Delta r(a,t)')
 ylims = ylim;
 ylim([-max(abs(ylims)), +max(abs(ylims))])
 
-%%%% Plot Normalized Delta r(a,t) 
-subplot(3,4,4);hold on; set(gca, 'fontsize',12);
+%%%% Plot Normalized Delta r(a,t)
+ax = subplot(3,4,4);cla; hold on; set(gca, 'fontsize',12);
 if plot_nice
-    for i=1:n_dv_bins
-        fga_cell_nresidual(:,i) = movmean(fga_cell_nresidual(:,i),res);
-    end
-    for i=1:length(results.t0s)
-        fga_cell_nresidual(i,:) = fga_cell_nresidual(i,:) - min(fga_cell_nresidual(i,:));
-        fga_cell_nresidual(i,:) = fga_cell_nresidual(i,:)./max(fga_cell_nresidual(i,:));
-    end
+    fga_cell_nresidual = movmean(fga_cell_nresidual,mvmnsz);
+    fga_cell_nresidual = fga_cell_nresidual - min(fga_cell_nresidual,[],2);
+    fga_cell_nresidual = fga_cell_nresidual./max(fga_cell_nresidual,[],2);
 end
-for i=1:res:n_dv_bins
-%    if res > 1
-%    plot(results.t0s, movmean(fga_cell_nresidual(:,i),res+2), '-', 'color', clrs(i,:), 'Markerfacecolor', clrs(i,:), 'MarkerSize', markersize);
-%    else
-    plot(results.t0s(1:res:end), fga_cell_nresidual(1:res:end,i), '-', 'color', clrs(i,:), 'Markerfacecolor', clrs(i,:), 'MarkerSize', markersize);
-%    end
-end
+set(ax,'ColorOrder',clrs(1:mvmnsz:end,:),'NextPlot','ReplaceChildren',...
+    'fontsize',12)
+plot(ax,results.t0s(1:mvmnsz:end),fga_cell_nresidual(1:mvmnsz:end,1:mvmnsz:end), ...
+    '-', 'MarkerSize', markersize);
+
 ylabel('Norm. FR')
 xlabel('Time (s)')
 title('\Delta r(a,t)')
@@ -164,15 +150,11 @@ title('\Delta r(a,t)')
 %pbaspect([1.25 1 1])
 %ylim(ylims1)
 
-%%%% Plot Rank 1 Delta r(a,t) 
-subplot(3,4,3);hold on; set(gca, 'fontsize',12);
-for i=1:res:n_dv_bins
-    if res > 1
-    plot(results.t0s, movmean(tuning_cell(:,i),res), '-', 'color', clrs(i,:), 'Markerfacecolor', clrs(i,:), 'MarkerSize', markersize);
-    else
-    plot(results.t0s, tuning_cell(:,i), '-', 'color', clrs(i,:), 'Markerfacecolor', clrs(i,:), 'MarkerSize', markersize);
-    end
-end
+%%%% Plot Rank 1 Delta r(a,t)
+ax = subplot(3,4,3); cla(ax)
+set(ax,'ColorOrder',clrs(1:mvmnsz:end,:),'NextPlot','ReplaceChildren',...
+    'fontsize',12)
+plot(results.t0s, movmean(tuning_cell(:,1:mvmnsz:end),mvmnsz));
 ylabel('\Delta FR (Hz)')
 xlabel('Time (s)')
 title('\Delta r(a,t)-r1')
@@ -182,22 +164,23 @@ ylim([-max(abs(ylims)), +max(abs(ylims))])
 
 
 %%%% Plot tuning curve from avg method?
-subplot(3,4,5);hold on; set(gca, 'fontsize',12);
+subplot(3,4,5); hold on; set(gca, 'fontsize',12);
 plot(results.dv_axis,fga_ta_cell,'k','linewidth',2)
 h = gca;
-for i=1:res:numel(results.dv_axis)
+for i=1:mvmnsz:numel(results.dv_axis)
     hold on;
-    eh = errorplot2(h,results.dv_axis(i), fga_ta_cell(i), fga_std_ta_cell(i), 'Marker', '', 'Color', clrs(i,:));
+    eh = errorplot2(h,results.dv_axis(i), fga_ta_cell(i), ...
+        fga_std_ta_cell(i), 'Marker', '', 'Color', clrs(i,:));
 end;
 xfine = results.dv_axis(1):0.1:results.dv_axis(end);
 if ~isnan(betas)
-ypred = dyn_sig(betas,xfine);
-if ~flipcond
-    ypred = flipdim(ypred,2);
-end
-if plot_sigmoid
-    plot(xfine, ypred, 'm','linewidth',2)
-end
+    ypred = dyn_sig(betas,xfine);
+    if flipcond
+        ypred = flipdim(ypred,2);
+    end
+    if plot_sigmoid
+        plot(xfine, ypred, 'm','linewidth',2)
+    end
 end
 title('Avg. r(a)')
 xlabel('Accumulated Value')
@@ -205,7 +188,7 @@ ylabel('Norm. FR')
 %pbaspect([1.25 1 1])
 ylim([-0.1 1.1])
 
-%%%% Plot un-normalized tuning curve 
+%%%% Plot un-normalized tuning curve
 subplot(3,4,6);hold on; set(gca, 'fontsize',12);
 plot(results.dv_axis,fga_ta_unorm_cell,'k','linewidth',2)
 %fr_mod = 0.75;
@@ -219,24 +202,24 @@ ylabel('\Delta FR (Hz)')
 ylims = ylim;
 ylim([-max(abs(ylims)), +max(abs(ylims))])
 %
-%%%% Plot normalized tuning curve 
+%%%% Plot normalized tuning curve
 subplot(3,4,7); hold on; set(gca, 'fontsize',12)
 %title(['Cell ' num2str(cellid)])
 plot(results.dv_axis,fga_nta_cell-0.5,'k','linewidth',2)
 h = gca;
-for i=1:res:numel(results.dv_axis)
+for i=1:mvmnsz:numel(results.dv_axis)
     hold on;
     eh = errorplot2(h,results.dv_axis(i), fga_nta_cell(i)-0.5, fga_std_nta_cell(i), 'Marker', '', 'Color', clrs(i,:));
 end;
 xfine = results.dv_axis(1):0.1:results.dv_axis(end);
 if ~isnan(nbetas)
-ypred = dyn_sig(nbetas,xfine);
-if ~flipcond
-    ypred = flipdim(ypred,2);
-end
-if plot_sigmoid
-    plot(xfine, ypred-0.5, 'm','linewidth',2)
-end
+    ypred = dyn_sig(nbetas,xfine);
+    if flipcond
+        ypred = flipdim(ypred,2);
+    end
+    if plot_sigmoid
+        plot(xfine, ypred-0.5, 'm','linewidth',2)
+    end
 end
 title('Norm. r(a)')
 xlabel('Accumulation Value (a)')
@@ -255,13 +238,13 @@ h = gca;
 
 xfine = results.dv_axis(1):0.1:results.dv_axis(end);
 if ~isnan(svd_betas)
-ypred = dyn_sig(svd_betas,xfine);
-if ~flipcond
-    ypred = flipdim(ypred,2);
-end
-if plot_sigmoid
-    plot(xfine, ypred+min(tuning_fa), 'm','linewidth',2)
-end
+    ypred = dyn_sig(svd_betas,xfine);
+    if flipcond
+        ypred = flipdim(ypred,2);
+    end
+    if plot_sigmoid
+        plot(xfine, ypred+min(tuning_fa), 'm','linewidth',2)
+    end
 end
 title('SVD r(a)')
 xlabel('Accumulation Value (a)')
@@ -322,22 +305,22 @@ if savefig
 end
 
 if 0
-[u,s,v] = svd(fga_cell_residual);
-figure; plot(results.t0s, movmean(u(:,1).*s(1,1).*0.12,10),'k','linewidth',2)
-ylabel('f.r modulation (Hz)')
-xlabel('Time (s)')
-set(gca, 'fontsize',12)
-title('m(t)')
-pbaspect([1.25 1 1])
-ylim([-5 5])
-if savefig
-    fig = gcf;
-    fig.PaperUnits = 'inches';
-    fig.PaperPosition = [0 0 4 4];
-    fig.PaperPositionMode = 'Manual';
-    fig.PaperSize = [4 4];
-    print(gcf,  ['../../figures/tuning/m_' num2str(cellid) ],'-dsvg')
-end
+    [u,s,v] = svd(fga_cell_residual);
+    figure; plot(results.t0s, movmean(u(:,1).*s(1,1).*0.12,10),'k','linewidth',2)
+    ylabel('f.r modulation (Hz)')
+    xlabel('Time (s)')
+    set(gca, 'fontsize',12)
+    title('m(t)')
+    pbaspect([1.25 1 1])
+    ylim([-5 5])
+    if savefig
+        fig = gcf;
+        fig.PaperUnits = 'inches';
+        fig.PaperPosition = [0 0 4 4];
+        fig.PaperPositionMode = 'Manual';
+        fig.PaperSize = [4 4];
+        print(gcf,  ['../../figures/tuning/m_' num2str(cellid) ],'-dsvg')
+    end
 end
 
 
