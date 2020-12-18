@@ -57,6 +57,8 @@ addParameter(p, 'n_iter',  1); % number of iterations for refining estimate of D
 addParameter(p, 'param_scale_num',  1); % parameter number to scale
 addParameter(p, 'param_scale_factor',  1); % multiplicative factor of that parameter
 addParameter(p, 'do_flip', 0);
+addParameter(p, 'shuffle_trials', 0);
+addParameter(p, 'frates', []);
 parse(p, varargin{:});
 %bootstrap = false;                      % if true, sample with replacement across trials; used for bootstrap stats
 struct2vars(p.Results);
@@ -106,9 +108,9 @@ else
     fr_modulation       = nan(n_cells,1);
     frm_time            = nan(numel(t0s), n_cells);
     flipdex             = zeros(n_cells,1);
-    tuning_cell         = nan(numel(t0s), n_dv_bins,n_cells);
-    tuning_fr           = nan(numel(t0s), n_cells);
-    tuning_fa           = nan(n_dv_bins,n_cells);
+    rank1_fga_resid         = nan(numel(t0s), n_dv_bins,n_cells);
+    rank1_mt_n           = nan(numel(t0s), n_cells);
+    rank1_ra_n           = nan(n_dv_bins,n_cells);
     rank1_variance      = nan(n_cells,1);
    
     % loop through cells
@@ -123,7 +125,7 @@ else
             'direction', direction, 'frbins', frbins, 'krn_type', krn_type, 'norm_type', norm_type,...
             'n_iter',n_iter, 'param_scale_num', param_scale_num, ...
             'param_scale_factor', param_scale_factor, 'force_bin', force_bin,'force_dv',force_dv,...
-            'datadir',datadir);%, 'bootstrap', bootstrap);
+            'datadir',datadir,'shuffle_trials',shuffle_trials,'frates',frates);%, 'bootstrap', bootstrap);
         try
 
         % Do we need to flip cell?
@@ -158,8 +160,10 @@ else
         fga_std_nta = fga_std_nta ./max_val;
 
         % Find 1D tuning curve for each cell
-        fga_ta      = nanmean(fr_given_as(time_bins,:)- nanmean(fr_given_as(time_bins,:),2),1);
-        fga_std_ta  = nanstderr(fr_given_as(time_bins,:)-nanmean(fr_given_as(time_bins,:),2),1);
+        fga_ta      = nanmean(fr_given_as(time_bins,:) - ...
+            nanmean(fr_given_as(time_bins,:),2),1);
+        fga_std_ta  = nanstderr(fr_given_as(time_bins,:) - ...
+            nanmean(fr_given_as(time_bins,:),2),1);
         fga_ta_unorm = fga_ta;
         min_val     = min(fga_ta);
         fga_ta      = fga_ta - min_val;
@@ -221,26 +225,34 @@ else
         end
 
         % SVD analysis
-        [u,s,v] = svd(fga_cell_residual(:,:,ci));
-        s2 = s;
-        s2(2:end) = 0;
-        tuning_cell(:,:,ci) = u*s2*v';
-        alpha   = 1/range(v(:,1));
-        beta    = s2(1,1)/alpha;
-        tuning_fr(:,ci) = u(:,1)*beta;
-        tuning_fa(:,ci) = v(:,1)*alpha;
-        s_squared = diag(s).^2;
-        rank1_variance(ci) = s_squared(1)./sum(s_squared);
+        
+        [u,s,v]     = svd(fga_cell_residual(:,:,ci));
+        s_squared   = diag(s).^2;
+        s1(:,1)     = s(1);
+        u1(:,ci)    = u(:,1);
+        v1(:,ci)    = v(:,1);
+        %s1(2:end)   = 0;
+        rank1_fga_resid(:,:,ci) = u(:,1)*s(1)*v(:,1)';
+        alpha       = 1/range(v(:,1));
+        beta        = s1(1,1)/alpha;
+
+        rank1_mt_n(:,ci) = u(:,1)*beta;
+        rank1_ra_n(:,ci) = v(:,1)*alpha;
+        for ii = 1:5
+            rank_variance(ci,ii) = sum(s_squared(1:ii))./sum(s_squared);
+        end
+        
         tuning_alpha(ci) = alpha;
-        tuning_beta(ci) = beta;  
-        if mean(tuning_fr(:,ci)) < 0
-        tuning_fr(:,ci) = -u(:,1)*beta;
-        tuning_fa(:,ci) = -v(:,1)*alpha;
-        end 
+        tuning_beta(ci) = beta;
+        % sign of 
+        if median(rank1_mt_n(:,ci)) < 0 
+            rank1_mt_n(:,ci) = -u(:,1)*beta;
+            rank1_ra_n(:,ci) = -v(:,1)*alpha;
+        end
         % fit sigmoid to rank 1 tuning curve
         try
             warning('off','all')
-            svdta = tuning_fa(:,ci)';
+            svdta = rank1_ra_n(:,ci)';
             svdta = svdta - min(svdta);
             svdta = svdta./max(svdta); 
             [betas,resid,jacob,sigma,mse] = nlinfit(x,svdta,@dyn_sig,[0, 1/3]);
@@ -286,9 +298,9 @@ else
     results.frm_time            = frm_time;
     results.flipdex             = flipdex;
     results.x_cell              = x_cell;
-    results.tuning_cell         = tuning_cell;
-    results.tuning_fr           = tuning_fr;
-    results.tuning_fa           = tuning_fa;
+    results.tuning_cell         = rank1_fga_resid;
+    results.tuning_fr           = rank1_mt_n;
+    results.tuning_fa           = rank1_ra_n;
     results.rank1_variance      = rank1_variance;
     results.svd_betas_cell      = svd_betas_cell;
     results.svd_sigmas_cell     = svd_sigmas_cell; 

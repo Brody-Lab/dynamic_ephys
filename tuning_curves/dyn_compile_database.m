@@ -46,6 +46,8 @@ addParameter(p, 'fit_version', 'byrat');      % fit params to use; 'byrat', 'com
 addParameter(p, 'n_iter',  1    );      % number of iterations for refining estimate of DV
 addParameter(p, 'param_scale_num',      1  ); % parameter number to scale
 addParameter(p, 'param_scale_factor',   1  ); % multiplicative factor of that parameter
+addParameter(p, 'shuffle_trials',   1  ); % multiplicative factor of that parameter
+addParameter(p, 'frates', []);
 parse(p, varargin{:});
 struct2vars(p.Results);
 
@@ -153,7 +155,8 @@ if force_dv || isempty(u) || ~exist([datadir filesep 'compiled_' num2str(u) '.ma
         'norm_type', norm_type, ...
         'fit_version',fit_version,'n_iter',n_iter, ...
         'param_scale_num', param_scale_num, ...
-        'param_scale_factor', param_scale_factor);
+        'param_scale_factor', param_scale_factor,'shuffle_trials',shuffle_trials,...
+        'frates',frates);
 	
 	if isempty(u),
 		u = size(database,1)+1;

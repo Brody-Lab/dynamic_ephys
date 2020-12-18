@@ -79,13 +79,9 @@ function [constant_x, frbins, Pjoints, fr_given_as, fr_var_given_as, a_given_frs
 % more probability mass than typical bins and therefore throw the scale
 % off.
 %
-
-
-
-frbins=0;
 p = inputParser;
 addParameter(p,'lag',        0.2         );
-addParameter(p,'frbins',     0:0.1:50    );
+addParameter(p,'frbins',     0:0.1:100    );
 addParameter(p,'dt',         0.01        );
 addParameter(p,'alignment',      'stimstart-cout-mask' );   % string matching one of align_strs in dyn_align_LUT
 addParameter(p,'direction',       'backward' );   % 'forward' or 'backward'
@@ -100,6 +96,8 @@ addParameter(p,'n_iter',    1            );      % number of iterations for refi
 addParameter(p,'param_scale_num',        1     ); % parameter number to scale
 addParameter(p,'param_scale_factor',     1     ); % multiplicative factor of that parameter
 addParameter(p,'average_time_points',   0);
+addParameter(p,'frates',   []);
+addParameter(p,'shuffle_trials',   0);
 parse(p,varargin{:})
 struct2vars(p.Results);
 
@@ -138,12 +136,34 @@ ops.ratname   = data.ratname;
 
 [model, constant_x, allsame] = get_data_model_p(data, vec_data);
 
+% Figure out how to normalize firing rate
+ft = data.frate_t{align_ind};
+if isempty(frates) % 
+    frates = data.frate{align_ind};
+end
+
+switch norm_type
+    case 'none'
+        frates_norm = frates;
+    case 'div'
+        frates_norm = frates ./ data.norm_mean;
+    case 'z'
+        frates_norm = (frates - data.norm_mean) ./ data.norm_std;
+    otherwise
+        error('Do not recognize norm_type')
+end
+
 % Check to make sure we have the right number of trials
 if ~isempty(trialnums)
     trials = trialnums;
 else
     trials = 1:data.ngood_trials;
 end;
+
+if shuffle_trials
+    [~, neworder]   = sort(rand(length(trials),1));
+    frates_norm     = frates_norm(neworder,:);
+end
 
 % do some sanity checks to make sure I aligned the model responses correctly.
 if numel(trials) ~= numel(model)
@@ -195,18 +215,7 @@ for ti=1:numel(trials)
         end;
     end
     
-    % Figure out how to normalize firing rate
-    ft = data.frate_t{align_ind};
-    switch norm_type
-        case 'none'
-            fr = data.frate{align_ind}(trialnum,:);
-        case 'div'
-            fr = data.frate{align_ind}(trialnum,:) ./ data.norm_mean;
-        case 'z'
-            fr = (data.frate{align_ind}(trialnum,:) - data.norm_mean) ./ data.norm_std;
-        otherwise
-            error('Do not recognize norm_type')
-    end
+    fr = frates_norm(trialnum,:);
     
     if cellid < 0
         [fr, P] = synthetic_fr_P(cellid, fr, ft, model, norm_type)
@@ -232,8 +241,9 @@ for ti=1:numel(trials)
     end
     my_fr       = [];
     t0_durs     = [diff(t0s) 0];
-
+    last_ft     = ft(find(~isnan(fr),1,'last'));
     for time_i=1:numel(t0s)
+      
         t0 = t0s(time_i);
         
         % Compute which time bins to average together for A values
@@ -245,7 +255,7 @@ for ti=1:numel(trials)
         end
         this_dur    = t0_durs(time_i);
         
-        if (this_dur/2) > ft(find(~isnan(fr),1,'last'))
+        if (this_dur/2) > last_ft
             this_dur_nolag = 2*(ft(find(~isnan(fr),1,'last')) - t0);
         else
             this_dur_nolag = this_dur;
@@ -368,65 +378,36 @@ end;
 function [fr, P] = synthetic_fr_P(cellid, fr, ft, model, norm_type)
 % this is a fake neuron for testing purposes, replace actual fr with synthetic fr
 fr = get_synthetic_fr(cellid, fr,ft,model(ti).posterior.mean,norm_type);
+trial_vars = zeros(1,size(P,1));
 
-if cellid == -6
-    for jj = 1:size(P,1)
-        ps = sum(P(jj,:));
-        temp = P(jj,:);
-        temp = temp.^2;
-        temp = temp./sum(temp);
-        temp = temp.*ps;
-        P(jj,:) = temp;
-    end
-elseif cellid == -7
-    for jj = 1:size(P,1)
-        ps = sum(P(jj,:));
-        temp = P(jj,:);
-        temp = temp.^4;
-        temp = temp./sum(temp);
-        temp = temp.*ps;
-        P(jj,:) = temp;
-    end
-elseif cellid == -8
-    for jj = 1:size(P,1)
-        ps = sum(P(jj,:));
-        temp = P(jj,:);
-        temp = temp.^6;
-        temp = temp./sum(temp);
-        temp = temp.*ps;
-        P(jj,:) = temp;
-    end
-elseif cellid == -9
-    for jj = 1:size(P,1)
-        ps = sum(P(jj,:));
-        temp = P(jj,:);
-        temp = temp.^8;
-        temp = temp./sum(temp);
-        temp = temp.*ps;
-        P(jj,:) = temp;
-    end
-elseif cellid == -10
-    for jj = 1:size(P,1)
-        ps = sum(P(jj,:));
-        temp = P(jj,:);
-        temp = temp.^10;
-        temp = temp./sum(temp);
-        temp = temp.*ps;
-        P(jj,:) = temp;
-    end
+switch cellid
+    case -6
+        yy = 2;
+    case -7
+        yy = 4;
+    case -8
+        yy = 6;
+    case -9
+        yy = 8;
+    case -10
+        yy = 10;
+    otherwise
+        yy = 1;
 end
-if cellid == -4 | (cellid <= -6 & cellid > -11)
-    
-    trial_vars = zeros(1,size(P,1));
-    for jj=1:size(P,1);
-        temp = P(jj,:);
-        temp = temp./sum(temp);
-        thismean = sum(temp.*x);
-        varx = (x - thismean).^2;
-        trial_vars(jj) = sum(temp.*varx);
-    end
-    vars(ti) = mean(trial_vars);
+
+for jj = 1:size(P,1)
+    ps = sum(P(jj,:));
+    temp = P(jj,:);
+    temp = temp.^yy;
+    temp = temp./sum(temp);
+    thismean = sum(temp.*x);
+    varx = (x - thismean).^2;
+    trial_vars(jj) = sum(temp.*varx);
+    temp = temp.*ps;
+    P(jj,:) = temp;
 end
+%vars(ti) = mean(trial_vars);
+
 
 function [repack, krn_width, fr_dt, krn_type] = check_params(data,krn_width,fr_dt,krn_type)
 repack = false;

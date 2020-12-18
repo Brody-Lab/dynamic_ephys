@@ -47,6 +47,8 @@ addParameter(p, 'fit_version', 'byrat');      % fit params to use; 'byrat', 'com
 addParameter(p, 'n_iter', 1);      % number of iterations for refining estimate of DV
 addParameter(p, 'param_scale_num',    1); % parameter number to scale
 addParameter(p, 'param_scale_factor', 1); % multiplicative factor of that parameter
+addParameter(p, 'shuffle_trials', 0);
+addParameter(p, 'frates', []);
 parse(p, varargin{:});
 struct2vars(p.Results);
 
@@ -174,7 +176,8 @@ if force_bin || isempty(u) || ~exist([datadir filesep 'compiled_binned_' num2str
         'krn_width', krn_width, 'fr_dt', fr_dt, 'force_dv', force_dv, 'direction', direction, ...
         'krn_type', krn_type, 'norm_type', norm_type,'fit_version',fit_version,'n_iter',n_iter, ...
         'param_scale_num', param_scale_num, 'param_scale_factor', param_scale_factor,...
-        'datadir',fullfile(datadir,'compile_database_data'));
+        'datadir',fullfile(datadir,'compile_database_data'),...
+        'shuffle_trials',shuffle_trials,'frates',frates);
 
     % calculate binned 'Pjoints', 'fr_given_as', 'fr_var_given_as' for the given n_dv_bins
     x_bound_margin = (x(2)-x(1)) * 0.5;
