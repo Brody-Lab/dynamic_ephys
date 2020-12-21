@@ -1,4 +1,6 @@
-% [x, frbins, Pjoints, fr_given_as,  'fr_var_given_as, a_given_frs] = compile_binned_database(cellid, t0s, n_dv_bins, {'force', 0}, ...
+function [x, frbins, Pjoints, fr_given_as, fr_var_given_as, a_given_frs] = ...
+    dyn_compile_binned_database(cellid, t0s, n_dv_bins, ops, varargin)
+% [x, frbins, Pjoints, fr_given_as,  fr_var_given_as, a_given_frs] = compile_binned_database(cellid, t0s, n_dv_bins, {'force', 0}, ...
 %         {'datadir', '~/svn_papers/TimHanks/PBupsPhys/Code/Carlosbin/compile_database_data'}, ...
 %         {'lag', 0.2}, {'frbins', 0:0.1:10}, {'dt', 0.01}, {'trialnums', []}))
 %
@@ -22,10 +24,6 @@
 %            cpokeout)
 %
 
-
-
-function [x, frbins, Pjoints, fr_given_as, fr_var_given_as, a_given_frs] = ...
-    dyn_compile_binned_database(cellid, t0s, n_dv_bins, ops, varargin)
 
 frbins = 0;
 p = inputParser();
@@ -169,8 +167,8 @@ end
 
 u = find(cell_row_eq(database, my_index));
 if force_bin || isempty(u) || ~exist([datadir filesep 'compiled_binned_' num2str(u) '.mat'], 'file'),
-    disp('Rebinning')
-	[x, frbins, Pjoints_unbinned, ~, ~, a_given_frs] = ...
+    disp('Computing P(f,a,t)')
+	[x, frbins, Pjoints_fine, fr_given_as_orig, fr_var_given_as_orig, a_given_frs] = ...
         dyn_compile_database(cellid, t0s, ops,'lag', lag, ...
 		'frbins', frbins, 'dt', dt, 'trialnums', trialnums, 'use_nans', use_nans, 'alignment', alignment,...
         'krn_width', krn_width, 'fr_dt', fr_dt, 'force_dv', force_dv, 'direction', direction, ...
@@ -178,7 +176,7 @@ if force_bin || isempty(u) || ~exist([datadir filesep 'compiled_binned_' num2str
         'param_scale_num', param_scale_num, 'param_scale_factor', param_scale_factor,...
         'datadir',fullfile(datadir,'compile_database_data'),...
         'shuffle_trials',shuffle_trials,'frates',frates);
-
+    disp('Rebinning P(f,a,t)')
     % calculate binned 'Pjoints', 'fr_given_as', 'fr_var_given_as' for the given n_dv_bins
     x_bound_margin = (x(2)-x(1)) * 0.5;
     dv_bin_edges = linspace(min(x)+x_bound_margin,max(x)-x_bound_margin,n_dv_bins-1);
@@ -189,7 +187,7 @@ if force_bin || isempty(u) || ~exist([datadir filesep 'compiled_binned_' num2str
     % FIX: account for behavioral bias
     %     dv_bin_edges = dv_bin_edges + rat_bias;
 
-    if numel(dv_axis) > size(Pjoints_unbinned,3)
+    if numel(dv_axis) > size(Pjoints_fine,3)
         error('You are binning accumulation values more finely than the model generates')
     end
     for time_i=1:numel(t0s)
@@ -206,26 +204,26 @@ if force_bin || isempty(u) || ~exist([datadir filesep 'compiled_binned_' num2str
         % make binned Pjoints
         % Deal with the first bin
         these_dv_bins       = x < dv_bin_edges(1);
-        Pjoints(time_i,:,1) = nansum(Pjoints_unbinned(time_i,:,these_dv_bins),3);
+        Pjoints(time_i,:,1) = nansum(Pjoints_fine(time_i,:,these_dv_bins),3);
         edge_match          = x == dv_bin_edges(1);
-        Pjoints(time_i,:,1) = Pjoints(time_i,:,1) + 0.5*nansum(Pjoints_unbinned(time_i,:,edge_match),3); 
+        Pjoints(time_i,:,1) = Pjoints(time_i,:,1) + 0.5*nansum(Pjoints_fine(time_i,:,edge_match),3); 
 
         % Deal with middle bins
         for j=2:n_dv_bins-1
             these_dv_bins       = x>dv_bin_edges(j-1) & x<dv_bin_edges(j);
-            Pjoints(time_i,:,j) = nansum(Pjoints_unbinned(time_i,:,these_dv_bins),3); % Pjoints is t0 x FR x dv
+            Pjoints(time_i,:,j) = nansum(Pjoints_fine(time_i,:,these_dv_bins),3); % Pjoints is t0 x FR x dv
             % deal with bin edges that exactly match DV centers; for
             % these case, split joint dist in half between adjacent bins
             edge_match          = x==dv_bin_edges(j-1) | x==dv_bin_edges(j);
-            Pjoints(time_i,:,j) = Pjoints(time_i,:,j) + 0.5*nansum(Pjoints_unbinned(time_i,:,edge_match),3); 
+            Pjoints(time_i,:,j) = Pjoints(time_i,:,j) + 0.5*nansum(Pjoints_fine(time_i,:,edge_match),3); 
         end
         % Deal with last bin       
         these_dv_bins           = x > dv_bin_edges(end);
-        Pjoints(time_i,:,end)   = nansum(Pjoints_unbinned(time_i,:,these_dv_bins),3);
+        Pjoints(time_i,:,end)   = nansum(Pjoints_fine(time_i,:,these_dv_bins),3);
         edge_match              = x == dv_bin_edges(end);
-        Pjoints(time_i,:,end)   = Pjoints(time_i,:,end) + 0.5*nansum(Pjoints_unbinned(time_i,:,edge_match),3); 
+        Pjoints(time_i,:,end)   = Pjoints(time_i,:,end) + 0.5*nansum(Pjoints_fine(time_i,:,edge_match),3); 
 
-        if abs(sum(sum(Pjoints(time_i,:,:))) - sum(sum(Pjoints_unbinned(time_i,:,:)))) > 1e-6
+        if abs(sum(sum(Pjoints(time_i,:,:))) - sum(sum(Pjoints_fine(time_i,:,:)))) > 1e-6
             keyboard
             error('Probability mass is leaking during binning')
         end
