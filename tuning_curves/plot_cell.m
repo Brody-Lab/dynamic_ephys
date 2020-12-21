@@ -187,6 +187,8 @@ xlabel('Accumulated Value')
 ylabel('Norm. FR')
 %pbaspect([1.25 1 1])
 ylim([-0.1 1.1])
+plot([0 0], [0 1], 'k--');
+plot([results.dv_axis(1) results.dv_axis(end)], [0 0]+.5, 'k--');
 
 %%%% Plot un-normalized tuning curve
 subplot(3,4,6);hold on; set(gca, 'fontsize',12);
@@ -195,12 +197,15 @@ plot(results.dv_axis,fga_ta_unorm_cell,'k','linewidth',2)
 %plot([results.dv_axis(1) results.dv_axis(end)], [fr_mod/2 fr_mod/2], 'r--');
 %plot([results.dv_axis(1) results.dv_axis(end)], [-fr_mod/2 -fr_mod/2], 'r--');
 plot([results.dv_axis(1) results.dv_axis(end)], [0 0], 'k--');
+plot([0 0], [0 1], 'k--');
 title('raw r(a)')
 xlabel('Accumulated Value')
 ylabel('\Delta FR (Hz)')
 %pbaspect([1.25 1 1])
 ylims = ylim;
 ylim([-max(abs(ylims)), +max(abs(ylims))])
+plot([0 0], [-max(abs(ylims)), +max(abs(ylims))], 'k--');
+
 %
 %%%% Plot normalized tuning curve
 subplot(3,4,7); hold on; set(gca, 'fontsize',12)
@@ -227,6 +232,9 @@ ylabel('Norm. FR')
 %pbaspect([1.25 1 1])
 %ylim([-0.1 1.1])
 ylim([-0.6 0.6])
+plot([0 0], [-.6 .6], 'k--');
+plot([results.dv_axis(1) results.dv_axis(end)], [0 0], 'k--');
+
 set(h, 'Ytick', [-0.5 0 0.5], 'yticklabel',{'-0.5','0','0.5'})
 
 %%%% Plot SVD tuning curve
@@ -252,6 +260,8 @@ ylabel('FR')
 %pbaspect([1.25 1 1])
 %ylim([-0.1 1.1])
 ylim([-0.6 0.6])
+plot([0 0], [-.6 .6], 'k--');
+
 set(h, 'Ytick', [-0.5 0 0.5], 'yticklabel',{'-0.5','0','0.5'})
 
 %%%% Plot residual fr
