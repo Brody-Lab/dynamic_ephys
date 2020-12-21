@@ -1,4 +1,4 @@
- function results = dyn_fr_dv_map(cellids, t0s, n_dv_bins, ops, varargin)
+function results = dyn_fr_dv_map(cellids, t0s, n_dv_bins, ops, varargin)
 % function fr_dv_map(cellids, t0s, n_dv_bins, varargin)
 %
 % Function that performs analysis of firing rate's relationship to
