@@ -1,4 +1,405 @@
-function results = dyn_fr_dv_map(cellids, t0s, n_dv_bins, ops, varargin)
+function res = dyn_fr_dv_map(cellid,varargin)
+% function res = dyn_fr_dv_map(cellid, varargin)
+p = inputParser;
+addParameter(p,'lag',        0);
+addParameter(p,'frbins',     0:0.25:100);
+addParameter(p,'use_nans',   0);
+addParameter(p,'mask_after_stim',   true);
+addParameter(p,'mask_during_stim',  false);
+addParameter(p,'average_a_vals',    true)
+addParameter(p,'average_fr',        true);
+addParameter(p,'dt',        0.01);
+addParameter(p,'max_t',     1.9);
+addParameter(p,'t0s',    []);
+addParameter(p,'alignment', 'stimstart-cout-mask');   % string matching one of align_strs in dyn_align_LUT
+addParameter(p,'trialnums',  []);
+addParameter(p,'krn_width',  []);      % forces neural data to have this kernel width; if empty, uses whatever is in data    'krn_type'   []          );      % forces neural data to have this kernel type; if empty, uses whatever is in data
+addParameter(p,'krn_type',   'halfgauss');      % forces neural data to have this kernel type
+addParameter(p,'fr_dt',      []);      % forces neural data to have this bin size; if empty, uses whatever is in data
+addParameter(p,'norm_type',     'none');      % type of firing rate normalization; 'div' is divisive, 'z' is z-score, 'none' no normalization
+addParameter(p,'frates',   []);
+addParameter(p,'shuffle_trials',   0);
+addParameter(p,'model',   []);
+parse(p,varargin{:});
+p = p.Results;
+
+if length(cellid) > 1
+    for cc = 1:length(cellid)
+        res(cc) = dyn_fr_dv_map(cellid(cc),varargin{:});
+    end
+    return
+end
+
+if p.mask_during_stim && p.mask_after_stim
+    error('You cant mask stimulus firing and after-stimulus firing')
+end
+
+dp = set_dyn_path;
+
+% set up time axis for binning firing rates
+if isempty(p.t0s)
+    p.t0s     = 0:p.dt:p.max_t - p.lag;
+end
+if length(p.frbins) == length(p.t0s)
+    error('p.t0s are same length as frbins, could get confusing')
+end
+% pull the data for this cell recording + behavior session
+data    = dyn_cell_packager(cellid);
+if ~isfield(data.trials, 'trialnums')
+    if all(isempty([p.krn_width, p.krn_type, p.fr_dt]))
+        data = dyn_cell_packager(cellid);
+    else
+        data = dyn_cell_packager(cellid, 'krn_width', p.krn_width, ...
+            'krn_type', p.krn_type, 'bin_size', p.fr_dt);
+    end
+end
+% find alignment index for firing rates
+[align_strs, align_args] = dyn_align_LUT;
+align_ind = strmatch(p.alignment,align_strs,'exact');
+% pull firing rates from the appropriate alignment
+if isempty(p.frates)
+    p.frates = data.frate{align_ind};
+end
+% normalize firing rates
+switch p.norm_type
+    case 'none'
+        fr_norm = p.frates;
+    case 'div'
+        fr_norm = p.frates ./ data.norm_mean;
+    case 'z'
+        fr_norm = (p.frates - data.norm_mean) ./ data.norm_std;
+    otherwise
+        error('Do not recognize norm_type')
+end
+T       = data.trials.T;
+
+% pull time axis associated with firing rates
+ft      = data.frate_t{align_ind};
+
+% find time offset between model time and fr time
+% (model is stim_start aligned, fr alignment is chosen by user)
+ref_ev_ind  = find(cellfun(@(x) strcmp('ref_event',x), align_args{align_ind})) + 1;
+ref_event   = align_args{align_ind}{ref_ev_ind};
+ref_times   = data.trials.(ref_event);
+ss_times    = data.trials.stim_start; % stim_start is ref event for model
+mt_offset   = ref_times - ss_times;  % offset between model and fr_t on each trial
+
+sessid      = data.sessid;
+
+if isempty(p.model)
+    % only grab the trials that are in the data struct
+    p.model = get_data_model_p(data, data.trials.trialnums);
+end
+modelT  = cellfun(@(x) x.T(end), {p.model.posterior});
+
+assert(all(abs(modelT(:)-T(:)) < .1));
+%{
+there's some discrepancy between the time in the model posterior and the
+trial duration T which corresponds. you can see that here
+spike_data_dir = dp.spikes_dir;
+[~, vec_data, ~, ~] = get_behavior_data(spike_data_dir, cellid, sessid);
+S       = load_session_data(sessid);
+Sdata   = format_data(S);
+%}
+
+if p.shuffle_trials
+    Ttiles = [min(T); percentile(T,20:20:80); max(T)+eps];
+    % resort wp.ithin duration quintiles
+    for tt = 1:length(Ttiles)-1
+        this_ind = find(T >= Ttiles(tt) & T < Ttiles(tt+1));
+        [~, neworder]       = sort(rand(length(this_ind),1));
+        fr_norm(this_ind,:) = fr_norm(this_ind(neworder),:);
+    end
+end
+
+% compute the joint probability distribution p(t,f,a)
+res = compute_joint_frdvt(fr_norm, ft, p.model, p.t0s, mt_offset, ...
+    'frbins', p.frbins, 'use_nans', p.use_nans, 'lag', p.lag,...
+    'mask_after_stim', p.mask_after_stim, 'mask_during_stim', p.mask_during_stim,...
+    'average_a_vals', p.average_a_vals, 'average_fr', p.average_fr);
+% compute the 2d tuning, i.e. E[f(t,a)] = p(t,a,f)*f
+res = compute_tuning_from_joint(res);
+% compute average 1d tuning, i.e. E[f(a)] = <E[f(t,a)]>
+res = compute_dv_tuning(res);
+% run svd and et rank 1 matrix approximation of E[f(t,a)]
+res = compute_rank1_fgta_approx(res);
+
+
+
+function res = compute_joint_frdvt(fr_norm, ft, model, t0s, mt_offset, varargin)
+p = inputParser;
+addParameter(p, 'frbins', 0:.5:100);
+addParameter(p, 'use_nans', 0);
+addParameter(p, 'lag', 0);
+addParameter(p, 'mask_after_stim', true);
+addParameter(p, 'mask_during_stim', false);
+addParameter(p, 'average_a_vals', true)
+addParameter(p, 'average_fr', true);
+parse(p,varargin{:});
+p = p.Results;
+frbins = p.frbins;
+
+assert(size(fr_norm,1)==length(model))
+assert(size(fr_norm,1)==length(mt_offset) | length(mt_offset) == 1)
+
+% check that the model posterior is binned the same for each trial
+[model, constant_a, allsame] = get_data_model_p(model);
+if ~allsame
+    numa = length(constant_a);
+else
+    numa = numel(model(1).posterior.avals);
+end
+
+abin_width  = diff(constant_a(1:2));
+mass_t      = zeros(numel(t0s),1);
+mass_tfa    = zeros(numel(t0s), numel(frbins), numa);
+if p.use_nans
+    mass_tfa    = mass_tfa*nan;
+end;
+
+t0_durs     = [diff(t0s) 0];
+last_durs   = [0 t0_durs];
+
+fprintf('starting trial 1...')
+for ti = 1:numel(model)
+    if mod(ti,100)==0
+        fprintf('%i...',ti)
+    end
+    % get this trials model predictions and firing rates
+    a   = model(ti).posterior.avals;
+    t   = model(ti).posterior.T;
+    pr  = model(ti).posterior.pdf;
+    fr  = fr_norm(ti,:);
+    
+    % get last time point where we have a firing rate for this trial
+    last_ft = ft(find(~isnan(fr),1,'last'));
+    
+    for tx = 1:numel(t0s)
+        t0          = t0s(tx);
+        last_dur    = last_durs(tx);
+        this_dur    = t0_durs(tx);
+        
+        % figure out which indices to include for posterior and firing rate
+        if (t0 + this_dur/2) > last_ft
+            this_dur_nolag = 2*(last_ft - t0);
+        else
+            this_dur_nolag = this_dur;
+        end
+        if (t0 + this_dur/2 + p.lag) > last_ft
+            this_dur_lag = 2*(last_ft - t0 - p.lag);
+        else
+            this_dur_lag = this_dur;
+        end
+        
+        t_start     = (t0 - last_dur/2);
+        model_t_end = (t0 + this_dur_nolag/2);
+        fr_t_end    = (t0 + this_dur_lag/2);
+        % Determine relevant timepoints for accumulator value a
+        if p.average_a_vals
+            model_t_idx = t > t_start  & t < model_t_end;
+        else
+            [~, model_t_idx]   = min(abs(t-t0));
+        end
+        
+        % Get firing rate r0 for this time point
+        if p.average_fr
+            % average of interpolated values at 3 timepoints
+            r0 = mean(interp1(ft, fr, p.lag + [t_start, t0, fr_t_end]));% The mean firing rate during the time window
+        else
+            % interpolated value at timepoint
+            r0 = interp1(ft, fr, t0 + p.lag);
+        end
+        % get index into joint distribution for this firing rate
+        [~, fbin] = min(abs(frbins-r0));
+        
+        % decide whether to include this timepoint
+        if p.mask_after_stim
+            include_fr = ~isnan(r0) & (t(end)-(t0+p.lag)-mt_offset(ti) > 0);
+        elseif p.mask_during_stim
+            include_fr = ~isnan(r0) & (t(end)-(t0+p.lag)-mt_offset(ti) < 0);
+        else
+            include_fr = ~isnan(r0);
+        end
+        
+        % decide whether to add mass to joint distribution for this time bin and firing rate
+        if include_fr
+            % select middle numx timepoints if p is different size
+            thisx   = size(pr,2);
+            sd      = ceil(thisx/2) - floor(numa/2);
+            ed      = ceil(thisx/2) + floor(numa/2);
+            this_pr = mean(pr(model_t_idx, sd:ed),1);
+            % normalize p(a) for this time point so integrates to 1
+            this_pr = this_pr./sum(this_pr)/abin_width;
+            % add p(a) mass to this time and firing rate bin
+            if p.use_nans && isnan(mass_tfa(tx, fbin, 2))  % this should only happen is use_nans was 1
+                mass_tfa(tx, fbin, :) = this_pr; 
+            else
+                mass_tfa(tx, fbin, :) = squeeze(mass_tfa(tx, fbin,:))' ...
+                    + this_pr; 
+            end
+            % keep track of how many trials contribute to each time bin
+            mass_t(tx)  = mass_t(tx) + 1;
+        end
+    end
+end
+res.numa        = numa;
+res.t0s         = t0s;
+res.constant_a  = constant_a;
+res.mass_tfa    = mass_tfa;
+res.mass_t      = mass_t;
+res.pjoint_tfa  = mass_tfa ./ mass_t;
+res.frbins      = p.frbins;
+
+
+
+function res = compute_tuning_from_joint(res)
+%% get joint and conditional distributions
+pj_given_a      = zeros(numel(res.t0s), numel(res.frbins), res.numa); 
+pj_given_fr      = zeros(numel(res.t0s), numel(res.frbins), res.numa);
+fr_given_ta     = zeros(numel(res.t0s), res.numa);
+fr_var_given_ta = zeros(numel(res.t0s), res.numa);
+a_given_tfr     = zeros(numel(res.t0s), numel(res.frbins));
+
+for tx = 1:numel(res.t0s) % iterate over timepoints
+        
+    this_pfa = squeeze(res.pjoint_tfa(tx,:,:));
+    % normalize Pjoint to get firing rate tuning curve wrt a
+    this_fnorm = ones(size(this_pfa,1),1)*sum(this_pfa,1);
+    pj_given_a(tx,:,:) = this_pfa ./ this_fnorm;
+    % normalize Pjoint to get a distribution wrt firing rate
+    this_anorm = sum(this_pfa,2)*ones(1,size(this_pfa,2));
+    pj_given_fr(tx,:,:)     = this_pfa ./ this_anorm;
+    
+    fr_given_ta(tx,:)        = squeeze(pj_given_a(tx,:,:))'*res.frbins';
+    fr_var_given_ta(tx,:)   = (squeeze(pj_given_a(tx,:,:))'*(res.frbins'.^2)) - ...
+        (fr_given_ta(tx,:)'.^2);
+    a_given_tfr(tx,:)       = squeeze(pj_given_fr(tx,:,:))*res.constant_a';
+end;
+
+res.pj_given_a      = pj_given_a;
+res.pj_given_fr     = pj_given_fr;
+res.fr_given_ta      = fr_given_ta;
+res.fr_var_given_ta  = fr_var_given_ta;
+res.a_given_tfr      = a_given_tfr;
+
+
+function res = compute_dv_tuning(res,varargin)
+p = inputParser;
+addParameter(p, 'min_fr_mod', 0)
+parse(p,varargin{:});
+ops = p.Results;
+
+ntimes      = size(res.fr_given_ta,1);
+time_bins   = 1:ntimes;
+fgta        = res.fr_given_ta;
+
+% compute 1d tuning curve by subtracting time average from fgta
+% normalizing, and then averaging over time
+
+% subtract mean tuning curve from each timepoint
+fgta_resid  = fgta - nanmean(fgta,2);
+fgta_resid_n   = fgta_resid - min(fgta_resid,[],2);
+fgta_rn_max    = max(fgta_resid_n, [], 2);
+fgta_resid_n   = fgta_resid_n ./ fgta_rn_max;
+% compute range of firing rates at each timepoint
+frm_time    = range(fgta_resid,2);
+% decide which timepoints to include
+good_tind   = frm_time > ops.min_fr_mod;
+% average residual normalized fgta over time
+fga_rn_tmn  = nanmean(fgta_resid_n(good_tind,:),1);
+% average residual normalized fgta over time
+fga_rn_std = nanstderr(fgta_resid_n(good_tind,:),1);
+fga_rn_std = fga_rn_std ./ fgta_rn_max;
+
+% compute 1d tuning curve by averaging fgta over time
+fga_tmn      = nanmean(fgta(time_bins,:) - ...
+    nanmean(fgta(time_bins,:),2),1);
+fga_std  = nanstderr(fgta(time_bins,:) - ...
+    nanmean(fgta(time_bins,:),2),1);
+fr_mod   = max(fga_tmn) - min(fga_tmn);
+fga_tmn_n       = fga_tmn -  min(fga_tmn);
+fga_tmn_n_max   = max(fga_tmn_n);
+fga_tmn_n       = fga_tmn_n / fga_tmn_n_max;
+fga_std_n    = fga_std ./ fga_tmn_n_max;
+
+res.fgta_resid      = fgta_resid;
+res.fgta_resid_n    = fgta_resid_n;
+res.fga_rn_tmn      = fga_rn_tmn;
+res.fga_rn_std      = fga_rn_std;
+res.fga_tmn         = fga_tmn;
+res.fga_std         = fga_std;
+res.fga_tmn_n       = fga_tmn_n;
+res.fga_std_n       = fga_std_n;
+res.good_tind       = good_tind;
+res.frm_time        = frm_time;
+res.fr_mod          = fr_mod;
+
+function res = compute_rank1_fgta_approx(res, varargin)
+p = inputParser;
+addParameter(p, 'which_map', 'fgta_resid_n')
+parse(p, varargin{:});
+p = p.Results;
+
+if isstruct(res)
+    map = res.(p.which_map);
+else
+    map = res;
+end
+% SVD analysis
+
+% do rank1 approximation
+[u,s,v]     = svd(map);
+s_squared   = diag(s).^2;
+s1          = s(1);
+u1          = u(:,1);
+v1          = v(:,1);
+map_hat     = u1*s1*v1';
+alpha       = 1/range(v1);
+beta        = s1/alpha;
+rank1_mt_n  = u1*beta;
+rank1_ra_n  = v1*alpha;
+% force average firing rate modulation to be positive
+if mean(rank1_mt_n) < 0
+    rank1_mt_n = -rank1_mt_n;
+    rank1_ra_n = -rank1_ra_n;
+end
+
+% see how much variance is explained by different rank approximations
+nranks = 5;
+rank_var = nan(nranks,1);
+for ii = 1:nranks
+    rank_var(ii) = sum(s_squared(1:ii))./sum(s_squared);
+end
+
+warning('off','all')
+svdta   = rank1_ra_n';
+svdtan  = svdta - min(svdta);
+svdtan  = svdtan./max(svdtan);
+x       = res.constant_a;
+[betas,~,~,sigma,mse] = nlinfit(x,svdtan,@dyn_sig,[0, 1/3]);
+warning('on','all')
+svd_betas    = betas;
+svd_delta    = sqrt(diag(sigma)) * tinv(1-0.05/2,sum(~isnan(x))-4);
+svd_sigmas   = svd_delta;
+svd_slope    = betas(2)/4;
+
+res.u1      = u1;
+res.s1      = s1;
+res.v1      = v1;
+res.map_hat = map_hat;
+res.alpha   = alpha;
+res.beta    = beta;
+res.rank1_mt_n  = rank1_mt_n; 
+res.rank1_ra_n  = rank1_ra_n;
+res.rank_var    = rank_var;
+res.svdtan      = svdtan;
+res.svd_betas   = svd_betas;
+res.svd_sigmas  = svd_sigmas;
+res.svd_slope   = svd_slope;
+
+
+%%
+function results = dyn_fr_dv_map_(cellids, t0s, n_dv_bins, ops, varargin)
 % function fr_dv_map(cellids, t0s, n_dv_bins, varargin)
 %
 % Function that performs analysis of firing rate's relationship to
@@ -12,13 +413,13 @@ function results = dyn_fr_dv_map(cellids, t0s, n_dv_bins, ops, varargin)
 %                       model's evolution relative to alignment.
 %       n_dv_bins:  number of bins to use for decision variable. Bounds are
 %                   included as outside bins, so this must be >=3.
-%   
+%
 %
 % Output:
 %       NONE
 %
-% 
-% 
+%
+%
 % %%% Default Parameters (change with varargin)
 
 p = inputParser;
@@ -35,21 +436,21 @@ addParameter(p, 'krn_type',  'halfgauss'); % forces neural data to have this ker
 addParameter(p, 'norm_type',  'div'); % type of firing rate normalization; 'div' is divisive, 'z' is z-score
 addParameter(p, 'flip_bool',  '~data.prefsideright{align_ind}'); % boolean choice for each cellid of whether to flip sign of DV (string evaluated in workspace); default makes pref direction the higher DV value
 addParameter(p, 'force_frdv',  0); % force extraction from database rather than using saved file
-addParameter(p, 'force_bin',  0); 
-addParameter(p, 'force_dv',  0); 
-addParameter(p, 'save_path',  '');  
+addParameter(p, 'force_bin',  0);
+addParameter(p, 'force_dv',  0);
+addParameter(p, 'save_path',  '');
 addParameter(p, 'save_filename',  'unknown'); % a name to specify this particular map (perhaps the group of cells used)
 addParameter(p, 'save_map',  true); % whether to save the map as one big file
 addParameter(p, 'axes_in',  []); % axis to use for time plot; if empty, create new figure
 addParameter(p, 'axes_in_ta',  []); % axis to use for time-average plot; if empty, create new figure
 addParameter(p, 'ta_color',  'k'); % time-average axis color
 addParameter(p, 'ta_offset',  0); % offset in x-axis data points for time-average plot
-addParameter(p, 'dv_bin_edges',  []); % if empty, makes n_dv_bins quantilized bins; otherwise, override with this 
+addParameter(p, 'dv_bin_edges',  []); % if empty, makes n_dv_bins quantilized bins; otherwise, override with this
 addParameter(p, 'norm_ta',  true); % whether to "normalize" time average between zero and one
 addParameter(p, 'ta_marker',  ''); % marker type for time average plot
 addParameter(p, 'connect_bound',  true); % whether to connect the bound bin on plot to non-bound DVs with dotted line
 addParameter(p, 'plot_errorbars',  true); % plot error bars on time plot
-addParameter(p, 'ta_use_colors',  true); % whether to use different colors for different ta points     
+addParameter(p, 'ta_use_colors',  true); % whether to use different colors for different ta points
 addParameter(p, 'plot_limit',  100); % most extreme DV value to plot (usually make this correspond to lowest bound for any rat)
 addParameter(p, 'Markersize',  2); % markersize of plot
 addParameter(p, 'bound',  inf); % bound for slope-fitting purposes
@@ -112,13 +513,13 @@ else
     rank1_mt_n           = nan(numel(t0s), n_cells);
     rank1_ra_n           = nan(n_dv_bins,n_cells);
     rank1_variance      = nan(n_cells,1);
-   
+    
     % loop through cells
     for ci=1:n_cells
         fprintf('Joint FR-DV analysis on cell %d of %d \n', ci, numel(cellids));
         
-%        rat = bdata('select ratname from cells where cellid="{S}"',cellids(ci));
-
+        %        rat = bdata('select ratname from cells where cellid="{S}"',cellids(ci));
+        
         [x, frbins, Pjoints, fr_given_as, fr_var_given_as] = ...
             dyn_compile_binned_database(cellids(ci), t0s, n_dv_bins, ops,...
             'lag', lag, 'krn_width', krn_width, 'fr_dt', fr_dt, 'dt', dt, 'alignment', alignment,...
@@ -127,150 +528,150 @@ else
             'param_scale_factor', param_scale_factor, 'force_bin', force_bin,'force_dv',force_dv,...
             'datadir',datadir,'shuffle_trials',shuffle_trials,'frates',frates);%, 'bootstrap', bootstrap);
         try
-
-        % Do we need to flip cell?
-        fga_ta_temp = nanmean(fr_given_as(time_bins,:)- nanmean(fr_given_as(time_bins,:),2),1);           
-        flip_cond  = mean(fga_ta_temp(x>0)) < mean(fga_ta_temp(x<0));
-        if do_flip & flip_cond
-            fr_given_as     = flipdim(fr_given_as,2);
-            fr_var_given_as = flipdim(fr_var_given_as,2);
-            flipdex(ci)     = 1;
-        end
-        
-        % Compute fga, and fga_residual 
-        fga_cell(:,:,ci)    = fr_given_as;
-        fga_cell_residual(:,:,ci) = fr_given_as - nanmean(fr_given_as,2);
-        fga_aa_cell(:,ci)   = nanmean(fr_given_as,2);
-        fvga_cell(:,:,ci)   = fr_var_given_as;
-        x_cell(:,ci)        = x;
-        
-        % normalize fga_residual for each time bin
-        for t = 1:size(fga_cell_residual,1);
-            fga_cell_nresidual(t,:,ci) = fga_cell_residual(t,:,ci);
-            fga_cell_nresidual(t,:,ci) = fga_cell_nresidual(t,:,ci) - min(fga_cell_nresidual(t,:,ci));
-            fga_cell_nresidual(t,:,ci) = fga_cell_nresidual(t,:,ci)./max(fga_cell_nresidual(t,:,ci));
-        end
-        frm_time(:,ci) = max(fga_cell_residual(:,:,ci)') - min(fga_cell_residual(:,:,ci)'); 
-        fga_nta     = nanmean(fga_cell_nresidual(time_bins(frm_time(:,ci) > ops.min_fr_mod),:,ci),1);
-        fga_std_nta = nanstderr(fga_cell_nresidual(time_bins(frm_time(:,ci) > ops.min_fr_mod),:,ci),1);
-        min_val = min(fga_nta);        
-        fga_nta = fga_nta - min_val;
-        max_val = max(fga_nta);
-        fga_nta = fga_nta./max_val;
-        fga_std_nta = fga_std_nta ./max_val;
-
-        % Find 1D tuning curve for each cell
-        fga_ta      = nanmean(fr_given_as(time_bins,:) - ...
-            nanmean(fr_given_as(time_bins,:),2),1);
-        fga_std_ta  = nanstderr(fr_given_as(time_bins,:) - ...
-            nanmean(fr_given_as(time_bins,:),2),1);
-        fga_ta_unorm = fga_ta;
-        min_val     = min(fga_ta);
-        fga_ta      = fga_ta - min_val;
-        max_val     = max(fga_ta);
-        fga_ta      = fga_ta ./ max_val;
-        fga_std_ta  = fga_std_ta ./ max_val;
-        fga_ta_cell(:,ci)       = fga_ta;
-        fga_nta_cell(:,ci)      = fga_nta;
-        fga_std_ta_cell(:,ci)   = fga_std_ta;
-        fga_std_nta_cell(:,ci)   = fga_std_nta;
-        fga_ta_unorm_cell(:,ci) = fga_ta_unorm;
-        fr_modulation(ci) = max(fga_ta_unorm) - min(fga_ta_unorm);
-
-        % fit sigmoid to 1D tuning curve - using direct averaging
-        try
-            warning('off','all')
-            [betas,resid,jacob,sigma,mse] = nlinfit(x,fga_ta,@dyn_sig,[0, 1/3]);
-            warning('on','all')
-            betas_cell(ci,:)    = betas;
-            delta               = sqrt(diag(sigma)) * tinv(1-0.05/2,sum(~isnan(x))-4);
-            sigmas_cell(ci,:)   = delta;
-            slope_cell(ci)      = betas(2)/4;
-        catch
-            betas_cell(ci,:)    = nan;
-            sigmas_cell(ci,:)   = nan;
-            slope_cell(ci)      = nan;
-        end
-        % fit sigmoid to 1D tuning curve - using normalized / time bin
-        try
-            warning('off','all')
-            [betas,resid,jacob,sigma,mse] = nlinfit(x,fga_nta,@dyn_sig,[0, 1/3]);
-            warning('on','all')
-            nbetas_cell(ci,:)    = betas;
-            ndelta               = sqrt(diag(sigma)) * tinv(1-0.05/2,sum(~isnan(x))-4);
-            nsigmas_cell(ci,:)   = delta;
-            nslope_cell(ci)      = betas(2)/4;
-        catch
-            nbetas_cell(ci,:)    = nan;
-            nsigmas_cell(ci,:)   = nan;
-            nslope_cell(ci)      = nan;
-        end
-        % fit sigmoid to 1D tuning curve for each normalized time bin
-        if ops.fit_time_sigmoid
-        warning('off','all')
-        for t = 1:size(fga_cell_nresidual,1);
-            try
-                [betas,resid,jacob,sigma,mse] = nlinfit(x,fga_cell_nresidual(t,:,ci),@dyn_sig,[0, 1/3]);
-                nbetas_time(ci,t,:)    = betas;
-                ndelta                      = sqrt(diag(sigma)) * tinv(1-0.05/2,sum(~isnan(x))-4);
-                nsigmas_time(ci,t,:)   = delta;
-                nslope_time(ci,t)      = betas(2)/4;
-            catch
-                nbetas_time(ci,t,:)    = nan;
-                nsigmas_time(ci,t,:)   = nan;
-                nslope_time(ci,t)      = nan;
+            
+            % Do we need to flip cell?
+            fga_ta_temp = nanmean(fr_given_as(time_bins,:)- nanmean(fr_given_as(time_bins,:),2),1);
+            flip_cond  = mean(fga_ta_temp(x>0)) < mean(fga_ta_temp(x<0));
+            if do_flip & flip_cond
+                fr_given_as     = flipdim(fr_given_as,2);
+                fr_var_given_as = flipdim(fr_var_given_as,2);
+                flipdex(ci)     = 1;
             end
-        end
-        warning('on','all')
-        end
-
-        % SVD analysis
-        
-        [u,s,v]     = svd(fga_cell_residual(:,:,ci));
-        s_squared   = diag(s).^2;
-        s1(:,1)     = s(1);
-        u1(:,ci)    = u(:,1);
-        v1(:,ci)    = v(:,1);
-        %s1(2:end)   = 0;
-        rank1_fga_resid(:,:,ci) = u(:,1)*s(1)*v(:,1)';
-        alpha       = 1/range(v(:,1));
-        beta        = s1(1,1)/alpha;
-
-        rank1_mt_n(:,ci) = u(:,1)*beta;
-        rank1_ra_n(:,ci) = v(:,1)*alpha;
-        for ii = 1:5
-            rank_variance(ci,ii) = sum(s_squared(1:ii))./sum(s_squared);
-        end
-        
-        tuning_alpha(ci) = alpha;
-        tuning_beta(ci) = beta;
-        % sign of 
-        if median(rank1_mt_n(:,ci)) < 0 
-            rank1_mt_n(:,ci) = -u(:,1)*beta;
-            rank1_ra_n(:,ci) = -v(:,1)*alpha;
-        end
-        % fit sigmoid to rank 1 tuning curve
-        try
-            warning('off','all')
-            svdta = rank1_ra_n(:,ci)';
-            svdta = svdta - min(svdta);
-            svdta = svdta./max(svdta); 
-            [betas,resid,jacob,sigma,mse] = nlinfit(x,svdta,@dyn_sig,[0, 1/3]);
-            warning('on','all')
-            svd_betas_cell(ci,:)    = betas;
-            svd_delta               = sqrt(diag(sigma)) * tinv(1-0.05/2,sum(~isnan(x))-4);
-            svd_sigmas_cell(ci,:)   = svd_delta;
-            svd_slope_cell(ci)      = betas(2)/4;
-        catch
-            svd_betas_cell(ci,:)    = nan;
-            svd_sigmas_cell(ci,:)   = nan;
-            svd_slope_cell(ci)      = nan;
-        end
-
+            
+            % Compute fga, and fga_residual
+            fga_cell(:,:,ci)    = fr_given_as;
+            fga_cell_residual(:,:,ci) = fr_given_as - nanmean(fr_given_as,2);
+            fga_aa_cell(:,ci)   = nanmean(fr_given_as,2);
+            fvga_cell(:,:,ci)   = fr_var_given_as;
+            x_cell(:,ci)        = x;
+            
+            % normalize fga_residual for each time bin
+            for t = 1:size(fga_cell_residual,1);
+                fga_cell_nresidual(t,:,ci) = fga_cell_residual(t,:,ci);
+                fga_cell_nresidual(t,:,ci) = fga_cell_nresidual(t,:,ci) - min(fga_cell_nresidual(t,:,ci));
+                fga_cell_nresidual(t,:,ci) = fga_cell_nresidual(t,:,ci)./max(fga_cell_nresidual(t,:,ci));
+            end
+            frm_time(:,ci) = max(fga_cell_residual(:,:,ci)') - min(fga_cell_residual(:,:,ci)');
+            fga_nta     = nanmean(fga_cell_nresidual(time_bins(frm_time(:,ci) > ops.min_fr_mod),:,ci),1);
+            fga_std_nta = nanstderr(fga_cell_nresidual(time_bins(frm_time(:,ci) > ops.min_fr_mod),:,ci),1);
+            min_val = min(fga_nta);
+            fga_nta = fga_nta - min_val;
+            max_val = max(fga_nta);
+            fga_nta = fga_nta./max_val;
+            fga_std_nta = fga_std_nta ./max_val;
+            
+            % Find 1D tuning curve for each cell
+            fga_ta      = nanmean(fr_given_as(time_bins,:) - ...
+                nanmean(fr_given_as(time_bins,:),2),1);
+            fga_std_ta  = nanstderr(fr_given_as(time_bins,:) - ...
+                nanmean(fr_given_as(time_bins,:),2),1);
+            fga_ta_unorm = fga_ta;
+            min_val     = min(fga_ta);
+            fga_ta      = fga_ta - min_val;
+            max_val     = max(fga_ta);
+            fga_ta      = fga_ta ./ max_val;
+            fga_std_ta  = fga_std_ta ./ max_val;
+            fga_ta_cell(:,ci)       = fga_ta;
+            fga_nta_cell(:,ci)      = fga_nta;
+            fga_std_ta_cell(:,ci)   = fga_std_ta;
+            fga_std_nta_cell(:,ci)   = fga_std_nta;
+            fga_ta_unorm_cell(:,ci) = fga_ta_unorm;
+            fr_modulation(ci) = max(fga_ta_unorm) - min(fga_ta_unorm);
+            
+            % fit sigmoid to 1D tuning curve - using direct averaging
+            try
+                warning('off','all')
+                [betas,resid,jacob,sigma,mse] = nlinfit(x,fga_ta,@dyn_sig,[0, 1/3]);
+                warning('on','all')
+                betas_cell(ci,:)    = betas;
+                delta               = sqrt(diag(sigma)) * tinv(1-0.05/2,sum(~isnan(x))-4);
+                sigmas_cell(ci,:)   = delta;
+                slope_cell(ci)      = betas(2)/4;
+            catch
+                betas_cell(ci,:)    = nan;
+                sigmas_cell(ci,:)   = nan;
+                slope_cell(ci)      = nan;
+            end
+            % fit sigmoid to 1D tuning curve - using normalized / time bin
+            try
+                warning('off','all')
+                [betas,resid,jacob,sigma,mse] = nlinfit(x,fga_nta,@dyn_sig,[0, 1/3]);
+                warning('on','all')
+                nbetas_cell(ci,:)    = betas;
+                ndelta               = sqrt(diag(sigma)) * tinv(1-0.05/2,sum(~isnan(x))-4);
+                nsigmas_cell(ci,:)   = delta;
+                nslope_cell(ci)      = betas(2)/4;
+            catch
+                nbetas_cell(ci,:)    = nan;
+                nsigmas_cell(ci,:)   = nan;
+                nslope_cell(ci)      = nan;
+            end
+            % fit sigmoid to 1D tuning curve for each normalized time bin
+            if ops.fit_time_sigmoid
+                warning('off','all')
+                for t = 1:size(fga_cell_nresidual,1);
+                    try
+                        [betas,resid,jacob,sigma,mse] = nlinfit(x,fga_cell_nresidual(t,:,ci),@dyn_sig,[0, 1/3]);
+                        nbetas_time(ci,t,:)    = betas;
+                        ndelta                      = sqrt(diag(sigma)) * tinv(1-0.05/2,sum(~isnan(x))-4);
+                        nsigmas_time(ci,t,:)   = delta;
+                        nslope_time(ci,t)      = betas(2)/4;
+                    catch
+                        nbetas_time(ci,t,:)    = nan;
+                        nsigmas_time(ci,t,:)   = nan;
+                        nslope_time(ci,t)      = nan;
+                    end
+                end
+                warning('on','all')
+            end
+            
+            % SVD analysis
+            
+            [u,s,v]     = svd(fga_cell_residual(:,:,ci));
+            s_squared   = diag(s).^2;
+            s1(:,1)     = s(1);
+            u1(:,ci)    = u(:,1);
+            v1(:,ci)    = v(:,1);
+            %s1(2:end)   = 0;
+            rank1_fga_resid(:,:,ci) = u(:,1)*s(1)*v(:,1)';
+            alpha       = 1/range(v(:,1));
+            beta        = s1(1,1)/alpha;
+            
+            rank1_mt_n(:,ci) = u(:,1)*beta;
+            rank1_ra_n(:,ci) = v(:,1)*alpha;
+            for ii = 1:5
+                rank_variance(ci,ii) = sum(s_squared(1:ii))./sum(s_squared);
+            end
+            
+            tuning_alpha(ci) = alpha;
+            tuning_beta(ci) = beta;
+            % sign of
+            if median(rank1_mt_n(:,ci)) < 0
+                rank1_mt_n(:,ci) = -u(:,1)*beta;
+                rank1_ra_n(:,ci) = -v(:,1)*alpha;
+            end
+            % fit sigmoid to rank 1 tuning curve
+            try
+                warning('off','all')
+                svdta = rank1_ra_n(:,ci)';
+                svdta = svdta - min(svdta);
+                svdta = svdta./max(svdta);
+                [betas,resid,jacob,sigma,mse] = nlinfit(x,svdta,@dyn_sig,[0, 1/3]);
+                warning('on','all')
+                svd_betas_cell(ci,:)    = betas;
+                svd_delta               = sqrt(diag(sigma)) * tinv(1-0.05/2,sum(~isnan(x))-4);
+                svd_sigmas_cell(ci,:)   = svd_delta;
+                svd_slope_cell(ci)      = betas(2)/4;
+            catch
+                svd_betas_cell(ci,:)    = nan;
+                svd_sigmas_cell(ci,:)   = nan;
+                svd_slope_cell(ci)      = nan;
+            end
+            
         catch me
             disp('something crashed in dyn_fr_dv_map')
             keyboard
-        end    
+        end
     end
     
     results.fvga_cell           = fvga_cell;
@@ -284,15 +685,15 @@ else
     results.fga_ta_unorm_cell   = fga_ta_unorm_cell;
     results.fga_aa_cell         = fga_aa_cell;
     results.betas_cell          = betas_cell;
-    results.sigmas_cell         = sigmas_cell; 
+    results.sigmas_cell         = sigmas_cell;
     results.slope_cell          = slope_cell;
     results.nbetas_cell         = nbetas_cell;
-    results.nsigmas_cell        = nsigmas_cell; 
+    results.nsigmas_cell        = nsigmas_cell;
     results.nslope_cell         = nslope_cell;
     if ops.fit_time_sigmoid
-    results.nbetas_time         = nbetas_time;
-    results.nsigmas_time        = nsigmas_time; 
-    results.nslope_time         = nslope_time;
+        results.nbetas_time         = nbetas_time;
+        results.nsigmas_time        = nsigmas_time;
+        results.nslope_time         = nslope_time;
     end
     results.fr_modulation       = fr_modulation;
     results.frm_time            = frm_time;
@@ -303,7 +704,7 @@ else
     results.tuning_fa           = rank1_ra_n;
     results.rank1_variance      = rank1_variance;
     results.svd_betas_cell      = svd_betas_cell;
-    results.svd_sigmas_cell     = svd_sigmas_cell; 
+    results.svd_sigmas_cell     = svd_sigmas_cell;
     results.svd_slope_cell      = svd_slope_cell;
     results.tuning_alpha        = tuning_alpha;
     results.tuning_beta         = tuning_beta;
