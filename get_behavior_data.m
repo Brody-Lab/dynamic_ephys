@@ -1,11 +1,11 @@
 function [array_data, vec_data, cellid, sessid] = ...
     get_behavior_data(datapath, cellid, sessid, p)
 
-if ~isfield(p,'ratname')
+if nargin < 4 | ~isfield(p,'ratname')
     this_rat    = bdata('select ratname from sessions where sessid={S}',sessid);
     p.ratname   = this_rat{1};
 end
-if ~isfield(p,'reload')
+if nargin < 4 | ~isfield(p,'reload')
     p.reload = 0;
 end
 
