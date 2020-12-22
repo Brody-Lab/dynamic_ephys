@@ -48,10 +48,18 @@ end
 filename = sprintf('%s%i.mat', file_prefix, cellid);
 save_path = fullfile(datadir, filename);
 
-if ~exist(datadir, 'dir'), mkdir(datadir); end;
+if ~exist(datadir, 'dir'),
+    mkdir(datadir); 
+end;
+
 if ~repack && exist(save_path, 'file')
-	load(save_path);
-	return;
+    load(save_path,'data');
+    repack = check_params(data,krn_width,bin_size,krn_type); %#ok<NODEF>
+    if ~repack
+        return;
+    elseif any(~isempty([krn_width, bin_size, krn_type]))
+        error('need to repack, but you didn''t fully specify the kernel')
+    end
 end;
 
 % get packaged data from cell. This includes event times and spike times
@@ -125,17 +133,16 @@ cpoke_start = vec_data.cpoke_start;
 % data.trials is a sub-structure that keeps trial-by-trial data. It has
 % fields that each have length equal to n-trials.
 data.trials = struct('gamma', zeros(ntrials,1),...
-    'rate_1', zeros(ntrials,1), 'rate_2', zeros(ntrials,1),...
-    'lpulses', {cell(ntrials,1)}, ...
-	'rpulses',     {cell(ntrials,1)},  ...
-	'bup_diff', zeros(ntrials,1),  'bup_diff_rate',  zeros(ntrials,1), ...
+    'rate_1', zeros(ntrials,1),     'rate_2', zeros(ntrials,1),...
+    'lpulses', {cell(ntrials,1)},   'rpulses',     {cell(ntrials,1)},  ...
+	'bup_diff', zeros(ntrials,1),   'bup_diff_rate',  zeros(ntrials,1), ...
 	'spike_times', {cell(ntrials,1)},  'correct_dir',  zeros(ntrials,1), ...
 	'rat_dir',     zeros(ntrials,1),   'hit',          zeros(ntrials,1), ...
 	'stim_end',   zeros(ntrials,1), ...
     'cpoke_end',   zeros(ntrials,1),   'stim_start',   zeros(ntrials,1), ...
 	'rt',          zeros(ntrials,1),   'T',            zeros(ntrials,1), ...
     'cpoke_out',   zeros(ntrials,1),   'hazard',       zeros(ntrials,1),...
-    'genEndState', zeros(ntrials,1), ...
+    'genEndState', zeros(ntrials,1), 'trialnums',zeros(ntrials,1), ...
     'genSwitchTimes',{cell(ntrials,1)},  ...
     'switch_to_0', {cell(ntrials,1)}, 'switch_to_1', {cell(ntrials,1)});
 
@@ -170,7 +177,7 @@ for i=1:ntrials,
     data.trials.switch_to_1{i} = array_data(i).switch_to_1;
     data.trials.evidenceRatio(i) = array_data(i).evidenceRatio;
     data.trials.end_state_dur(i) = array_data(i).end_state_dur;
-
+    data.trials.trialnums(i)     = vec_data.good(i);
 end;
 
 % find preferred side and p-value of effect for each alignment
@@ -238,4 +245,26 @@ if do_save
     save(save_path, 'data');
 end;
 
+
+
+function [repack, krn_width, bin_size, krn_type] = check_params(data,krn_width,bin_size,krn_type)
+repack = false;
+
+if ~isempty(krn_width) && data.krn_width~=krn_width
+    repack = true;
+else
+    krn_width = data.krn_width;
+end
+if ~isempty(bin_size) && data.bin_size~=bin_size
+    repack = true;
+else
+    bin_size = data.bin_size;
+end
+if ~isfield(data,'krn_type')    % remove this part for after re-packaging all data
+    repack = true;
+elseif ~isempty(krn_type) && ~strcmp(data.krn_type,krn_type)
+    repack = true;
+else
+    krn_type = data.krn_type;
+end
 
