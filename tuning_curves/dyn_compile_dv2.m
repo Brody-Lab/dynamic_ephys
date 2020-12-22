@@ -98,6 +98,10 @@ addParameter(p,'param_scale_factor',     1     ); % multiplicative factor of tha
 addParameter(p,'average_time_points',   0);
 addParameter(p,'frates',   []);
 addParameter(p,'shuffle_trials',   0);
+addParameter(p,'mask_after_stim_firing', true);
+addParameter(p,'mask_stim_firing', false);
+addParameter(p,'average_a_vals', true)
+addParameter(p,'average_fr', true);   
 parse(p,varargin{:})
 struct2vars(p.Results);
 
@@ -116,23 +120,17 @@ end
 if cellid < 0
     % This is a fake neuron for testing purposes;
     disp('Synthetic Neuron')
-    data = dyn_cell_packager('17784'); % 17784/H066/565685, 16821/H037, 18548/H129, 18417/H084, 18532/H066/601406
+    data = dyn_cell_packager('17784','krn_width',krn_width,...
+        'krn_type',krn_type,'bin_size',fr_dt);
 else
-    data = dyn_cell_packager(cellid);
+    data = dyn_cell_packager(cellid,'krn_width',krn_width,...
+        'krn_type',krn_type,'bin_size',fr_dt);
 end
-% make sure krn_width, krn_type and fr_dt are correct; otherwise re-package with correct values
-[repack, krn_width, fr_dt, krn_type] = check_params(data,krn_width,fr_dt,krn_type); %#ok<NODEF>
-if repack
-    if cellid < 0
-        error('repacking for a synthetic neuron...that shouldnt happen');
-    end
-    data = dyn_cell_packager(cellid,'krn_width',krn_width,'krn_type',krn_type,'bin_size',fr_dt,'force',1);
-end
-
 % get some info about the trials
 ops.reload    = 0;
 ops.ratname   = data.ratname;
-[~, vec_data, ~,~] = get_behavior_data(spike_data_dir, data.cellid, data.sessid,ops);
+[~, vec_data, ~, ~] = get_behavior_data(spike_data_dir, data.cellid, ...
+    data.sessid, ops);
 
 [model, constant_x, allsame] = get_data_model_p(data, vec_data);
 
@@ -232,10 +230,7 @@ for ti=1:numel(trials)
     end
     
     % Iterate over time indexes
-    mask_after_stim_firing  = ops.mask_after_stim_firing;
-    mask_stim_firing        = ops.mask_stim_firing;
-    average_a_vals          = ops.average_a_vals;
-    average_fr              = ops.average_fr;
+
     if mask_stim_firing && mask_after_stim_firing
         error('You cant mask stimulus firing and after-stimulus firing')
     end
@@ -255,7 +250,7 @@ for ti=1:numel(trials)
         end
         this_dur    = t0_durs(time_i);
         
-        if (this_dur/2) > last_ft
+        if (t0+this_dur/2) > last_ft
             this_dur_nolag = 2*(ft(find(~isnan(fr),1,'last')) - t0);
         else
             this_dur_nolag = this_dur;
@@ -409,23 +404,3 @@ end
 %vars(ti) = mean(trial_vars);
 
 
-function [repack, krn_width, fr_dt, krn_type] = check_params(data,krn_width,fr_dt,krn_type)
-repack = false;
-
-if ~isempty(krn_width) && data.krn_width~=krn_width
-    repack = true;
-else
-    krn_width = data.krn_width;
-end
-if ~isempty(fr_dt) && data.bin_size~=fr_dt
-    repack = true;
-else
-    fr_dt = data.bin_size;
-end
-if ~isfield(data,'krn_type')    % remove this part for after re-packaging all data
-    repack = true;
-elseif ~isempty(krn_type) && ~strcmp(data.krn_type,krn_type)
-    repack = true;
-else
-    krn_type = data.krn_type;
-end
