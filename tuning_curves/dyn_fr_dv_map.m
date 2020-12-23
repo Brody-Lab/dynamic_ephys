@@ -112,6 +112,7 @@ if p.shuffle_trials
     end
 end
 
+
 % compute the joint probability distribution p(t,f,a)
 res = compute_joint_frdvt(fr_norm, ft, p.model, p.t0s, mt_offset, ...
     'frbins', p.frbins, 'use_nans', p.use_nans, 'lag', p.lag,...
@@ -124,6 +125,7 @@ res = compute_dv_tuning(res);
 % run svd and et rank 1 matrix approximation of E[f(t,a)]
 res = compute_rank1_fgta_approx(res);
 
+res.cellid = cellid;
 
 
 function res = compute_joint_frdvt(fr_norm, ft, model, t0s, mt_offset, varargin)
@@ -320,7 +322,7 @@ fr_mod   = max(fga_tmn) - min(fga_tmn);
 fga_tmn_n       = fga_tmn -  min(fga_tmn);
 fga_tmn_n_max   = max(fga_tmn_n);
 fga_tmn_n       = fga_tmn_n / fga_tmn_n_max;
-fga_std_n    = fga_std ./ fga_tmn_n_max;
+fga_std_n       = fga_std ./ fga_tmn_n_max;
 
 res.fgta_resid      = fgta_resid;
 res.fgta_resid_n    = fgta_resid_n;
