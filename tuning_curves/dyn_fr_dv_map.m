@@ -8,10 +8,11 @@ addParameter(p,'mask_after_stim',   true);
 addParameter(p,'mask_during_stim',  false);
 addParameter(p,'average_a_vals',    true)
 addParameter(p,'average_fr',        true);
+addParameter(p,'end_mask_s',        0);
 addParameter(p,'dt',        0.01);
 addParameter(p,'max_t',     1.9);
 addParameter(p,'t0s',    []);
-addParameter(p,'alignment', 'stimstart-cout-mask');   % string matching one of align_strs in dyn_align_LUT
+addParameter(p,'alignment', 'stimstart');   % string matching one of align_strs in dyn_align_LUT
 addParameter(p,'trialnums',  []);
 addParameter(p,'krn_width',  []);      % forces neural data to have this kernel width; if empty, uses whatever is in data    'krn_type'   []          );      % forces neural data to have this kernel type; if empty, uses whatever is in data
 addParameter(p,'krn_type',   'halfgauss');      % forces neural data to have this kernel type
@@ -20,6 +21,7 @@ addParameter(p,'norm_type',     'none');      % type of firing rate normalizatio
 addParameter(p,'frates',   []);
 addParameter(p,'shuffle_trials',   0);
 addParameter(p,'model',   []);
+addParameter(p,'n_dv_bins',   []);
 parse(p,varargin{:});
 p = p.Results;
 
@@ -103,7 +105,7 @@ Sdata   = format_data(S);
 %}
 
 if p.shuffle_trials
-    Ttiles = [min(T); percentile(T,20:20:80); max(T)+eps];
+    Ttiles = [min(T); percentile(T,25:25:75); max(T)+eps];
     % resort wp.ithin duration quintiles
     for tt = 1:length(Ttiles)-1
         this_ind = find(T >= Ttiles(tt) & T < Ttiles(tt+1));
@@ -117,7 +119,12 @@ end
 res = compute_joint_frdvt(fr_norm, ft, p.model, p.t0s, mt_offset, ...
     'frbins', p.frbins, 'use_nans', p.use_nans, 'lag', p.lag,...
     'mask_after_stim', p.mask_after_stim, 'mask_during_stim', p.mask_during_stim,...
-    'average_a_vals', p.average_a_vals, 'average_fr', p.average_fr);
+    'average_a_vals', p.average_a_vals, 'average_fr', p.average_fr,...
+    'end_mask_s', p.end_mask_s);
+%
+if ~isempty(p.n_dv_bins)
+    res = rebin_joint(res, p.n_dv_bins, 'use_nans', p.use_nans)
+end
 % compute the 2d tuning, i.e. E[f(t,a)] = p(t,a,f)*f
 res = compute_tuning_from_joint(res);
 % compute average 1d tuning, i.e. E[f(a)] = <E[f(t,a)]>
@@ -137,9 +144,12 @@ addParameter(p, 'mask_after_stim', true);
 addParameter(p, 'mask_during_stim', false);
 addParameter(p, 'average_a_vals', true)
 addParameter(p, 'average_fr', true);
+addParameter(p, 'end_mask_s', 0);
 parse(p,varargin{:});
 p = p.Results;
 frbins = p.frbins;
+
+end_mask_s = p.end_mask_s;
 
 assert(size(fr_norm,1)==length(model))
 assert(size(fr_norm,1)==length(mt_offset) | length(mt_offset) == 1)
@@ -174,12 +184,16 @@ for ti = 1:numel(model)
     fr  = fr_norm(ti,:);
     
     % get last time point where we have a firing rate for this trial
-    last_ft = ft(find(~isnan(fr),1,'last'));
+    last_ft = ft(find(~isnan(fr),1,'last')) - end_mask_s;
     
     for tx = 1:numel(t0s)
         t0          = t0s(tx);
         last_dur    = last_durs(tx);
         this_dur    = t0_durs(tx);
+        
+        if t0 + this_dur > last_ft
+            continue
+        end
         
         % figure out which indices to include for posterior and firing rate
         if (t0 + this_dur/2) > last_ft
@@ -234,10 +248,10 @@ for ti = 1:numel(model)
             this_pr = this_pr./sum(this_pr)/abin_width;
             % add p(a) mass to this time and firing rate bin
             if p.use_nans && isnan(mass_tfa(tx, fbin, 2))  % this should only happen is use_nans was 1
-                mass_tfa(tx, fbin, :) = this_pr; 
+                mass_tfa(tx, fbin, :) = this_pr;
             else
                 mass_tfa(tx, fbin, :) = squeeze(mass_tfa(tx, fbin,:))' ...
-                    + this_pr; 
+                    + this_pr;
             end
             % keep track of how many trials contribute to each time bin
             mass_t(tx)  = mass_t(tx) + 1;
@@ -246,24 +260,25 @@ for ti = 1:numel(model)
 end
 res.numa        = numa;
 res.t0s         = t0s;
-res.constant_a  = constant_a;
+res.frbins      = p.frbins;
+res.dv_axis     = constant_a;
 res.mass_tfa    = mass_tfa;
 res.mass_t      = mass_t;
 res.pjoint_tfa  = mass_tfa ./ mass_t;
-res.frbins      = p.frbins;
+
 
 
 
 function res = compute_tuning_from_joint(res)
 %% get joint and conditional distributions
-pj_given_a      = zeros(numel(res.t0s), numel(res.frbins), res.numa); 
-pj_given_fr      = zeros(numel(res.t0s), numel(res.frbins), res.numa);
+pj_given_a      = zeros(numel(res.t0s), numel(res.frbins), res.numa);
+pj_given_fr     = zeros(numel(res.t0s), numel(res.frbins), res.numa);
 fr_given_ta     = zeros(numel(res.t0s), res.numa);
 fr_var_given_ta = zeros(numel(res.t0s), res.numa);
 a_given_tfr     = zeros(numel(res.t0s), numel(res.frbins));
 
 for tx = 1:numel(res.t0s) % iterate over timepoints
-        
+    
     this_pfa = squeeze(res.pjoint_tfa(tx,:,:));
     % normalize Pjoint to get firing rate tuning curve wrt a
     this_fnorm = ones(size(this_pfa,1),1)*sum(this_pfa,1);
@@ -275,7 +290,7 @@ for tx = 1:numel(res.t0s) % iterate over timepoints
     fr_given_ta(tx,:)        = squeeze(pj_given_a(tx,:,:))'*res.frbins';
     fr_var_given_ta(tx,:)   = (squeeze(pj_given_a(tx,:,:))'*(res.frbins'.^2)) - ...
         (fr_given_ta(tx,:)'.^2);
-    a_given_tfr(tx,:)       = squeeze(pj_given_fr(tx,:,:))*res.constant_a';
+    a_given_tfr(tx,:)       = squeeze(pj_given_fr(tx,:,:))*res.dv_axis';
 end;
 
 res.pj_given_a      = pj_given_a;
@@ -304,7 +319,7 @@ fgta_resid_n   = fgta_resid - min(fgta_resid,[],2);
 fgta_rn_max    = max(fgta_resid_n, [], 2);
 fgta_resid_n   = fgta_resid_n ./ fgta_rn_max;
 % compute range of firing rates at each timepoint
-frm_time    = range(fgta_resid,2);
+frm_time    = max(fgta_resid,[],2)-min(fgta_resid,[],2);
 % decide which timepoints to include
 good_tind   = frm_time > ops.min_fr_mod;
 % average residual normalized fgta over time
@@ -338,7 +353,7 @@ res.fr_mod          = fr_mod;
 
 function res = compute_rank1_fgta_approx(res, varargin)
 p = inputParser;
-addParameter(p, 'which_map', 'fgta_resid_n')
+addParameter(p, 'which_map', 'fgta_resid')
 parse(p, varargin{:});
 p = p.Results;
 
@@ -348,7 +363,6 @@ else
     map = res;
 end
 % SVD analysis
-
 % do rank1 approximation
 [u,s,v]     = svd(map);
 s_squared   = diag(s).^2;
@@ -377,7 +391,7 @@ warning('off','all')
 svdta   = rank1_ra_n';
 svdtan  = svdta - min(svdta);
 svdtan  = svdtan./max(svdtan);
-x       = res.constant_a;
+x       = res.dv_axis;
 [betas,~,~,sigma,mse] = nlinfit(x,svdtan,@dyn_sig,[0, 1/3]);
 warning('on','all')
 svd_betas    = betas;
@@ -391,7 +405,7 @@ res.v1      = v1;
 res.map_hat = map_hat;
 res.alpha   = alpha;
 res.beta    = beta;
-res.rank1_mt_n  = rank1_mt_n; 
+res.rank1_mt_n  = rank1_mt_n;
 res.rank1_ra_n  = rank1_ra_n;
 res.rank_var    = rank_var;
 res.svdtan      = svdtan;
@@ -399,6 +413,80 @@ res.svd_betas   = svd_betas;
 res.svd_sigmas  = svd_sigmas;
 res.svd_slope   = svd_slope;
 
+
+function res = rebin_joint(res, n_dv_bins,varargin)
+p = inputParser;
+addParameter(p, 'use_nans', 0);
+parse(p,varargin{:});
+p = p.Results;
+
+
+x   = res.dv_axis;
+t0s = res.t0s;
+frbins = res.frbins;
+pj_fine    = res.pjoint_tfa;
+
+if n_dv_bins > size(pj_fine,3)
+    error('You are binning accumulation values more finely than the model generates')
+end
+
+% set up new dv bins
+x_bound_margin = (x(2)-x(1)) * 0.5;
+dv_bin_edges = linspace(min(x)+x_bound_margin,max(x)-x_bound_margin,n_dv_bins-1);
+dv_axis = dv_bin_edges + 0.5*(dv_bin_edges(2)-dv_bin_edges(1));
+dv_axis = dv_axis(1:end-1);
+dv_axis = [min(x) dv_axis max(x)];  % add bound bins for axis
+
+new_pj = zeros(size(pj_fine,1), size(pj_fine,2), length(dv_axis));
+if p.use_nans
+    new_pj = nan * new_pj;
+end
+pj_given_ta     = zeros(size(pj_fine,1), size(pj_fine,2), length(dv_axis));
+fr_given_ta     = zeros(numel(t0s), numel(dv_axis));
+fr_var_given_ta = zeros(numel(t0s), numel(dv_axis));
+
+for time_i=1:numel(t0s)   
+    % Deal with the first bin
+    these_dv_bins       = x < dv_bin_edges(1);
+    new_pj(time_i,:,1) = nansum(pj_fine(time_i,:,these_dv_bins),3);
+    edge_match          = x == dv_bin_edges(1);
+    new_pj(time_i,:,1) = new_pj(time_i,:,1) + 0.5*nansum(pj_fine(time_i,:,edge_match),3);
+    
+    % Deal with middle bins
+    for j=2:n_dv_bins-1
+        these_dv_bins       = x>dv_bin_edges(j-1) & x<dv_bin_edges(j);
+        new_pj(time_i,:,j) = nansum(pj_fine(time_i,:,these_dv_bins),3); % Pjoints is t0 x FR x dv
+        % deal with bin edges that exactly match DV centers; for
+        % these case, split joint dist in half between adjacent bins
+        edge_match          = x==dv_bin_edges(j-1) | x==dv_bin_edges(j);
+        new_pj(time_i,:,j) = new_pj(time_i,:,j) + 0.5*nansum(pj_fine(time_i,:,edge_match),3);
+    end
+    % Deal with last bin
+    these_dv_bins           = x > dv_bin_edges(end);
+    new_pj(time_i,:,end)   = nansum(pj_fine(time_i,:,these_dv_bins),3);
+    edge_match              = x == dv_bin_edges(end);
+    new_pj(time_i,:,end)   = new_pj(time_i,:,end) + 0.5*nansum(pj_fine(time_i,:,edge_match),3);
+    
+    if abs(sum(sum(new_pj(time_i,:,:))) - sum(sum(pj_fine(time_i,:,:)))) > 1e-6
+        keyboard
+        error('Probability mass is leaking during binning')
+    end
+    
+    myPj = squeeze(new_pj(time_i,:,:));
+    this_pj_given_ta = myPj ./ (ones(size(myPj,1),1)*sum(myPj,1));
+    fr_given_ta(time_i,:) = this_pj_given_ta'*frbins';
+    fr_var_given_ta(time_i,:) = this_pj_given_ta'*(frbins'.^2) - (fr_given_ta(time_i,:)'.^2);
+    pj_given_ta(time_i,:,:)   = this_pj_given_ta;
+end;
+
+
+% save binned dv_axis as x
+res.pjoint_tfa      = new_pj;
+res.pj_given_ta     = pj_given_ta;
+res.fr_given_ta     = fr_given_ta;
+res.fr_var_given_ta = fr_var_given_ta;
+res.dv_axis         = dv_axis;
+res.numa            = numel(dv_axis);
 
 %%
 function results = dyn_fr_dv_map_(cellids, t0s, n_dv_bins, ops, varargin)
