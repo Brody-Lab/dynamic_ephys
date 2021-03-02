@@ -1,4 +1,4 @@
-function [model, constant_x, allsame] = get_data_model_p(data, which_trials)
+function [model, constant_x, allsame] = get_data_model_p(data, which_trials, varargin)
 % function [model, constant_x, allsame] = get_data_model_p(data, which_trials)
 % returns the model posterior stuct for a given session for which_trials trials
 % can take as input data either:
@@ -34,7 +34,7 @@ if ~exist('model','var')
         if ~exist('sessid','var')
             error('bad inputs');
         end
-        model = compute_model_mean(ratname, sessid);
+        model = compute_model_mean(ratname, sessid, varargin{:});
     else
         load(posterior_path, 'model');
     end
