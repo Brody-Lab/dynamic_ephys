@@ -47,7 +47,7 @@ cd ~/Dropbox/spikes/bin/tuning_curves/deconvolve/
 vars = zeros(size(cellid));
 for i=1:length(cellid)
     load(['var_data_' num2str(abs(cellid(i))) '.mat'])
-    vars(i) = average_var;
+    vars(i) = v;
 end
 
 gen_slopes = zeros(size(cellid));
