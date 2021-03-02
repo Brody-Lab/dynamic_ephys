@@ -42,7 +42,8 @@ if length(cell_to_plot) > 1 & ~meta
             'type',type,'meta',meta,'norm',norm,'flip',flip,...
             'edges',edges);
         if do_pause
-            pause()
+            pause();
+            disp(cell_to_plot)
         end
     end
     return
@@ -177,6 +178,7 @@ err = hit == 0;
 good = T > min_t;
 
 fh = figure(fig_num); clf
+set(fh,'position',[5 5 6 3 ],'papersize',[6 3],'paperpositionmode','auto')
 
 ax(1) = subplot(121);hold(ax(1),'on');
 ax(2) = subplot(122);hold(ax(2),'on');
@@ -237,16 +239,21 @@ xlabel(ax(2), 'from movement (s)')
 colormap(cm);
 % cb = colorbar('north');
 % cb.Position = cb.Position + [.025 .1 -.15 -.05];
-cb = []
-cb = colorbar('east')
+cb = [];
+cb = colorbar('east');
 cb.Position = cb.Position + [.1 .15 -.0 -.3];
+ax(2).YColor = 'w';
+title(cb,cblab);
+set(cb,'ytick',[]);
+% drawnow
+% ax1pos  = get(ax(1),'position');
+% ax2pos  = get(ax(2),'position');
+% posrat  = diff(cintrange) ./ diff(couttrange); 
+% set(ax(2),'position',[ax2pos(1) ax1pos(2) ax1pos(3)/posrat ax2pos(4)])
 
-title(cb,cblab)
-set(cb,'ytick',[])
 %set(cb,'xtick',0:1,'xticklabel',b([1:2:end])) 
 %%
 
-set(fh,'position',[5 5 6 3 ],'papersize',[6 3],'paperpositionmode','auto')
 
 if ncells == 1
     group_name = num2str(cell_to_plot);

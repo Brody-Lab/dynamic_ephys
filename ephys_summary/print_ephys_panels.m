@@ -26,10 +26,13 @@ set(0, 'defaultaxesfontsize',fsz);
 set(0,'defaultaxeslinewidth',1)
 xlim_on = [-.55 1.5];
 xlim_off = [-1.55 .5];
+xlim_on = [-.55 1.25];
+xlim_off = [-1.25 .55];
 %% plot example cells in panel B
 ppos = [8 10 fw fht ]
 cellid = 18181;
-[fh, ax] = example_cell_psth('cells',cellid)
+[fh, ax] = example_cell_psth('cells',cellid,...
+    'cintrange',xlim_on,'couttrange',xlim_off)
 
 ylim(ax,[14 60])
 xlim(ax(1),xlim_on)
@@ -38,9 +41,10 @@ ax(1).YTick = [15:15:60];
 ax(2).YTick = [15:15:60];
 ax(2).YTickLabel = {};
 
-set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]))
-pbaspect(ax(1),[1 .8 1])
-pbaspect(ax(2),[1 .8 1])
+set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],...
+    'papersize',ppos([3 4]))
+%pbaspect(ax(1),[1 .8 1])
+%pbaspect(ax(2),[1 .8 1])
 
 print(fh, fullfile(dp.psth_fig_dir, ['cell_' num2str(cellid) ]),...
     '-dsvg', '-painters')
@@ -79,6 +83,7 @@ print(fh, fullfile(dp.psth_fig_dir, ['cell_' num2str(cellid) ]),...
 
 %% compile a bunch of psths aligned to the center poke time and the center out time
 select_str = 'normmean > 0' ;
+ratnames = cell2mat(extracting(cell_list, 'ratname', select_str));
 cellids = cell2mat(extracting(cell_list, 'cellid', select_str));
 psr = cell2mat(extracting(cell_list, 'prefsideright', select_str));
 prefp = cell2mat(extracting(cell_list, 'prefp', select_str));
@@ -229,10 +234,6 @@ end
 
 tA = cin_t(cin_ind);
 tB = cout_t(cout_ind);
-%%
-
-
-
 
 
 %% plot chronometric psth for panel C
@@ -273,6 +274,10 @@ print(fh, fullfile(dp.psth_fig_dir, groupname),...
 
 %% plot PREF/NONPREF pop average PSTH for panel D
 mn_fr       = nanmean(cin_psth_hit(:,:,1,1),2);
+
+% xlim_on = [-.55 1.25];
+% xlim_off = [-1.25 .55];
+
 good_cint   = cin_t >= xlim_on(1) & cin_t <= xlim_on(2);
 good_coutt  = cout_t >= xlim_off(1) & cout_t <= xlim_off(2);
 
@@ -434,10 +439,34 @@ set(s(1),'XTickLabel',[]); set(s(2),'XTickLabel',[])
 %colormap((colormapLinear([1 1 1].*0,50).^.7))
 print(fh, fullfile(dp.psth_fig_dir, 'sequence_plot'),...
     '-dsvg', '-painters')
-
-
 %%
+[~,i,j] = sort_by_peak(pref_combo);
+pref_combo_t = [cin_t(good_cint) 2+cout_t(good_coutt)];
+figure(100); clf
+plot(pref_combo_t(j),'.-')
+%%
+good_cint   = cin_t >= xlim_on(1) & cin_t <= xlim_on(2);
+good_coutt  = cout_t >= xlim_off(1) & cout_t <= xlim_off(2);
 
+% good_cint   = cin_t >= -.5 & cin_t <= 1.5;
+% good_coutt  = cout_t >= -.5 & cout_t <= .5;
+
+figure(4); clf
+ax = subplot(121)
+A = cin_psth_hit(good_cells,good_cint,1,2);
+B = cout_psth_hit(good_cells,good_coutt,1,2);
+C = [A B];
+imagesc(normsort(A,C),...
+    'x',cin_t(good_cint))
+xlim
+ax = subplot(122)
+imagesc(normsort(B,C),...
+    'x',cout_t(good_coutt))
+
+cm = colormapLinear([0 0 0], 49)
+colormap(flipud(bone))
+colormap(cm)
+%colormap(parula)
 %% try dprime plot
 cout_auc_file = fullfile(dp.ephys_summary_dir,'cout_auc.mat');
 
