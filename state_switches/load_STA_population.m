@@ -1,12 +1,21 @@
-function [res, dprime, pvals,cellids,computed, not_computed] = ...
-    load_STA_population(which_switch, this_force, slim_data, bad_strength)
-%which_switch = 'generative'; % 'model' or 'generative' or 'accumulation'
-if nargin < 2
-    this_force = 0;
-end
-if nargin < 3
-    slim_data = 1;
-end  
+function [res,cellids,computed, not_computed] = ...
+    load_STA_population(which_switch, varargin)
+
+p = inputParser;
+addParameter(p,'force', 0)
+addParameter(p,'slim_data',1)
+addParameter(p,'bad_strength',0)
+addParameter(p,'min_t',-Inf)
+addParameter(p,'max_t',Inf)
+parse(p,varargin{:})
+
+p = p.Results;
+this_force = p.force;
+slim_data = p.slim_data;
+bad_strength = p.bad_strength;
+min_t = p.min_t;
+max_t = p.max_t;
+
 select_str = 'normmean > 0';
 dp = set_dyn_path;
 sta_fn = ['population_STA_' which_switch '_' num2str(bad_strength) '.mat'];
@@ -57,19 +66,7 @@ else
          end 
      end
      
-     %% turn this into a matrix that we can plot
-     dprime = [];
-     pvals = [];
-     
-     for ccall = 1:length(cellids)
-         if ~isempty(res{ccall})
-         pval_plot_lags = res{ccall}.lags > -.5 & res{ccall}.lags < 1;
-         dprime = [dprime; res{ccall}.dprime_real(pval_plot_lags)'];
-         pvals =  [pvals;  res{ccall}.pval(pval_plot_lags)'];
-         cc = ccall;
-         end
-     end
-    save(sta_file,'cellids','dprime','pvals','cc','res','not_computed','computed')
+    save(sta_file,'cellids','cc','res','not_computed','computed')
 end
 
 

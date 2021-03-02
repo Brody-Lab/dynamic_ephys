@@ -1,28 +1,45 @@
-function plot_population_STA(which_switch, savefig, correction, bad_strength) 
+function plot_population_STA(varargin)
+p = inputParser;
+addParameter(p, 'which_switch', 'model')
+addParameter(p, 'savefig', 1)
+addParameter(p, 'correction_num', 2)
+addParameter(p, 'bad_strength', 0)
+addParameter(p, 'recompute', 0)
+addParameter(p, 'lag', 0)
+addParameter(p, 'max_t', 1)
+addParameter(p, 'min_t', -1)
+addParameter(p, 'fig_type', '-dpng')
+parse(p,varargin{:})
+p = p.Results;
+which_switch    = p.which_switch;
+savefig         = p.savefig;
+correction      = p.correction_num;
+bad_strength    = p.bad_strength;
+force           = p.recompute;
+lag             = p.lag;
+dp              = set_dyn_path;
+max_t           = p.max_t;
+min_t           = p.min_t;
+fig_type        = p.fig_type;
+[res, cellids, computed,not_computed] = ...
+    load_STA_population(which_switch, 'force',force,'slim_data',1,...
+    'bad_strength', bad_strength);
+dprime = [];
+ptiles = [];
 
-if nargin < 1
-    which_switch = 'model';
+for ccall = 1:length(cellids)
+    if ~isempty(res{ccall})
+        pval_plot_lags = res{ccall}.lags > -Inf & res{ccall}.lags < Inf;
+        dprime = [dprime; res{ccall}.dprime_real(pval_plot_lags)'];
+        ptiles =  [ptiles;  res{ccall}.pval(pval_plot_lags)'];
+        cc = ccall;
+    end
 end
-if nargin < 2
-    savefig = 1;
-end
-if nargin < 3
-    correction = 2;
-end
-if nargin < 4
-    bad_strength = 0;
-end
-
-force = 0;
-
-dp = set_dyn_path;
-
-[res, dprime, ptiles,cellids, computed,not_computed] = ...
-    load_STA_population(which_switch, force,1, bad_strength);
-
 %%
+
 ncells      = length(cellids);
 nlags       = length(res{1}.lags);
+plot_lags   = res{1}.lags - p.lag;
 leftSTA     = nan(ncells,nlags);
 rightSTA    = nan(ncells,nlags);
 for cc = 1:length(cellids)
@@ -36,7 +53,6 @@ good_ind = ismember(cellids,cf.cellids(cf.good_cells));
 
 
 
-
 diffSTA   = leftSTA - rightSTA;
 
 which_cells = 1:ncells;
@@ -46,9 +62,8 @@ set(fh, 'position',[5 5 3 6],'papersize',[3 3])
 ax = subplot(211);
 diffSTA = diffSTA(which_cells,:);
 NA = ~isnan(diffSTA);
-imagesc(diffSTA,'x',res{1}.lags,'Alphadata',NA,'parent',ax)
+imagesc(diffSTA,'x',plot_lags,'Alphadata',NA,'parent',ax)
 set(ax,'color',[1 1 1].*.8)
-
 caxis([-2 2])
 cm = flipud(colormapLinear(dp.left_color,50));
 cm = [cm; colormapLinear(dp.right_color,50)];
@@ -59,23 +74,24 @@ hold on
 plot([0 0],ylim,'k--')
 %%
 ax2 = subplot(212);
-errorbar(res{1}.lags, nanmean(abs(diffSTA(:,:))),nansem(abs(diffSTA(:,:))));
+errorbar(plot_lags, nanmean(abs(diffSTA(:,:))),nansem(abs(diffSTA(:,:))));
 xlim([-.5 .75])
 %%
 
 % make map of time points for which each cell is encoding signficantly
 %figure(1); clf
-figure();
-pval_plot_lags = res{1}.lags > -.5 & res{1}.lags < 1;
+figure(121); clf
+pval_plot_lags = plot_lags > min_t & plot_lags < max_t;
+ptiles_plot = ptiles(:,pval_plot_lags)
 clrs = color_set(6);
-posdex = (res{1}.lags > -0.0001);
-negdex = (res{1}.lags <  0.0001);
+posdex = (plot_lags > -0.0001);
+negdex = (plot_lags <  0.0001);
 posdex = posdex(pval_plot_lags);
 negdex = negdex(pval_plot_lags);
 cmap = [repmat(clrs(1,:),10,1); repmat([1 1 1], 200, 1); repmat(clrs(end,:),10,1)];
 
 if correction == 1 % bonferroni corrections
-    m = numel(ptiles);
+    m = numel(ptiles_plot);
     threshold = 0.5 - 0.05/ m;
     correction_str = '_bonferroni';
 elseif correction == 2 % modified bonferroni, because tests are correlated
@@ -89,7 +105,7 @@ else
 end
 
 correction_str = [correction_str '_' num2str(bad_strength)];
-plot_map = ptiles;
+plot_map = ptiles_plot;
 plot_map(:,posdex) = 1-plot_map(:,posdex);
 if 1
     plot_map(isnan(plot_map)) = 0.5;
@@ -109,9 +125,9 @@ if plot_sig_only
     sorted_plot_map = plot_map(sort_ind,:);
     all_zero_dex = all(sorted_plot_map == 0.5,2);
     sorted_plot_map(all_zero_dex,:) = [];
-    imagesc(sorted_plot_map,'x',res{1}.lags(pval_plot_lags),[0 1]); 
+    imagesc(sorted_plot_map,'x',plot_lags(pval_plot_lags),[0 1]); 
 else
-    imagesc(plot_map(sort_ind,:),'x',res{1}.lags(pval_plot_lags),[0 1]); 
+    imagesc(plot_map(sort_ind,:),'x',plot_lags(pval_plot_lags),[0 1]); 
 end
 
 hold on;
@@ -165,16 +181,17 @@ temp                = abs(temp(good_ind,:));
 bin_temp            = temp;
 bin_temp(temp > 0)  = 1;
 average_siggy       = sum(bin_temp,1)./size(temp,1);
+%average_siggy = average_siggy;
 n = size(temp,1);
 p = movmean(average_siggy,3);
 se = 1.96.*sqrt((p.*(1-p))./n);
-time_vec            = res{1}.lags(pval_plot_lags);
+time_vec            = plot_lags(pval_plot_lags);
 %%
 figure(2); clf;
 ax = axes;
 shadedErrorBar(time_vec, average_siggy.*100, se.*100, 'k')
 %plot(time_vec, movmean(average_siggy.*100,3), 'k','linewidth',2)
-ylim([0 20])
+ylim([0 50])
 hold on
 plot([.1 .1], ylim, 'r--')
 plot([0 0], [-1 100], 'k--')
@@ -191,8 +208,8 @@ fig.PaperPositionMode = 'Manual';
 fig.PaperSize = [3 3];
 
 if savefig
-    figsavefname = ['fraction_' which_switch 'switch_encoding' correction_str '.svg'];
-    print(fig, fullfile(dp.fig_dir, figsavefname) ,'-dsvg','-painters')
+    figsavefname = ['fraction_' which_switch 'switch_encoding' correction_str ];
+    print(fig, fullfile(dp.fig_dir, figsavefname) ,fig_type,'-painters')
     datasavefname = ['fraction_data_' which_switch correction_str '.mat'];
     % Save data from this analysis
     save(fullfile(dp.sta_fig_dir, datasavefname), 'time_vec','average_siggy','n')
@@ -217,12 +234,12 @@ fig.PaperPosition = [0 0 3 3];
 fig.PaperPositionMode = 'Manual';
 fig.PaperSize = [3 3];
 if savefig
-    figsavefname = ['distribution_dprime_' which_switch '.svg'];
-    print(fig, fullfile(dp.sta_fig_dir, figsavefname),'-dsvg')
+    figsavefname = ['distribution_dprime_' which_switch ];
+    print(fig, fullfile(dp.sta_fig_dir, figsavefname),fig_type)
 end
 %%
 %%%% look for consistent encoding cells
-const_map   = ptiles;
+const_map   = ptiles_plot(:,:);
 const_map(const_map > 0.99)     = 1;
 const_map(const_map < 0.01)     = -1;
 const_map(const_map < 1 & const_map > -1) = 0;
@@ -314,13 +331,13 @@ sortplot = true;
 plot_map(plot_map > 0.95) =1;
 plot_map(plot_map < 0.05) =0;
 if sortplot
-    imagesc(plot_map(sort_ind,:),'x',res{1}.lags(pval_plot_lags),[0 1]); 
+    imagesc(plot_map(sort_ind,:),'x',plot_lags(pval_plot_lags),[0 1]); 
 %    sorted_plot_map = plot_map(sort_ind,:);
 %    all_zero_dex = all(sorted_plot_map == 0.5,2);
 %    sorted_plot_map(all_zero_dex,:) = [];
-%    imagesc(sorted_plot_map,'x',res{1}.lags(pval_plot_lags),[0 1]); 
+%    imagesc(sorted_plot_map,'x',plot_lags(pval_plot_lags),[0 1]); 
 else
-    imagesc(plot_map,'x', res{1}.lags(pval_plot_lags),[0 1]); colormap(cmap);
+    imagesc(plot_map,'x', plot_lags(pval_plot_lags),[0 1]); colormap(cmap);
 end
 hold on;
 plot([0 0],ylim,'k','linewidth',2)
@@ -370,8 +387,8 @@ fig.PaperPosition = [0 0 4 4];
 fig.PaperPositionMode = 'Manual';
 fig.PaperSize = [4 4];
 if savefig
-    fn = ['distribution_switch_times_' which_switch correction_str '.svg'];
-    print(fig, fullfile(dp.sta_fig_dir, fn),'-dsvg')
+    fn = ['distribution_switch_times_' which_switch correction_str ];
+    print(fig, fullfile(dp.sta_fig_dir, fn),fig_type)
     fn = ['switch_times_' which_switch correction_str '.mat'];
     save(fullfile(dp.sta_fig_dir, fn), 'middle_ts');
 end
@@ -391,45 +408,91 @@ fig.PaperPosition = [0 0 4 4];
 fig.PaperPositionMode = 'Manual';
 fig.PaperSize = [4 4];
 if savefig
-    fn = ['distribution_switch_times_histogram_' which_switch correction_str '.svg'];
-    print(fig, fullfile(dp.sta_fig_dir, fn),'-dsvg')
+    fn = ['distribution_switch_times_histogram_' which_switch correction_str ];
+    print(fig, fullfile(dp.sta_fig_dir, fn),fig_type)
 end
+
+
 
 
 %%
-plot_val = (1-ptiles).*(time_vec<=0) + ptiles.*(time_vec>0);
+selective_only = 1;
+plot_val = (1-ptiles_plot).*(time_vec<=0) + ptiles_plot.*(time_vec>0);
 %plot_val = 1-ptiles;
 a = .05;
-nconsec = 2
+nconsec = 40;
+use_pre  = 0;
+use_mid = 1
 
-
-sigp = ptiles < a | ptiles > (1-a);
+sigp = ptiles_plot < a | ptiles_plot > (1-a);
 csigp = cumsum(sigp,2);
 
 postswitchsigp = sigp.*(time_vec>0);
-movsumsig = movsum(postswitchsigp,nconsec,2);
-consecsig = movsumsig==nconsec;
+preswitchsigp = sigp.*(time_vec<0.50);
+    
+postswitchsigp = sigp.*(time_vec>0);
+postmovsumsig = movsum(postswitchsigp,nconsec,2);
+postconsecsig = postmovsumsig==nconsec;
+
+premovsumsig = movsum(preswitchsigp,nconsec,2);
+preconsecsig = cumsum(premovsumsig>=nconsec,2);
+   
+ylab = 'cell #';
+    
+if use_pre
+    consecsig = preconsecsig;
+    movsumsig = premovsumsig;
+    ylab = {'cell #' 'sorted pre-switch selectivity offset'}
+elseif use_mid
+    consecsig = preconsecsig + postconsecsig;
+    movsumsig = premovsumsig + postmovsumsig;
+    consecsig = (movsum(~sigp(:,time_vec > -.2 & time_vec < .1),3,2));
+    consecsig = (movsum(ptiles_plot(:,time_vec > -.2 & time_vec < .1)-.5,15,2));
+    %consecsig = (nansum(ptiles_plot(:,time_vec > -.2 & time_vec < .1),2));
+else
+    consecsig = postconsecsig;
+    movsumsig = postmovsumsig;
+    ylab = {'cell #' 'sorted post-switch selectivity onset'};
+
+end
 close(figure(10));
 fh = figure(10); clf
-set(fh,'position',[2 2 6 4],'papersize',[ 6 4])
+set(fh,'position',[2 2 6 5],'papersize',[ 6 4])
+ax = axes
+set(ax,'position',[.15 .12 .75 .8])
+if ~selective_only
+    plot_ind = true(size(consecsig,1),1);
+else
+    plot_ind = good_ind;
+end
+
+%consecsig = consecsig(plot_ind,:);
 
 switch 1
     case 0
-        consecsig = consecsig(good_ind,:);
+        consecsig = consecsig(plot_ind,:);
         %consecsig(:,end) = nconsec;
-        plot_val = plot_val(ind,:);
+        plot_val = plot_val(plot_ind,:);
+        min_val = 1;
     case 1
-        consecsig = consecsig(good_ind,:);
-        consecsig(:,end) = nconsec;
-        plot_val = plot_val(good_ind,:);
-    case 2
+        consecsig = consecsig(plot_ind,:);
+        min_val = -Inf;
+        plot_val = plot_val(plot_ind,:);
+%     case 3
+%         consecsig = cumsum(movsumsig>=nconsec,2);
+% 
+%         consecsig = cumsum(postswitchsigp,2)
+%     case 4
+%         consecsig = cumsum(movsumsig>=nconsec,2);
+
+                
 end
 [~, i_s, j_s] = sort_by_peak(consecsig(:,:));
 
-plotMat = plot_val(i_s(j_s>1),:);
+plotMat = plot_val(i_s(j_s>min_val),:);
 
 
-ax = axes
+
 
 
 n = 20;
@@ -450,7 +513,7 @@ caxis('auto')
 hold on
 plot([0 0],ylim,'k--')
 cb = colorbar('eastoutside')
-xlabel('time from state switch (s)')
+xlabel(['time from ' which_switch ' switch (s)'])
 drawnow
 axpos = get(ax,'position');
 
@@ -466,48 +529,51 @@ box(ax,'off')
 ex_y = sort([find(cellids(i_s(j_s>1)) == 18181) ...
     find(cellids(i_s(j_s>1)) == 17784) ...
     find(cellids(i_s(j_s>1)) == 16857)]);
-%ax.YTick = ex_y;
-%ax.YTickLabel = [];
 
-ylabel('cells with 10 significant conecutive timepoints')
-ylabel({'cell #' '(sorted by selectivity' 'onset post-switch)'})
+ylabel(ylab)
 
-xlim([-.45 .75])
 
-print(fh, fullfile(dp.fig_dir, 'popSTA'), '-dsvg', '-painters')
+print(fh, fullfile(dp.fig_dir, [which_switch 'popSTA']), fig_type, '-painters')
 
 %%
-figure(11); clf
+diffSTA   = leftSTA - rightSTA;
+diffSTA = -diffSTA .* (2*(plot_lags > 0)-1)
 
-imagesc(consecsig(i_s(j_s>1),:),'x',time_vec)
-i_s = i_s ;
-
+fh = figure(100); clf
+set(fh, 'position',[5 5 4 4],'papersize',[3 3])
+which_cells = i_s(j_s>1);
+which_cells = 1:size(diffSTA,1)
+if selective_only
+    which_cells = good_ind;
+end
+pre_mn = nanmean(diffSTA(which_cells,plot_lags<0 & plot_lags>-.4),2);
+post_mn = nanmean(diffSTA(which_cells,plot_lags>0& plot_lags<.5),2);
+r_cells = pre_mn > 0 & post_mn > 0;
+l_cells = pre_mn < 0 & post_mn < 0;
+b_cells = ~r_cells & ~l_cells;
+plot(pre_mn(r_cells),post_mn(r_cells),'.',...
+    'markersize',10,'color',dp.right_color)
 hold on
-plot([0 0],ylim,'k--')
-colorbar
-title('p<.05 for 5 consecutive timepoints','fontsize',10,'fontweight','normal')
-% 
-% 
-% plot(0, ex_y,'o','markersize',5,'markerfacecolor','m','markeredgecolor','k')
-% 
-% ex_y = find(cellids(i_s(j_s>1)) == 16857);
-% plot(0, ex_y,'o','markersize',5,'markerfacecolor','c','markeredgecolor','k')
-% 
-% ex_y = find(cellids(i_s(j_s>1)) == 17784);
-% plot(0, ex_y,'o','markersize',5,'markerfacecolor','g','markeredgecolor','k')
+plot(pre_mn(l_cells),post_mn(l_cells),'.',...
+    'markersize',10,'color',dp.left_color)
+plot(pre_mn(b_cells),post_mn(b_cells),'.',...
+    'markersize',10,'color',[.9 .6 .9])
+axis image
+r = max(abs([pre_mn; post_mn]));
+xlim([-1 1]*r)
+ylim([-1 1]*r)
+plot([0 0],ylim,'k')
+plot(xlim,[0 0],'k')
 
-xlim([-.5 .75])
+box off
+xlabel('pre-switch rate difference')
+ylabel('post-switch rate difference')
+axis('tight')
+fn = ['rate_diff_scatter' which_switch correction_str ];
 
-
-keyboard
-%%
-subplot(212)
-diffSTA   = leftSTA - rightSTA;
-imagesc(diffSTA(i_s(j_s>1),:),'x',res{1}.lags)
-
+print(fh, fullfile(dp.sta_fig_dir, fn),fig_type,'-painters')
 %%
 
-diffSTA   = leftSTA - rightSTA;
 sig_level = sum(sigp,2);
 
 which_cells = 1:ncells;
@@ -521,7 +587,7 @@ ax = subplot(211);
 diffSTA = diffSTA(i_s(j_s>1),:);
 NA = ~isnan(diffSTA);
 %diffSTA = sort_by_peak(diffSTA,-abs(diffSTA))
-imagesc(diffSTA,'x',res{1}.lags,'Alphadata',NA,'parent',ax)
+imagesc(diffSTA,'x',plot_lags,'Alphadata',NA,'parent',ax)
 set(ax,'color',[1 1 1].*.8)
 
 caxis([-1 1].*5)
@@ -535,7 +601,7 @@ plot([0 0],ylim,'k--')
 %%
 
 subplot(212)
-imagesc(ptiles(which_cells,:),'x',time_vec)
+imagesc(ptiles_plot(which_cells,:),'x',time_vec)
 caxis([0 1])
 %%
 % some debugging plotting code

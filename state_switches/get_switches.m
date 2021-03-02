@@ -10,6 +10,11 @@ addParameter(p,'bad_strength',0);
 addParameter(p,'fit_line',1);
 addParameter(p,'exclude_final',0);
 addParameter(p,'final_only',0);
+addParameter(p,'min_pre_dur',0);
+addParameter(p,'min_post_dur',0);
+addParameter(p,'min_switch_t',0);
+addParameter(p,'max_switch_t',2);
+addParameter(p,'which_trials',[]);
 parse(p,varargin{:});
 p = p.Results;
 
@@ -52,6 +57,38 @@ switch p.which_switch
         switch_to_1 = {array_data.accumulation_switch_to_1};
     otherwise
         error('which_switch improperly specified')
+end
+
+which_trials = p.which_trials;
+if isempty(which_trials)
+    which_trials = true(size(vec_data.good));
+end
+assert(isequal(length(which_trials),length(switch_to_0)));
+switch_to_0 = switch_to_0(which_trials);
+switch_to_1 = switch_to_1(which_trials);
+
+T = vec_data.stim_dur;
+NT = length(switch_to_0);
+for tt = 1:NT
+   this_to_0 = sort(switch_to_0{tt}); 
+   this_to_1 = sort(switch_to_1{tt});
+   if ~isempty(this_to_0)
+       isi = diff([0 this_to_0 T(tt)]);
+       good_pre     = isi(1:end-1) > p.min_pre_dur;
+       good_post    = isi(2:end) > p.min_post_dur;
+       good_t       = this_to_0 > p.min_switch_t & this_to_0 < p.max_switch_t;
+       good_switch  = good_pre & good_post & good_t;
+        switch_to_0{tt}    = this_to_0(good_switch);
+
+   end
+   if ~isempty(this_to_1)
+       isi = diff([0 this_to_1 T(tt)]);
+       good_pre     = isi(1:end-1) > p.min_pre_dur;
+       good_post    = isi(2:end) > p.min_post_dur;
+       good_t       = this_to_1 > p.min_switch_t & this_to_1 < p.max_switch_t;
+       good_switch  = good_pre & good_post & good_t;
+       switch_to_1{tt}    = this_to_1(good_switch);
+   end
 end
 
 has_switch_to_0 = ~cellfun(@isempty,switch_to_0);
