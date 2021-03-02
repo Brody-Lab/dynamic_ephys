@@ -2,28 +2,51 @@ function res = dyn_fr_dv_map(cellid,varargin)
 % function res = dyn_fr_dv_map(cellid, varargin)
 p = inputParser;
 addParameter(p,'lag',        0);
-addParameter(p,'frbins',     0:0.25:100);
+addParameter(p,'frbins',     100);
 addParameter(p,'use_nans',   0);
 addParameter(p,'mask_after_stim',   true);
 addParameter(p,'mask_during_stim',  false);
 addParameter(p,'average_a_vals',    true)
 addParameter(p,'average_fr',        true);
 addParameter(p,'end_mask_s',        0);
-addParameter(p,'dt',        0.01);
+addParameter(p,'dt',        0.05);
 addParameter(p,'max_t',     1.9);
 addParameter(p,'t0s',    []);
 addParameter(p,'alignment', 'stimstart');   % string matching one of align_strs in dyn_align_LUT
 addParameter(p,'trialnums',  []);
 addParameter(p,'krn_width',  []);      % forces neural data to have this kernel width; if empty, uses whatever is in data    'krn_type'   []          );      % forces neural data to have this kernel type; if empty, uses whatever is in data
 addParameter(p,'krn_type',   'halfgauss');      % forces neural data to have this kernel type
-addParameter(p,'fr_dt',      []);      % forces neural data to have this bin size; if empty, uses whatever is in data
+addParameter(p,'fr_dt',      0.0250);      % forces neural data to have this bin size; if empty, uses whatever is in data
 addParameter(p,'norm_type',     'none');      % type of firing rate normalization; 'div' is divisive, 'z' is z-score, 'none' no normalization
 addParameter(p,'frates',   []);
+addParameter(p,'ft',   []);
 addParameter(p,'shuffle_trials',   0);
+addParameter(p,'shuffle_trials_fixing_choice',   0);
+addParameter(p,'shuffle_switches',   0);
 addParameter(p,'model',   []);
 addParameter(p,'n_dv_bins',   []);
+addParameter(p,'which_switch',   []);
+addParameter(p,'which_trials',   []);
+addParameter(p,'data',   []);
+addParameter(p,'do_svd',   1);
+addParameter(p,'demean_frates',   0);
+addParameter(p,'zscore_frates',   0);
+addParameter(p,'hits_only',   0);
+addParameter(p,'errs_only', 0);
+addParameter(p,'min_pre_dur',   0);
+addParameter(p,'min_post_dur', 0);
+addParameter(p,'min_switch_t',   0);
+addParameter(p,'max_switch_t', 2);
+addParameter(p,'verbose', 0);
+
+
+
 parse(p,varargin{:});
 p = p.Results;
+
+if p.hits_only+p.errs_only == 2
+    error('can''t do hits and errs only')
+end
 
 if length(cellid) > 1
     for cc = 1:length(cellid)
@@ -38,63 +61,158 @@ end
 
 dp = set_dyn_path;
 
+% find alignment index for firing rates
+[align_strs, align_args] = dyn_align_LUT;
+align_ind = strmatch(p.alignment,align_strs,'exact');
+
 % set up time axis for binning firing rates
 if isempty(p.t0s)
-    p.t0s     = 0:p.dt:p.max_t - p.lag;
+    p.t0s     = p.dt:p.dt:p.max_t - p.lag;
 end
 if length(p.frbins) == length(p.t0s)
     error('p.t0s are same length as frbins, could get confusing')
 end
+
 % pull the data for this cell recording + behavior session
-data    = dyn_cell_packager(cellid);
+if isempty(p.data)
+    data    = dyn_cell_packager(cellid);
+else
+    data    = p.data;
+end
+
 if ~isfield(data.trials, 'trialnums')
     if all(isempty([p.krn_width, p.krn_type, p.fr_dt]))
-        data = dyn_cell_packager(cellid);
+        data = dyn_cell_packager(cellid,'repack',1);
     else
         data = dyn_cell_packager(cellid, 'krn_width', p.krn_width, ...
-            'krn_type', p.krn_type, 'bin_size', p.fr_dt);
+            'krn_type', p.krn_type, 'bin_size', p.fr_dt,'repack',1);
     end
 end
-% find alignment index for firing rates
-[align_strs, align_args] = dyn_align_LUT;
-align_ind = strmatch(p.alignment,align_strs,'exact');
+
+% pull time axis associated with firing rates
+if isempty(p.ft)
+    ft      = data.frate_t{align_ind};
+else 
+    ft = p.ft;
+end
+
+if isempty(p.trialnums)
+    trialnums = data.trials.trialnums;
+else
+    trialnums = p.trialnums;
+end
+if isempty(p.which_trials)
+    which_trials = true(size(data.trials.trialnums));
+else
+    which_trials = p.which_trials;
+end
+if p.hits_only
+    which_trials = which_trials & data.trials.hit(which_trials);
+end
+if p.errs_only
+    which_trials = which_trials & ~data.trials.hit(which_trials);
+end
+trialnums = trialnums(which_trials);
+
+
+
 % pull firing rates from the appropriate alignment
 if isempty(p.frates)
-    p.frates = data.frate{align_ind};
+    frates = data.frate{align_ind}(which_trials,:);
+else
+    frates = p.frates(which_trials,:);
 end
+
+T       = data.trials.T(which_trials);
+
 % normalize firing rates
+if isempty(p.norm_type)
+    p.norm_type = 'none';
+end
+
 switch p.norm_type
-    case 'none'
-        fr_norm = p.frates;
+    case 'none'  
+        fr_norm = frates;
     case 'div'
-        fr_norm = p.frates ./ data.norm_mean;
+        fr_norm = frates ./ data.norm_mean;
     case 'z'
-        fr_norm = (p.frates - data.norm_mean) ./ data.norm_std;
+        fr_norm = (frates - data.norm_mean) ./ data.norm_std;
     otherwise
         error('Do not recognize norm_type')
 end
-T       = data.trials.T;
 
-% pull time axis associated with firing rates
-ft      = data.frate_t{align_ind};
+if p.demean_frates | p.zscore_frates
+    fr_norm  = fr_norm - nanmean(fr_norm);
+end
+if p.zscore_frates
+    fr_norm  = fr_norm ./ nanstd(frates);
+end
+
+if isscalar(p.frbins)
+    nfrbins = p.frbins;
+    p.frbins = [];
+elseif isempty(p.frbins)
+    nfrbins = 20;
+end
+
+if isempty(p.frbins)
+    p.frbins = linspace(min(fr_norm(:)), max(fr_norm(:)), nfrbins);
+end
 
 % find time offset between model time and fr time
 % (model is stim_start aligned, fr alignment is chosen by user)
 ref_ev_ind  = find(cellfun(@(x) strcmp('ref_event',x), align_args{align_ind})) + 1;
 ref_event   = align_args{align_ind}{ref_ev_ind};
-ref_times   = data.trials.(ref_event);
-ss_times    = data.trials.stim_start; % stim_start is ref event for model
+
+ref_times   = data.trials.(ref_event)(which_trials);
+ss_times    = data.trials.stim_start(which_trials); % stim_start is ref event for model
 mt_offset   = ref_times - ss_times;  % offset between model and fr_t on each trial
 
 sessid      = data.sessid;
 
+if ~isempty(p.which_switch)
+    clear_bad_strengths = 1;
+    bad_strength    = 0;
+    fit_line = 1;
+    exclude_final = 0;
+    final_only = 0;
+    [switch_to_0, switch_to_1, ~, vd] = ...
+        get_switches(cellid, 'which_switch',p.which_switch,...
+        'clear_bad_strengths', clear_bad_strengths, ...
+        'bad_strength', bad_strength, 'fit_line', fit_line,...
+        'exclude_final', exclude_final, 'final_only', final_only,...
+        'min_pre_dur',p.min_pre_dur,'min_post_dur',p.min_post_dur,...
+        'which_trials',which_trials,'min_switch_t',p.min_switch_t,...
+        'max_switch_t',p.max_switch_t);
+    
+        
+else
+    switch_to_0 = [];
+    switch_to_1 = [];
+end
+assert(length(data.trials.gamma) == length(switch_to_0));
+
+
 if isempty(p.model)
     % only grab the trials that are in the data struct
-    p.model = get_data_model_p(data, data.trials.trialnums);
+    model = get_data_model_p(data, trialnums);
+else
+    %warning('temporary fix to choose model trials')
+    if length(p.model) > length(which_trials)
+        model = get_data_model_p(p.model, trialnums(which_trials));
+    elseif length(p.model) == length(which_trials)
+        model = get_data_model_p(p.model, which_trials);
+    else
+        error('not sure what to do with model trialnums')
+    end
+    p.model = [];
 end
-modelT  = cellfun(@(x) x.T(end), {p.model.posterior});
+    
+modelT  = cellfun(@(x) x.T(end), {model.posterior});
 
-assert(all(abs(modelT(:)-T(:)) < .1));
+if ~(all(abs(modelT(:)-T(:)) < .1))
+    warning('model T and T don''t match up perfectly')
+end
 %{
 there's some discrepancy between the time in the model posterior and the
 trial duration T which corresponds. you can see that here
@@ -104,35 +222,58 @@ S       = load_session_data(sessid);
 Sdata   = format_data(S);
 %}
 
-if p.shuffle_trials
+if p.shuffle_trials | p.shuffle_trials_fixing_choice | p.shuffle_switches
     Ttiles = [min(T); percentile(T,25:25:75); max(T)+eps];
-    % resort wp.ithin duration quintiles
-    for tt = 1:length(Ttiles)-1
-        this_ind = find(T >= Ttiles(tt) & T < Ttiles(tt+1));
-        [~, neworder]       = sort(rand(length(this_ind),1));
-        fr_norm(this_ind,:) = fr_norm(this_ind(neworder),:);
+    if p.shuffle_trials_fixing_choice
+        choice_group = data.trials.rat_dir;
+    else
+        choice_group = ones(size(data.trials.rat_dir));
+    end
+    unique_choice_group = unique(choice_group);
+    for gg = 1:length(unique_choice_group)
+        this_group = choice_group == unique_choice_group(gg);
+        % resort wp.ithin duration quintiles
+        for tt = 1:length(Ttiles)-1
+            goodT   =  T >= Ttiles(tt) & T < Ttiles(tt+1);
+            this_ind = find(this_group & goodT);
+            [~, neworder]       = sort(rand(length(this_ind),1));
+            if p.shuffle_trials
+                fr_norm(this_ind,:) = fr_norm(this_ind(neworder),:);
+            end
+            if p.shuffle_switches
+                switch_to_0(this_ind) = switch_to_0(neworder);
+                switch_to_1(this_ind) = switch_to_1(neworder);
+            end
+        end
     end
 end
 
 
 % compute the joint probability distribution p(t,f,a)
-res = compute_joint_frdvt(fr_norm, ft, p.model, p.t0s, mt_offset, ...
+res = compute_joint_frdvt(fr_norm, ft, model, p.t0s, mt_offset, ...
     'frbins', p.frbins, 'use_nans', p.use_nans, 'lag', p.lag,...
     'mask_after_stim', p.mask_after_stim, 'mask_during_stim', p.mask_during_stim,...
     'average_a_vals', p.average_a_vals, 'average_fr', p.average_fr,...
-    'end_mask_s', p.end_mask_s);
+    'end_mask_s', p.end_mask_s, ...
+    'switch_to_0', switch_to_0, 'switch_to_1',switch_to_1,...
+    'verbose', p.verbose);
 %
 if ~isempty(p.n_dv_bins)
-    res = rebin_joint(res, p.n_dv_bins, 'use_nans', p.use_nans)
+    res = rebin_joint(res, p.n_dv_bins, 'use_nans', p.use_nans);
+    
 end
 % compute the 2d tuning, i.e. E[f(t,a)] = p(t,a,f)*f
 res = compute_tuning_from_joint(res);
 % compute average 1d tuning, i.e. E[f(a)] = <E[f(t,a)]>
 res = compute_dv_tuning(res);
 % run svd and et rank 1 matrix approximation of E[f(t,a)]
-res = compute_rank1_fgta_approx(res);
+if p.do_svd
+    res = compute_rank1_fgta_approx(res);
+end
 
 res.cellid = cellid;
+res.which_switch = p.which_switch;
+res.params = p;
 
 
 function res = compute_joint_frdvt(fr_norm, ft, model, t0s, mt_offset, varargin)
@@ -145,11 +286,25 @@ addParameter(p, 'mask_during_stim', false);
 addParameter(p, 'average_a_vals', true)
 addParameter(p, 'average_fr', true);
 addParameter(p, 'end_mask_s', 0);
+addParameter(p, 'switch_to_0', '');
+addParameter(p, 'switch_to_1', '');
+addParameter(p, 'verbose', 0);
 parse(p,varargin{:});
 p = p.Results;
 frbins = p.frbins;
 
-end_mask_s = p.end_mask_s;
+end_mask_s  = p.end_mask_s;
+switch_to_0 = p.switch_to_0;
+switch_to_1 = p.switch_to_1;
+
+use_switches = ~isempty(switch_to_0) & ~isempty(switch_to_1);
+
+if use_switches
+    n_switch_to_0 = cellfun(@length, switch_to_0);
+    n_switch_to_1 = cellfun(@length, switch_to_1);
+    has_switch  = n_switch_to_0 + n_switch_to_1;
+    includes    = has_switch(:);
+end
 
 assert(size(fr_norm,1)==length(model))
 assert(size(fr_norm,1)==length(mt_offset) | length(mt_offset) == 1)
@@ -171,90 +326,122 @@ end;
 
 t0_durs     = [diff(t0s) 0];
 last_durs   = [0 t0_durs];
-
-fprintf('starting trial 1...')
+counter     = 0;
+if p.verbose, fprintf('starting trial 1...'); end
 for ti = 1:numel(model)
-    if mod(ti,100)==0
+    if mod(ti,100)==0 & p.verbose
         fprintf('%i...',ti)
     end
     % get this trials model predictions and firing rates
     a   = model(ti).posterior.avals;
-    t   = model(ti).posterior.T;
+    t   = model(ti).posterior.T - mt_offset(ti);
     pr  = model(ti).posterior.pdf;
     fr  = fr_norm(ti,:);
     
+    if use_switches
+        this_switches   = sort([switch_to_0{ti} switch_to_1{ti}]);
+        this_nswitches  = length(this_switches);
+    else
+        this_switches   = 0;
+        this_nswitches  = 1;
+    end
     % get last time point where we have a firing rate for this trial
     last_ft = ft(find(~isnan(fr),1,'last')) - end_mask_s;
     
-    for tx = 1:numel(t0s)
-        t0          = t0s(tx);
-        last_dur    = last_durs(tx);
-        this_dur    = t0_durs(tx);
+    for si = 1:this_nswitches
+        counter     = counter + 1;
+        switch_t0s  = this_switches(si) + t0s;
         
-        if t0 + this_dur > last_ft
-            continue
+        pre_mask    = ft(1);
+        post_mask   = last_ft;
+        
+        if si < this_nswitches
+            post_mask  = this_switches(si+1);
         end
         
-        % figure out which indices to include for posterior and firing rate
-        if (t0 + this_dur/2) > last_ft
-            this_dur_nolag = 2*(last_ft - t0);
-        else
-            this_dur_nolag = this_dur;
-        end
-        if (t0 + this_dur/2 + p.lag) > last_ft
-            this_dur_lag = 2*(last_ft - t0 - p.lag);
-        else
-            this_dur_lag = this_dur;
+        if si > 1
+            pre_mask  = this_switches(si-1);
         end
         
-        t_start     = (t0 - last_dur/2);
-        model_t_end = (t0 + this_dur_nolag/2);
-        fr_t_end    = (t0 + this_dur_lag/2);
-        % Determine relevant timepoints for accumulator value a
-        if p.average_a_vals
-            model_t_idx = t > t_start  & t < model_t_end;
-        else
-            [~, model_t_idx]   = min(abs(t-t0));
-        end
-        
-        % Get firing rate r0 for this time point
-        if p.average_fr
-            % average of interpolated values at 3 timepoints
-            r0 = mean(interp1(ft, fr, p.lag + [t_start, t0, fr_t_end]));% The mean firing rate during the time window
-        else
-            % interpolated value at timepoint
-            r0 = interp1(ft, fr, t0 + p.lag);
-        end
-        % get index into joint distribution for this firing rate
-        [~, fbin] = min(abs(frbins-r0));
-        
-        % decide whether to include this timepoint
-        if p.mask_after_stim
-            include_fr = ~isnan(r0) & (t(end)-(t0+p.lag)-mt_offset(ti) > 0);
-        elseif p.mask_during_stim
-            include_fr = ~isnan(r0) & (t(end)-(t0+p.lag)-mt_offset(ti) < 0);
-        else
-            include_fr = ~isnan(r0);
-        end
-        
-        % decide whether to add mass to joint distribution for this time bin and firing rate
-        if include_fr
-            % select middle numx timepoints if p is different size
-            thisx   = size(pr,2);
-            sd      = ceil(thisx/2) - floor(numa/2);
-            ed      = ceil(thisx/2) + floor(numa/2);
-            this_pr = mean(pr(model_t_idx, sd:ed),1);
-            % normalize p(a) for this time point so integrates to 1
-            this_pr = this_pr./sum(this_pr)/abin_width;
-            % add p(a) mass to this time and firing rate bin
-            if p.use_nans && isnan(mass_tfa(tx, fbin, 2))  % this should only happen is use_nans was 1
-                mass_tfa(tx, fbin, :) = this_pr;
-            else
-                mass_tfa(tx, fbin, :) = squeeze(mass_tfa(tx, fbin,:))' ...
-                    + this_pr;
+        good_tinds = find(switch_t0s >= pre_mask & switch_t0s < post_mask);
+        for tx = good_tinds
+            t0          = switch_t0s(tx);
+            last_dur    = 0;
+            this_dur    = 0;
+            if tx > good_tinds(1)
+                last_dur = last_durs(tx);
             end
-            % keep track of how many trials contribute to each time bin
-            mass_t(tx)  = mass_t(tx) + 1;
+            if tx < good_tinds(end)
+                this_dur = t0_durs(tx);
+            end
+            if t0 + this_dur > last_ft
+                continue
+            end
+            
+            % figure out which indices to include for posterior and firing rate
+            if (t0 + this_dur/2) > last_ft
+                this_dur_nolag = 2*(last_ft - t0);
+            else
+                this_dur_nolag = this_dur;
+            end
+            if (t0 + this_dur/2 + p.lag) > last_ft
+                this_dur_lag = 2*(last_ft - t0 - p.lag);
+            else
+                this_dur_lag = this_dur;
+            end
+            
+            t_start     = (t0 - last_dur/2);
+            model_t_end = (t0 + this_dur_nolag/2);
+            fr_t_end    = (t0 + this_dur_lag/2);
+            % Determine relevant timepoints for accumulator value a
+            if p.average_a_vals
+                model_t_idx = t > t_start  & t < model_t_end;
+            else
+                [~, model_t_idx]   = min(abs(t-t0));
+            end
+            
+            % Get firing rate r0 for this time point
+            if p.average_fr
+                %warning(t0~=fr_t_end);
+                % average of interpolated values at 3 timepoints
+                r0 = nanmean(interp1(ft, fr, p.lag + [t_start, t0, fr_t_end]));% The mean firing rate during the time window
+            else
+                % interpolated value at timepoint
+                r0 = interp1(ft, fr, t0 + p.lag);
+            end
+            % get index into joint distribution for this firing rate
+            [~, fbin] = min(abs(frbins-r0));
+            
+            % decide whether to include this timepoint
+            if p.mask_after_stim
+                timepoint = t(end)-(t0+p.lag);%-mt_offset(ti);
+                include_fr = ~isnan(r0) & (timepoint > 0);
+            elseif p.mask_during_stim
+                timepoint = t(end)-(t0+p.lag);%)-mt_offset(ti);
+                include_fr = ~isnan(r0) & ( timepoint< 0);
+            else
+                include_fr = ~isnan(r0);
+            end
+            
+            % decide whether to add mass to joint distribution for this time bin and firing rate
+            if include_fr
+                % select middle numx timepoints if p is different size
+                thisx   = size(pr,2);
+                sd      = ceil(thisx/2) - floor(numa/2);
+                ed      = ceil(thisx/2) + floor(numa/2);
+                this_pr = mean(pr(model_t_idx, sd:ed),1);
+                % normalize p(a) for this time point so integrates to 1
+                this_pr = this_pr./sum(this_pr)/abin_width;
+                % add p(a) mass to this time and firing rate bin
+                if p.use_nans && isnan(mass_tfa(tx, fbin, 2))  % this should only happen is use_nans was 1
+                    mass_tfa(tx, fbin, :) = this_pr;
+                else
+                    mass_tfa(tx, fbin, :) = squeeze(mass_tfa(tx, fbin,:))' ...
+                        + this_pr;
+                end
+                % keep track of how many trials contribute to each time bin
+                mass_t(tx)  = mass_t(tx) + 1;
+            end
         end
     end
 end
@@ -339,10 +526,17 @@ fga_tmn_n_max   = max(fga_tmn_n);
 fga_tmn_n       = fga_tmn_n / fga_tmn_n_max;
 fga_std_n       = fga_std ./ fga_tmn_n_max;
 
+fga_resid_tmn   = nanmean(fgta_resid(time_bins,:));
+fga_resid_std  = nanstderr(fgta_resid(time_bins,:));
+fga_tmn         = nanmean(fgta(time_bins,:));
+fga_std        = nanstderr(fgta(time_bins,:));
+
 res.fgta_resid      = fgta_resid;
 res.fgta_resid_n    = fgta_resid_n;
 res.fga_rn_tmn      = fga_rn_tmn;
 res.fga_rn_std      = fga_rn_std;
+res.fga_resid_tmn   = fga_resid_tmn;
+res.fga_resid_std   = fga_resid_std;
 res.fga_tmn         = fga_tmn;
 res.fga_std         = fga_std;
 res.fga_tmn_n       = fga_tmn_n;
@@ -351,67 +545,7 @@ res.good_tind       = good_tind;
 res.frm_time        = frm_time;
 res.fr_mod          = fr_mod;
 
-function res = compute_rank1_fgta_approx(res, varargin)
-p = inputParser;
-addParameter(p, 'which_map', 'fgta_resid')
-parse(p, varargin{:});
-p = p.Results;
 
-if isstruct(res)
-    map = res.(p.which_map);
-else
-    map = res;
-end
-% SVD analysis
-% do rank1 approximation
-[u,s,v]     = svd(map);
-s_squared   = diag(s).^2;
-s1          = s(1);
-u1          = u(:,1);
-v1          = v(:,1);
-map_hat     = u1*s1*v1';
-alpha       = 1/range(v1);
-beta        = s1/alpha;
-rank1_mt_n  = u1*beta;
-rank1_ra_n  = v1*alpha;
-% force average firing rate modulation to be positive
-if mean(rank1_mt_n) < 0
-    rank1_mt_n = -rank1_mt_n;
-    rank1_ra_n = -rank1_ra_n;
-end
-
-% see how much variance is explained by different rank approximations
-nranks = 5;
-rank_var = nan(nranks,1);
-for ii = 1:nranks
-    rank_var(ii) = sum(s_squared(1:ii))./sum(s_squared);
-end
-
-warning('off','all')
-svdta   = rank1_ra_n';
-svdtan  = svdta - min(svdta);
-svdtan  = svdtan./max(svdtan);
-x       = res.dv_axis;
-[betas,~,~,sigma,mse] = nlinfit(x,svdtan,@dyn_sig,[0, 1/3]);
-warning('on','all')
-svd_betas    = betas;
-svd_delta    = sqrt(diag(sigma)) * tinv(1-0.05/2,sum(~isnan(x))-4);
-svd_sigmas   = svd_delta;
-svd_slope    = betas(2)/4;
-
-res.u1      = u1;
-res.s1      = s1;
-res.v1      = v1;
-res.map_hat = map_hat;
-res.alpha   = alpha;
-res.beta    = beta;
-res.rank1_mt_n  = rank1_mt_n;
-res.rank1_ra_n  = rank1_ra_n;
-res.rank_var    = rank_var;
-res.svdtan      = svdtan;
-res.svd_betas   = svd_betas;
-res.svd_sigmas  = svd_sigmas;
-res.svd_slope   = svd_slope;
 
 
 function res = rebin_joint(res, n_dv_bins,varargin)
@@ -424,22 +558,35 @@ p = p.Results;
 x   = res.dv_axis;
 t0s = res.t0s;
 frbins = res.frbins;
-pj_fine    = res.pjoint_tfa;
+pj_fine     = res.pjoint_tfa;
+ma_fine    = res.mass_tfa;
 
 if n_dv_bins > size(pj_fine,3)
     error('You are binning accumulation values more finely than the model generates')
 end
 
 % set up new dv bins
+
+if length(n_dv_bins) > 1
+    dv_bin_edges = n_dv_bins;
+    dvbe = dv_bin_edges;
+    dvax = [ dvbe(1:end-1) + 0.5*(diff(dvbe)) ];
+    dv_axis = [min(x)+(dvax(1)-min(x))/2 dvax max(x)+(dvax(end)-max(x))/2];
+else
 x_bound_margin = (x(2)-x(1)) * 0.5;
-dv_bin_edges = linspace(min(x)+x_bound_margin,max(x)-x_bound_margin,n_dv_bins-1);
-dv_axis = dv_bin_edges + 0.5*(dv_bin_edges(2)-dv_bin_edges(1));
-dv_axis = dv_axis(1:end-1);
-dv_axis = [min(x) dv_axis max(x)];  % add bound bins for axis
+    dv_bin_edges = linspace(min(x)+x_bound_margin,max(x)-x_bound_margin,n_dv_bins-1);
+
+    dv_axis = dv_bin_edges(1:end-1) + 0.5*(diff(dv_bin_edges));
+    dv_axis = [min(x) dv_axis max(x)];  % add bound bins for axis
+end
+
+n_dv_bins = length(dv_axis);
 
 new_pj = zeros(size(pj_fine,1), size(pj_fine,2), length(dv_axis));
+new_ma = zeros(size(pj_fine,1), size(pj_fine,2), length(dv_axis));
 if p.use_nans
     new_pj = nan * new_pj;
+    new_ma = nan * new_pa;
 end
 pj_given_ta     = zeros(size(pj_fine,1), size(pj_fine,2), length(dv_axis));
 fr_given_ta     = zeros(numel(t0s), numel(dv_axis));
@@ -447,31 +594,66 @@ fr_var_given_ta = zeros(numel(t0s), numel(dv_axis));
 
 for time_i=1:numel(t0s)   
     % Deal with the first bin
-    these_dv_bins       = x < dv_bin_edges(1);
-    new_pj(time_i,:,1) = nansum(pj_fine(time_i,:,these_dv_bins),3);
+    first_dv_bins       = x < dv_bin_edges(1);
+    if sum(first_dv_bins)==1
+        new_pj(time_i,:,1) = pj_fine(time_i,:,first_dv_bins);
+        new_pj(time_i,:,1) = pj_fine(time_i,:,first_dv_bins);
+        new_ma(time_i,:,1) = ma_fine(time_i,:,first_dv_bins);
+        new_ma(time_i,:,1) = ma_fine(time_i,:,first_dv_bins);
+    else
+        new_pj(time_i,:,1) = nansum(pj_fine(time_i,:,first_dv_bins),3);
+        new_ma(time_i,:,1) = nansum(ma_fine(time_i,:,first_dv_bins),3);
+    end
     edge_match          = x == dv_bin_edges(1);
     new_pj(time_i,:,1) = new_pj(time_i,:,1) + 0.5*nansum(pj_fine(time_i,:,edge_match),3);
-    
+    new_ma(time_i,:,1) = new_ma(time_i,:,1) + 0.5*nansum(ma_fine(time_i,:,edge_match),3);
+
     % Deal with middle bins
     for j=2:n_dv_bins-1
         these_dv_bins       = x>dv_bin_edges(j-1) & x<dv_bin_edges(j);
-        new_pj(time_i,:,j) = nansum(pj_fine(time_i,:,these_dv_bins),3); % Pjoints is t0 x FR x dv
+        if sum(these_dv_bins) == 1
+            new_pj(time_i,:,j) = pj_fine(time_i,:,these_dv_bins); % Pjoints is t0 x FR x dv
+            new_ma(time_i,:,j) = ma_fine(time_i,:,these_dv_bins); % Pjoints is t0 x FR x dv
+
+        else
+            new_pj(time_i,:,j) = nansum(pj_fine(time_i,:,these_dv_bins),3); % Pjoints is t0 x FR x dv
+            new_ma(time_i,:,j) = nansum(ma_fine(time_i,:,these_dv_bins),3); % Pjoints is t0 x FR x dv
+        end
         % deal with bin edges that exactly match DV centers; for
         % these case, split joint dist in half between adjacent bins
         edge_match          = x==dv_bin_edges(j-1) | x==dv_bin_edges(j);
         new_pj(time_i,:,j) = new_pj(time_i,:,j) + 0.5*nansum(pj_fine(time_i,:,edge_match),3);
+        new_ma(time_i,:,j) = new_ma(time_i,:,j) + 0.5*nansum(ma_fine(time_i,:,edge_match),3);
     end
     % Deal with last bin
-    these_dv_bins           = x > dv_bin_edges(end);
-    new_pj(time_i,:,end)   = nansum(pj_fine(time_i,:,these_dv_bins),3);
+    final_dv_bins           = x > dv_bin_edges(end);
+    if sum(final_dv_bins) == 1
+        new_pj(time_i,:,end)   = pj_fine(time_i,:,final_dv_bins);
+        new_ma(time_i,:,end)   = ma_fine(time_i,:,final_dv_bins);
+    else
+        new_pj(time_i,:,end)   = nansum(pj_fine(time_i,:,final_dv_bins),3);
+        new_ma(time_i,:,end)   = nansum(ma_fine(time_i,:,final_dv_bins),3);
+    end
     edge_match              = x == dv_bin_edges(end);
     new_pj(time_i,:,end)   = new_pj(time_i,:,end) + 0.5*nansum(pj_fine(time_i,:,edge_match),3);
-    
-    if abs(sum(sum(new_pj(time_i,:,:))) - sum(sum(pj_fine(time_i,:,:)))) > 1e-6
+    new_ma(time_i,:,end)   = new_ma(time_i,:,end) + 0.5*nansum(ma_fine(time_i,:,edge_match),3);
+
+    p_mass_diff = sum(pj_fine(time_i,:,:),3) - sum(new_pj(time_i,:,:),3);
+    diff_mag    = sum(abs(p_mass_diff));
+    if diff_mag > 1e-6
         keyboard
-        error('Probability mass is leaking during binning')
+        figure(111); clf
+  
+        s(1)= subplot(211)
+        temp = squeeze(new_pj(time_i,1,:));
+        plot(dv_axis,temp,'.-')
+        s(2)= subplot(212)
+        temp = squeeze(pj_fine(time_i,1,:));
+        plot(x,temp,'.-')
+        linkaxes(s)
+        %%
+        warning('Probability mass is leaking during binning')
     end
-    
     myPj = squeeze(new_pj(time_i,:,:));
     this_pj_given_ta = myPj ./ (ones(size(myPj,1),1)*sum(myPj,1));
     fr_given_ta(time_i,:) = this_pj_given_ta'*frbins';
@@ -481,6 +663,7 @@ end;
 
 
 % save binned dv_axis as x
+res.mass_tfa        = new_ma;
 res.pjoint_tfa      = new_pj;
 res.pj_given_ta     = pj_given_ta;
 res.fr_given_ta     = fr_given_ta;
@@ -521,7 +704,7 @@ addParameter(p, 'dt',  0.01); % model dt
 addParameter(p, 'alignment',  'stimstart-cout-mask'); % string matching one of align_strs in dyn_align_LUT
 addParameter(p, 'direction',  'backward'); % 'forward' or 'backward'
 addParameter(p, 'krn_width',  []); % forces neural data to have this kernel width; if empty, uses whatever is in data
-addParameter(p, 'fr_dt',  []); % forces neural data to have this bin size; if empty, uses whatever is in data
+addParameter(p, 'fr_dt',  0.0250); % forces neural data to have this bin size; if empty, uses whatever is in data
 addParameter(p, 'krn_type',  'halfgauss'); % forces neural data to have this kernel type
 addParameter(p, 'norm_type',  'div'); % type of firing rate normalization; 'div' is divisive, 'z' is z-score
 addParameter(p, 'flip_bool',  '~data.prefsideright{align_ind}'); % boolean choice for each cellid of whether to flip sign of DV (string evaluated in workspace); default makes pref direction the higher DV value
