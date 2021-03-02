@@ -19,10 +19,10 @@ function [align_strs, align_args] = dyn_align_LUT(max_dur)
 % 
 
 %% alignments 
-if nargin < 1
-    max_dur = 2;
-    fprintf('\nusing max duration 2s\n')
-end
+ if nargin < 1
+     max_dur = 2;
+%     fprintf('\nusing max duration 2s\n')
+ end
 align_strs{1} = 'stimstart';
 align_args{1} = {'ref_event', 'stim_start', 'pre', 0, 'post', max_dur, 'post_mask_event', 'cpoke_end'};
 
