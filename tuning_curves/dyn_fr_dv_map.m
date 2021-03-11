@@ -184,13 +184,13 @@ if ~isempty(p.which_switch)
         'min_pre_dur',p.min_pre_dur,'min_post_dur',p.min_post_dur,...
         'which_trials',which_trials,'min_switch_t',p.min_switch_t,...
         'max_switch_t',p.max_switch_t);
-    
+    assert(length(data.trials.gamma) == length(switch_to_0));
         
 else
     switch_to_0 = [];
     switch_to_1 = [];
 end
-assert(length(data.trials.gamma) == length(switch_to_0));
+
 
 
 if isempty(p.model)
