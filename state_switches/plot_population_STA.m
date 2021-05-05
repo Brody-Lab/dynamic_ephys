@@ -1,4 +1,4 @@
-function plot_population_STA(varargin)
+function [fh ] = plot_population_STA(varargin)
 p = inputParser;
 addParameter(p, 'which_switch', 'model')
 addParameter(p, 'savefig', 1)
@@ -8,7 +8,7 @@ addParameter(p, 'recompute', 0)
 addParameter(p, 'lag', 0)
 addParameter(p, 'max_t', 1)
 addParameter(p, 'min_t', -1)
-addParameter(p, 'fig_type', '-dpng')
+addParameter(p, 'fig_type', '-dsvg')
 parse(p,varargin{:})
 p = p.Results;
 which_switch    = p.which_switch;
@@ -36,46 +36,203 @@ for ccall = 1:length(cellids)
     end
 end
 %%
-
 ncells      = length(cellids);
 nlags       = length(res{1}.lags);
 plot_lags   = res{1}.lags - p.lag;
 leftSTA     = nan(ncells,nlags);
 rightSTA    = nan(ncells,nlags);
 for cc = 1:length(cellids)
-    leftSTA(cc,:)   = res{cc}.STR_left_real;
-    rightSTA(cc,:)  = res{cc}.STR_right_real;
+    leftSTA(cc,:)   = res{cc}.STR_left_real;% / nanstd(res{cc}.STR_left_real);
+    rightSTA(cc,:)  = res{cc}.STR_right_real;% / nanstd(res{cc}.STR_right_real); 
 end
 %%
 cout_auc_file = fullfile(dp.ephys_summary_dir,'cout_auc.mat');
 cf = load(cout_auc_file,'cellids','good_cells');
 good_ind = ismember(cellids,cf.cellids(cf.good_cells));
 
+%% population STA traces
+cell_list = dyn_cells_db;
+select_str = 'normmean > 0' ;
 
+psr = cell2mat(extracting(cell_list, 'prefsideright', select_str))
+normmean = cell2mat(extracting(cell_list, 'normmean', select_str));
 
-diffSTA   = leftSTA - rightSTA;
+leftstd = nanstd(leftSTA,[],2);
+rightstd = nanstd(rightSTA,[],2);
 
-which_cells = 1:ncells;
-%which_cells = [21  510 474];
-fh = figure(10); clf
-set(fh, 'position',[5 5 3 6],'papersize',[3 3])
-ax = subplot(211);
-diffSTA = diffSTA(which_cells,:);
-NA = ~isnan(diffSTA);
-imagesc(diffSTA,'x',plot_lags,'Alphadata',NA,'parent',ax)
-set(ax,'color',[1 1 1].*.8)
-caxis([-2 2])
-cm = flipud(colormapLinear(dp.left_color,50));
-cm = [cm; colormapLinear(dp.right_color,50)];
-colormap(colormapRedBlue)
-colormap(cm)
-xlim([-.5 .75])
-hold on
-plot([0 0],ylim,'k--')
+switch 1
+    case 0
+        leftdenom = normmean;
+        rightdenom = normmean;
+    case 1
+        leftdenom = leftstd;
+        rightdenom = rightstd;
+end
+
+leftSTAz = leftSTA ./ leftdenom;
+rightSTAz = rightSTA ./ rightdenom;
+
+good_cells = true(size(cf.good_cells));
+good_cells = cf.good_cells;
+
+psr = psr == 1;
+STR_pref = leftSTAz;
+STR_pref(psr,:) = rightSTAz(psr ,:);
+STR_npref  = rightSTAz;
+STR_npref(psr,:) = leftSTAz(psr ,:);
+
+STR_pref_good = STR_pref(good_cells,:);
+STR_npref_good = STR_npref(good_cells,:);
 %%
-ax2 = subplot(212);
-errorbar(plot_lags, nanmean(abs(diffSTA(:,:))),nansem(abs(diffSTA(:,:))));
-xlim([-.5 .75])
+fh = figure(1); clf
+fht = 2;
+fw  = 3.75;
+ppos = [fw fht];
+set(fh,'position',[2 5 fw fht],'papersize', [fw fht])
+
+axsta = axes;
+hold(axsta,'on')
+
+posdex = plot_lags > -0.001 & plot_lags < max_t;
+negdex = plot_lags <  0.001 & plot_lags > min_t;
+sat = .7; % .9
+satdiff = 0; % .2
+
+axsta.TickDir = 'out';
+shadedErrorBar(plot_lags(negdex),nanmean(STR_npref_good(:,negdex)),...
+    nansem(STR_npref_good(:,negdex)),{'color', dp.pref_color,'parent',axsta},[],sat)
+shadedErrorBar(plot_lags(negdex),nanmean(STR_pref_good(:,negdex)),...
+    nansem(STR_pref_good(:,negdex)),{'color', dp.npref_color},[],sat)
+shadedErrorBar(plot_lags(posdex),nanmean(STR_npref_good(:,posdex)),...
+    nansem(STR_npref_good(:,posdex)),{'color', dp.npref_color},[],sat-satdiff)
+shadedErrorBar(plot_lags(posdex),nanmean(STR_pref_good(:,posdex)),...
+    nansem(STR_pref_good(:,posdex)),{'color', dp.pref_color},[],sat-satdiff)
+axis tight
+ylim([-1 1]*.4)
+set(axsta, 'ytick', [-.4 -.2 0 .2 .4])
+plot([0 0],ylim,'--k')
+xlim([min_t max_t])
+
+
+%cb = colorbar
+xlabel(['time from ' which_switch ' state change (s)'])
+ylabel('\Delta FR (z-score)')
+title('selective population average STR','fontweight','normal')
+drawnow
+
+figsavefname = ['population_' which_switch '_STA'];
+print(fh, fullfile(dp.fig_dir, figsavefname) ,fig_type,'-painters')
+%% heat map pref
+fh= figure(2); clf
+set(fh,'position',[3 11 ppos],'papersize',[ppos],'paperpositionmode','auto')
+
+STR_diff = STR_pref_good - STR_npref_good;
+%STR_diff = STR_pref - STR_npref;
+imagesc((STR_diff),'x',plot_lags)
+colormap(colormapRedBlue)
+caxis([-1 1]*1.5)
+
+xlim([ min_t max_t])
+hold on
+plot([0 0],ylim,'k')
+ylabel('cell #')
+xlabel(['time from ' which_switch ' state change (s)'])
+box off
+drawnow
+axpos = get(gca,'position')
+cb = colorbar
+set(gca,'position',axpos)
+cb.Position = cb.Position + [-.03 0 -.01 -.4]
+title('selective cells','fontweight','normal')
+figsavefname = ['population_' which_switch '_STA_heat_pref'];
+print(fh, fullfile(dp.fig_dir, figsavefname) ,fig_type,'-painters')
+%% heat map side
+fh= figure(3); clf
+fht = 3;
+fw  = 3.75;
+ppos = [fw fht];
+set(fh,'position',[3 7 ppos],'papersize',[ppos],'paperpositionmode','auto')
+
+%STR_diff = STR_pref_good - STR_npref_good;
+STR_diff = rightSTAz - leftSTAz;
+STR_diff = STR_diff(good_cells,:)
+STR_diff = [STR_diff(psr(good_cells),:); STR_diff(~psr(good_cells),:)];
+STR_diff(:,plot_lags < 0) = -STR_diff(:,plot_lags < 0) ;
+imagesc(STR_diff,'x',plot_lags)
+
+
+hold on
+plot( xlim, [1 1]*sum(psr(good_cells)),'k')
+caxis([-1 1]*1)
+xlim([ min_t max_t])
+hold on
+plot([0 0],ylim,'k')
+ylabel('cell #')
+xlabel(['time from ' which_switch ' state change (s)'])
+box off
+title('STR for all selective cells','fontweight','normal')
+drawnow
+axpos = get(gca,'position')
+nc = 10
+mid_color = [1 1 1].*1;
+cm = flipud(colormapLinear(dp.right_color,nc,mid_color));
+cm2 = colormapLinear(dp.left_color,nc,mid_color);
+
+clrs = [cm(1:end-1,:); cm2(1:end,:)];
+colormap(flipud(clrs))
+%colormap(colormapRedBlue)
+cb = colorbar
+set(gca,'position',axpos)
+cb.Position = cb.Position + [-.03 0 -.01 -.4]
+figsavefname = ['population_' which_switch '_STA_heat_side'];
+print(fh, fullfile(dp.fig_dir, figsavefname) ,fig_type,'-painters')
+%%
+fh= figure(3); clf
+fht = 2;
+fw  = 3.75;
+ppos = [fw fht];
+set(fh,'position',[3 7 ppos],'papersize',[ppos],'paperpositionmode','auto')
+
+%STR_diff = STR_pref_good - STR_npref_good;
+STR_diff = rightSTAz - leftSTAz;
+STR_diff = STR_diff(good_cells,:)
+STR_diff(:,plot_lags < 0) = -STR_diff(:,plot_lags < 0) ;
+
+
+ax1 = subplot(211)
+imagesc(STR_diff(psr(good_cells),:),'x',plot_lags)
+caxis([-1 1]*1)
+xlim([ min_t max_t])
+ax2 = subplot(212)
+imagesc(STR_diff(~psr(good_cells),:),'x',plot_lags)
+caxis([-1 1]*1)
+xlim([ min_t max_t])
+nr = sum(psr(good_cells));
+nl = sum(~psr(good_cells));
+
+
+ylabel(ax1,'right cell #')
+ylabel(ax2,'left cell #')
+xlabel(ax2,['time from ' which_switch ' state change (s)'])
+drawnow
+
+ax1pos = get(ax1,'position')
+ax2pos = get(ax2,'position')
+set(ax2,'position',ax2pos+[0 0 0 .1])
+ax2pos = get(ax2,'position')
+
+ax1pos = get(ax1,'position')
+set(ax1,'position',[ax1pos([1 2]) ax2pos(3) nr/nl*ax2pos(4)]-[0 .05 0 0])
+%set(ax1,'position',[ax2pos([1 2]) ax1pos(3) nl/nr*ax1pos(4)])
+set(ax1,'xticklabel',[],'ytick',[1 30 60])
+set(ax2,'xticklabel',[],'ytick',[1 30 60])
+box(ax1,'off')
+box(ax2,'off')
+
+title(ax1,'STR for all selective cells','fontweight','normal')
+figsavefname = ['population_' which_switch '_STA_heat_side_split'];
+print(fh, fullfile(dp.fig_dir, figsavefname) ,fig_type,'-painters')
+
 %%
 
 % make map of time points for which each cell is encoding signficantly
@@ -187,7 +344,7 @@ p = movmean(average_siggy,3);
 se = 1.96.*sqrt((p.*(1-p))./n);
 time_vec            = plot_lags(pval_plot_lags);
 %%
-figure(2); clf;
+figure(3); clf;
 ax = axes;
 shadedErrorBar(time_vec, average_siggy.*100, se.*100, 'k')
 %plot(time_vec, movmean(average_siggy.*100,3), 'k','linewidth',2)
@@ -215,8 +372,9 @@ if savefig
     save(fullfile(dp.sta_fig_dir, datasavefname), 'time_vec','average_siggy','n')
 end
 %%
+if 0
 %%%% look at distribution of dprime values
-figure(3); clf;
+figure(4); clf;
 ax = axes;
 dabs = abs(dprime);
 mean_dabs = nanmean(dabs,2);
@@ -238,6 +396,7 @@ if savefig
     print(fig, fullfile(dp.sta_fig_dir, figsavefname),fig_type)
 end
 %%
+
 %%%% look for consistent encoding cells
 const_map   = ptiles_plot(:,:);
 const_map(const_map > 0.99)     = 1;
@@ -491,10 +650,6 @@ end
 
 plotMat = plot_val(i_s(j_s>min_val),:);
 
-
-
-
-
 n = 20;
 sig_bins = [linspace(0, .05,n) linspace(.1,.9,n) linspace(.95, 1,n)];
 sig_val = sig_bins(1:end-1) + diff(sig_bins)/2;
@@ -573,36 +728,6 @@ fn = ['rate_diff_scatter' which_switch correction_str ];
 
 print(fh, fullfile(dp.sta_fig_dir, fn),fig_type,'-painters')
 %%
-
-sig_level = sum(sigp,2);
-
-which_cells = 1:ncells;
-% [~, which_cells] = sort(sig_level);
-% which_cells = find(sig_level > 20)
-
-%which_cells = [21  510 474];
-fh = figure(10); clf
-set(fh, 'position',[5 5 3 6],'papersize',[3 3])
-ax = subplot(211);
-diffSTA = diffSTA(i_s(j_s>1),:);
-NA = ~isnan(diffSTA);
-%diffSTA = sort_by_peak(diffSTA,-abs(diffSTA))
-imagesc(diffSTA,'x',plot_lags,'Alphadata',NA,'parent',ax)
-set(ax,'color',[1 1 1].*.8)
-
-caxis([-1 1].*5)
-cm = flipud(colormapLinear(dp.left_color,50));
-cm = [cm; colormapLinear(dp.right_color,50)];
-colormap(colormapRedBlue)
-colormap(cm)
-xlim([-.5 .75])
-hold on
-plot([0 0],ylim,'k--')
-%%
-
-subplot(212)
-imagesc(ptiles_plot(which_cells,:),'x',time_vec)
-caxis([0 1])
 %%
 % some debugging plotting code
 if 0
@@ -655,4 +780,4 @@ plot(time_vec, Q3(dex,:).*.7,'k--')
 plot(time_vec, Q4(dex,:).*.6,'k--')
 
 end
-
+end
