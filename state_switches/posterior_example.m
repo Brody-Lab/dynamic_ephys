@@ -1,6 +1,7 @@
 sessid  = 508439; %original figure used this session
 cellid  = 16905;
 rat = 'H037';
+lag = .1;
 % %% use to check H037 converges now
 % for ff = 1:10
 %     fit{ff} = fit_rat_analytical(rat,'data_dir', dp.behav_data_dir, 'reload',0);
@@ -27,7 +28,6 @@ params = fit.final;
 %%
 d = dyn_cell_packager(cellid);
 %%
-
 % compute model output for each trial
 p_in.error_tolerance    = 1e-4;
 p_in.compute_dist       = 1;
@@ -44,10 +44,11 @@ good = pd.hits & pd.sides==cellpref & ~pd.violations;
 which_trials = find(nswitches > 1 & pd.samples > 1 & good);
 ii = 1
 %egtrial = 51;
-for tt = 2
-    which_trial = which_trials(tt)
+tt = 2
+which_trial = which_trials(tt)
 data = data_full(which_trial);
-[model1,p]          = accumulation_model(data, params, 'forward', p_in);
+[model1,p]          = accumulation_model(data, params, ...
+    'return_backwards',1,'forward', p_in, 'compute_dist', 1);
 model1(ii).backwards = compute_pdf(model1(ii).backwards,p.avals,p,'mixture');
 % plot left and right clicks
 model1(ii).forward.title = 'Forward';
@@ -63,12 +64,11 @@ switch data(ii).pokedR
 end
 
 
-%%
+%% plot accumulator distribution and clicks for this trial
 SD  = get_sessdata(sessid);
 peh = SD.peh{1};
 
 D = model1(ii).posterior;
-
 D.title = 'Posterior';
 D.left_clicks = data(ii).leftbups;
 D.right_clicks = data(ii).rightbups;
@@ -86,15 +86,25 @@ D.state_switch_y = -4.75;
 
 fig = figure(1); clf
 D.plot_mean_line = 0
-plot_pdf(D)
+D_ = D;
+D_ = rmfield(D_,'model_switches');
+D_ = rmfield(D_, 'state_switches');
+D_ = rmfield(D_, 'left_clicks');
+D_ = rmfield(D_, 'right_clicks');
+plot_pdf(D_)
 
 pbaspect([2.5 1 1])
 ylim([-5.75 5.75 ])
-fig.Position = [5 5 6 3]
-fig.PaperUnits = 'inches';
-fig.PaperPosition = [0 0 3 3];
-fig.PaperPositionMode = 'Auto';
-fig.PaperSize = [3 3];
+fht = 2.5;
+fw  = 3.75;
+set(fig,'position',[5 5 fw fht],'papersize', [fw fht])
+set(gca,'fontsize',dp.fsz)
+
+% fig.Position = [5 5 6 3]
+% fig.PaperUnits = 'inches';
+% fig.PaperPosition = [0 0 3 3];
+% fig.PaperPositionMode = 'Auto';
+% fig.PaperSize = [3 3];
 end_color = dp.model_color;
 
 colormap(colormapLinear(end_color).^2)
@@ -105,19 +115,19 @@ ax = gca
 %ax.YColor = 'w'
 ax.TickDir = 'out'
 caxis([0 1])
-cb = colorbar
+
 pos = ax.Position;
 xlim([-0.05 max(xlim)])
-cb.Position = cb.Position+[.075 0 -.01 -.275];
+cb = colorbar
+
+cb.Position = cb.Position+[.0 .35 -.025 -.25];
 title(cb,{ 'posterior' 'p(a|\theta,choice)'})
 ax.Position = pos;
-xlabel('accumulated evidence (a)')
+ylabel('accumulated evidence (a)')
 title('')
 xlabel('time from stim onset (s)')
 
-fig_name = fullfile(dp.fig_dir, ['posterior_' chosen '_choice']);
-print(fig, fig_name,'-dsvg','-painters')
-%
+%%
 ts = bdata('select ts from spktimes where cellid={S}',cellid);
 ts = ts{1};
 
@@ -126,18 +136,15 @@ cend_ts = cin_ts + data.T;
 this_ts = ts(ts > (cin_ts -5) & ts < (cend_ts + 5))';
 this_ts = this_ts - cin_ts;
 
-%
-
-%%
-% plot spikes from same trial
+%% plot spikes and smoothed rates from same trial
 fh2 = figure(2); clf
 fh2.Position = [5 9 6 3];
 ax2 = axes;
-ax2.Position = [pos(1) .25 pos(3) .2];
+ax2.Position = [pos(1) .125 pos(3) .2];
 hold(ax2,'on');
 state_switches = data.genSwitchTimes;
 
-    
+
 xlabel(ax2,'time from stim onset (s)');
 ax2.TickDir = 'out';
 box(ax2,'off');
@@ -154,10 +161,10 @@ plot([D.right_clicks; D.right_clicks]', 2-[0;1],  '-', ...
     'color',right_color)
 
 plot([D.state_switches; D.state_switches],3-[0;1],...
-        '-','color', 'k','linewidth',2)
+    '-','color', 'k','linewidth',2)
 plot([D.model_switches; D.model_switches],4-[0;1],...
-        '-','color', 'r','linewidth',2)
-    
+    '-','color', 'r','linewidth',2)
+
 plot(ax2,[this_ts; this_ts],5-[0;1],'k');
 
 
@@ -172,10 +179,10 @@ fr = d.frate{cin_align_ind}(which_trial,:);
 
 xlim(ax3,get(ax2,'xlim'))
 linkaxes([ax,ax2,ax3],'x')
-ax3.XTickLabels = [];
+%ax3.XTickLabels = [];
 ax3.TickDir = 'out';
-krn_width = 0.1; 
-bin_size = 0.005; 
+krn_width = 0.1;
+bin_size = 0.005;
 dx=ceil(5*krn_width/bin_size);
 krn=normpdf(-dx:dx,0,krn_width/bin_size);
 krn(1:dx)=0;
@@ -191,8 +198,9 @@ end_state = data.genEndState;
 odd_nstates = mod(length(state_switches)+1,2);
 
 blocks = [0 D.model_switches cend_ts];
+blocks_phys = [0 D.model_switches + lag cend_ts] ;
 for ss = 1:length(blocks)-1
-    this_t = x >= blocks(ss) & x <= blocks(ss+1);
+    this_t = x >= blocks_phys(ss) & x <= blocks_phys(ss+1);
     a = find(this_t,1,'first');
     b = find(this_t,1,'last');
     
@@ -215,118 +223,27 @@ for ss = 1:length(blocks)-1
     this_t_ = D.T >= blocks(ss) & D.T <= blocks(ss+1);
     a_ = find(this_t_,1,'first');
     b_ = find(this_t_,1,'last');
-    plot(ax(1),D.T(a_:b_),D.mean(a_:b_),'color',this_color,'linewidth',2)
-
+    plot(ax(1),D.T(a_:b_),D.mean(a_:b_),'color',this_color,'linewidth',1)
+    
 end
 
-%
 
-% 
-% %x = t; y = fr;
 plot(ax3,[D.state_switches; D.state_switches],max(ylim)-[0;10],...
-        '-','color', 'k','linewidth',2)
+    '-','color', 'k','linewidth',2)
 plot(ax3,[D.model_switches; D.model_switches],max(ylim)-[0;10],...
-        '-','color', 'r','linewidth',2)
+    '-','color', 'r','linewidth',2)
 box(ax3,'off')
 set(ax3,'xlim',get(ax,'xlim'))
+ylabel(ax3,'spikes')
+xlabel(ax3,'time from stim onset (s)');
 
+%%
+axpos = get(ax3,'position')
+set(fig, 'position', [5 5 fw fht])
+set(fh2, 'position', [5 10 fw 1.1*fht])
+%%
 fh2_name = fullfile(dp.fig_dir,['spikes_posterior_' chosen '_choice']);
 print(fh2, fh2_name,'-dsvg','-painters')
 
 print(fig, fig_name,'-dsvg','-painters')
-
-%%
-end
-%%
-figure(3); clf
-imagesc([d.frate{cin_align_ind}(go_r,:); d.frate{cin_align_ind}(go_l,:)])
-%%
-%%
-
-
-model1(ii).forward.left_clicks = data(ii).leftbups;
-model1(ii).forward.right_clicks = data(ii).rightbups;
-model1(ii).forward.click_lim = 5.5;
-model1(ii).forward.click_size = 8;
-model1(ii).backwards.left_clicks = data(ii).leftbups;
-model1(ii).backwards.right_clicks = data(ii).rightbups;
-model1(ii).backwards.click_lim = 5.5;
-model1(ii).backwards.click_size = 8;
-%%
-caxis([0 .25])
-%%
-fig = figure(3);
-plot_pdf(model1(ii).backwards)
-pbaspect([1 2 1])
-xlim([-5.75 5.75])
-fig.PaperUnits = 'inches';
-fig.PaperPosition = [0 0 6 6];
-fig.PaperPositionMode = 'Manual';
-fig.PaperSize = [6 6];
-caxis([0 .0001])
-colormap(hot)
-print(['backwards_' chosen '_choice'],'-dsvg')
-
-
-
-
-
-
-%%
-data(ii).pokedR     = 0;
-[model2,p]          =accumulation_model(data, params, 'forward', p_in);
-model2(ii).backwards = compute_pdf(model2(ii).backwards,p.avals,p,'mixture');
-
-model2(ii).posterior.title = 'Posterior';
-model2(ii).forward.title = 'Forward';
-model2(ii).backwards.title = 'Backward';
-model2(ii).posterior.left_clicks = data(ii).leftbups;
-model2(ii).posterior.right_clicks = data(ii).rightbups;
-model2(ii).posterior.click_lim = 5.5;
-model2(ii).posterior.click_size = 8;
-model2(ii).forward.left_clicks = data(ii).leftbups;
-model2(ii).forward.right_clicks = data(ii).rightbups;
-model2(ii).forward.click_lim = 5.5;
-model2(ii).forward.click_size = 8;
-model2(ii).backwards.left_clicks = data(ii).leftbups;
-model2(ii).backwards.right_clicks = data(ii).rightbups;
-model2(ii).backwards.click_lim = 5.5;
-model2(ii).backwards.click_size = 8;
-
-figure(2);
-plot_pdf(model2(ii).posterior)
-pbaspect([1 2 1])
-xlim([-5.75 5.75])
-fig = gcf;
-fig.PaperUnits = 'inches';
-fig.PaperPosition = [0 0 6 6];
-fig.PaperPositionMode = 'Manual';
-fig.PaperSize = [6 6];
-print(['posterior_' unchosen '_choice'],'-dsvg')
-%%
-figure(4);
-plot_pdf(model2(ii).backwards)
-pbaspect([1 2 1])
-xlim([-5.75 5.75])
-fig = gcf;
-fig.PaperUnits = 'inches';
-fig.PaperPosition = [0 0 6 6];
-fig.PaperPositionMode = 'Manual';
-fig.PaperSize = [6 6];
-print(['backwards_' unchosen '_choice'],'-dsvg')
-
-
-figure(5);
-plot_pdf(model2(ii).forward)
-pbaspect([1 2 1])
-xlim([-5.75 5.75])
-fig = gcf;
-fig.PaperUnits = 'inches';
-fig.PaperPosition = [0 0 6 6];
-fig.PaperPositionMode = 'Manual';
-fig.PaperSize = [6 6];
-print(['forward_' unchosen '_choice'],'-dsvg')
-
-
-
 
