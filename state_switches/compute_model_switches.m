@@ -1,4 +1,4 @@
-function [array_data] = compute_model_switches(array_data, sessid, varargin)
+function [array_data, model_mean] = compute_model_switches(array_data, sessid, varargin)
 p = inputParser;
 addParameter(p,'model_dir',[])
 addParameter(p,'model_smooth_wdw',[])
@@ -38,6 +38,7 @@ end
 % smooth the mean model trajectory
 if ~isempty(p.model_smooth_wdw)
     for j = 1:length(model_mean)
+        model_mean(j).raw_mean = model_mean(j).mean;
         model_mean(j).mean = movmean(model_mean(j).mean, p.model_smooth_wdw);
     end
 end

@@ -7,6 +7,7 @@ addParameter(p,'slim_data',1)
 addParameter(p,'bad_strength',0)
 addParameter(p,'min_t',-Inf)
 addParameter(p,'max_t',Inf)
+addParameter(p,'n_shuffles',250)
 parse(p,varargin{:})
 
 p = p.Results;
@@ -47,12 +48,14 @@ else
          try
              res{nn} =  compute_switch_triggered_average(cellids(cc),...
                  'post',2,'which_switch',which_switch, ...
-                 'n_shuffles', 1000,'save_file',1,...
+                 'n_shuffles', p.n_shuffles,'save_file',1,...
                  'mask_other_switch',1, 'bad_strength', bad_strength);
              res{nn}.STR_right_shuff = [];
              res{nn}.STR_left_shuff  = [];
              res{nn}.STR_right_real  = nanmean(res{nn}.STR_right_real);
+             %res{nn}.STR_right_real_std  = nanstd(res{nn}.STR_right_real(:));
              res{nn}.STR_left_real   = nanmean(res{nn}.STR_left_real);
+             %res{nn}.STR_left_real_std   = nanstd(res{nn}.STR_left_real);
              res{nn}.dprime_shuff    = [];
             if slim_data
              res{nn}.params          = [];

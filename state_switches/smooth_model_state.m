@@ -1,14 +1,23 @@
 function [array_data] = smooth_model_state(array_data,varargin);
 % This function remove several types of possible degenerate model state change predictions
 %
-% If p.remove_initial_choice, the first state change from no prediction to either L/R is removed
+% If p.remove_initial_choice, the first state change from no 
+% prediction to either L/R is removed
 % 
-% If p.clear_bad_strengths, then state changes with a strength less than p.bad_strength are removed
+% If p.clear_bad_strengths, then state changes with a strength less 
+% than p.bad_strength are removed
 % 
 % This function does NOT, but SHOULD deal with the following:
-% After removing some changes for the above reasions, then we could be left with two changes that both go in the same direction. This should probably just be replaced with one change at either one of the time points, or perhaps the mean.
+% After removing some changes for the above reasions, then we could be left
+% with two changes that both go in the same direction. This should probably
+% just be replaced with one change at either one of the time points, 
+% or perhaps the mean.
 %
-% If a single click causes a state change, and the state then reverses again, the current method will call that two state changes, when we might want to ignore that. I think it should actually be handled by changing the quantification method. A good alternative would be to fit a line, rather than look at the mean difference of the trajectory. 
+% If a single click causes a state change, and the state then reverses 
+% again, the current method will call that two state changes, when we 
+% might want to ignore that. I think it should actually be handled by 
+% changing the quantification method. A good alternative would be to fit a 
+% line, rather than look at the mean difference of the trajectory. 
 %
 % Useful debugging trials. Cell 16898, Trials 6, 15, 17, 34, 65, 81
 %

@@ -19,13 +19,16 @@ for i=1:length(array_data)
         firstclk = array_data(i).left_bups(1);
         clkdex = ceil(firstclk/1e-3);
     end
+    array_data(i).raw_model_mean = model_mean(i).raw_mean;
     array_data(i).model_mean = model_mean(i).mean;
     array_data(i).model_mean(1:clkdex) = 0;
     array_data(i).model_state = double(array_data(i).model_mean > 0);
     array_data(i).model_state(1:clkdex) = 0.5;
     array_data(i).model_T = model_mean(i).T;
-    array_data(i).model_switch_to_0 = model_mean(i).T(find(diff(array_data(i).model_state) < 0));
-    array_data(i).model_switch_to_1 = model_mean(i).T(find(diff(array_data(i).model_state) > 0));
+    array_data(i).model_switch_to_0 = ...
+        model_mean(i).T(find(diff(array_data(i).model_state) < 0));
+    array_data(i).model_switch_to_1 = ...
+        model_mean(i).T(find(diff(array_data(i).model_state) > 0));
 
 end
 

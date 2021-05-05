@@ -7,7 +7,8 @@ parse(p,varargin{:});
 p = p.Results;
 
 % calculates the strength of each model state change.
-% does so by calculating the mean model trajectory in the window before and after each state change
+% does so by calculating the mean model trajectory in the window...
+% before and after each state change
 nw = ceil(p.strength_window/p.eval_dt);
 for i=1:length(array_data)
     for j=1:length(array_data(i).model_switch_to_0)

@@ -39,12 +39,12 @@ addParameter(p, 'post', 2) % time over which to make this plot
 addParameter(p, 'model_smooth_wdw', 100);
 addParameter(p, 'array_data', []);
 addParameter(p, 'vec_data', []);
-addParameter(p, 'include_str', 'data.trials.hit == 1');
+addParameter(p, 'include_str', 'true(size(data.trials.hit == 1))');
 addParameter(p, 'clear_bad_strengths', 1);
 addParameter(p, 'bad_strength', 0);
 addParameter(p, 'save_dir', '');
 addParameter(p, 'model_dir', '');
-addParameter(p, 'save_file', 1);
+addParameter(p, 'save_file', 0);
 addParameter(p, 'force', 0); % determines whether to recompute
 addParameter(p, 'mask_other_switch', 1); % determines whether to recompute
 addParameter(p, 'fit_line', 1); % determines method for quantifying state strength
@@ -102,12 +102,14 @@ end
 
 % load and clean up array_data and vec_data for this session
 [switch_to_0, switch_to_1, array_data, vec_data] = ...
-    get_switches(cellid, 'which_switch',p.which_switch,...
+    get_switches(cellid, ...
     'array_data',p.array_data,'vec_data',p.vec_data,...
+    'which_switch',p.which_switch,...
     'clear_bad_strengths', p.clear_bad_strengths, ...
     'bad_strength', p.bad_strength, 'fit_line', p.fit_line,...
     'exclude_final', p.exclude_final, 'final_only', p.final_only,...
-    'min_pre_dur',p.min_pre_dur,'min_post_dur',p.min_post_dur);
+    'min_pre_dur',p.min_pre_dur,'min_post_dur',p.min_post_dur,...
+    'model_smooth_wdw', p.model_smooth_wdw);
 
 % decide which trials to analyze and which to discard
 has_switch  = (cellfun(@length, switch_to_0) + cellfun(@length, switch_to_1)) > 0;
@@ -293,7 +295,7 @@ for tt=1:n_trials
                 if sum(ind)>0
                     n_to_1 = n_to_1+1;
                     
-                    this_lags = max(1,t_start):t_end
+                    this_lags = max(1,t_start):t_end;
                     STR_right(n_to_1,this_lags,:) = s2(ind,:);
                     STA_right(n_to_1,this_lags,:) = y2_full(ind,:);
                     

@@ -15,6 +15,11 @@ addParameter(p,'min_post_dur',0);
 addParameter(p,'min_switch_t',0);
 addParameter(p,'max_switch_t',2);
 addParameter(p,'which_trials',[]);
+addParameter(p,'remove_initial_choice', 1);
+addParameter(p,'eval_dt', 1e-3);
+addParameter(p,'strength_window', .1);
+addParameter(p,'model_smooth_wdw', 100);
+
 parse(p,varargin{:});
 p = p.Results;
 
@@ -25,13 +30,16 @@ if isempty(array_data) || isempty(vec_data)
     [array_data, vec_data, this_sessid] = package_dyn_phys(cellid);
 else
     this_sessid = bdata('select sessid from cells where cellid={S}',cellid);
-    this_sessid = this_sessid{1};
+    if iscell(this_sessid)
+        this_sessid = this_sessid{1};
+    end
 end
 
 % align events to stimulus onset
 array_data = cleanup_array_data(array_data, vec_data);
 % add generative state switches to array_data
 array_data = compute_state_switches(array_data);
+array_data = compute_gen_state(array_data)
 % decide either to use the model or generative switches
 switch p.which_switch
     case 'model'
@@ -39,10 +47,12 @@ switch p.which_switch
         % using the saved model mean and the relevant model parameters
         if ~isfield(array_data, 'model_switch_to_0') ||  ~isfield(array_data, 'model_switch_to_1')
             array_data = compute_model_switches(array_data, this_sessid, ...
-                'remove_initial_choice', 1, 'eval_dt', 1e-3, ...
-                'strength_window', .1, ...
+                'remove_initial_choice', p.remove_initial_choice,...
+                'eval_dt', p.eval_dt, ...
+                'strength_window', p.strength_window, ...
                 'clear_bad_strengths', p.clear_bad_strengths, ...
-                'bad_strength', p.bad_strength, 'fit_line', p.fit_line);
+                'bad_strength', p.bad_strength, 'fit_line', p.fit_line,...
+                'model_smooth_wdw',p.model_smooth_wdw);
         end
         switch_to_0 = {array_data.model_switch_to_0};
         switch_to_1 = {array_data.model_switch_to_1};
