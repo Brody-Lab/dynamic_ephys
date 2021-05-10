@@ -67,7 +67,7 @@ repack          = p.Results.repack;
 %opts = overridedefaults(who, varargin);
 
 % checks if data is already saved to file and loads it in that case
-filename = [save_path 'phys_data_' num2str(cellid) '.mat'];
+filename = fullfile(save_path,['phys_data_' num2str(cellid) '.mat']);
 if ~repack && exist(filename,'file')==2
     load(filename);
     return;

@@ -21,8 +21,6 @@ else
     model_dir = p.model_dir;
 end
 assert(diff(p.change_bounds) >= 0)
-ratname = bdata('select ratname from sessions where sessid={S}',sessid);
-ratname = ratname{1};
 
 model_mean_fn   = sprintf('model_mean_%i.mat',sessid);
 model_mean_file = fullfile(model_dir, model_mean_fn);
@@ -34,6 +32,8 @@ if exist(model_mean_file,'file')
     m = load(model_mean_file);
     model_mean = m.model_mean(which_trials);
 else
+    ratname = bdata('select ratname from sessions where sessid={S}',sessid);
+    ratname = ratname{1};
     compute_model_mean(ratname, sessid)
     m = load(model_mean_file);
     model_mean = m.model_mean(which_trials);

@@ -47,8 +47,10 @@ end
 fn = fullfile(this_stadir,[cellid '.mat']);
 
 if exist(fn,'file') & ~p.recompute
-    load(fn)
-    return
+    load(fn,'diff_p', 'mt_p')
+    if length(diff_p) == n_shuffles %#ok<NODEF>
+        return
+    end
 end
 
 res_fn = @(cellid, data, model, do_shuffle_switches) ...
