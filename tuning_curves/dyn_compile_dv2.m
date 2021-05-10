@@ -216,7 +216,7 @@ for ti=1:numel(trials)
     fr = frates_norm(trialnum,:);
     
     if cellid < 0
-        [fr, P] = synthetic_fr_P(cellid, fr, ft, model, norm_type)
+        [fr, P, vars] = synthetic_fr_P(cellid, fr, ft, model, norm_type)
     end
     
     % Check if time bins on firing rate is too coarse relative to tuning curve time bins
@@ -370,7 +370,7 @@ end;
 
 
 
-function [fr, P] = synthetic_fr_P(cellid, fr, ft, model, norm_type)
+function [fr, P, vars] = synthetic_fr_P(cellid, fr, ft, model, norm_type)
 % this is a fake neuron for testing purposes, replace actual fr with synthetic fr
 fr = get_synthetic_fr(cellid, fr,ft,model(ti).posterior.mean,norm_type);
 trial_vars = zeros(1,size(P,1));
@@ -401,6 +401,6 @@ for jj = 1:size(P,1)
     temp = temp.*ps;
     P(jj,:) = temp;
 end
-%vars(ti) = mean(trial_vars);
+vars(ti) = mean(trial_vars);
 
 
