@@ -19,6 +19,7 @@ addParameter(p,'cintrange',[-1 1.5])
 addParameter(p,'couttrange',[-1.5 .75])
 addParameter(p, 'cinstr', 'stimstart-cout-mask');
 addParameter(p, 'coutstr', 'cpokeout');
+addParameter(p, 'do_print', 0);
 parse(p,varargin{:});
 cintrange = p.Results.cintrange;
 couttrange = p.Results.couttrange;
@@ -39,7 +40,7 @@ if length(cell_to_plot) > 1 & ~meta
     for cc = 1:length(cell_to_plot)
         fprintf('working on cell %i (%i of %i)',...
             cell_to_plot(cc), cc, length(cell_to_plot))
-        example_cell_psth('cells',cell_to_plot(cc),...
+        example_cell_raster('cells',cell_to_plot(cc),...
             'type',type,'meta',meta,'norm',norm,'flip',flip,...
             'edges',edges);
         if do_pause
@@ -107,7 +108,7 @@ for cc = 1:ncells
         case 'peak'
             error('doesn''t work yet')
         case 'none'
-                norm_mult = 1;
+            norm_mult = 1;
     end
     norm_f  = [norm_f; norm_mult*ones(size(d.trials.T))];%;
     cin_fr  = [cin_fr; d.frate{start_tind}];
@@ -179,19 +180,20 @@ err = hit == 0;
 good = T > min_t;
 
 fh = figure(fig_num); clf
-set(fh,'position',[5 5 6 3 ],'papersize',[6 3],'paperpositionmode','auto')
+set(fh,'position',[15 5 6 3 ],'papersize',[6 3],'paperpositionmode','auto')
 
 ax(1) = subplot(121);hold(ax(1),'on');
 ax(2) = subplot(122);hold(ax(2),'on');
-
-plot(ax(1),[ 0 0], [0 100],'k')
-plot(ax(2),[ 0 0], [0 100],'k')
 
 psths = [];
  
 good_cint   = cin_t > cintrange(1) & cin_t < cintrange(2);
 good_coutt  = cout_t > couttrange(1) & cout_t < couttrange(2);
 
+cin_raster = [];
+cout_raster = [];
+
+trial_markers = [];
 
 for bb = 1:nbins
     this = good & bins == bb;
@@ -201,29 +203,44 @@ for bb = 1:nbins
     else
         trials = this;
     end
+    trial_markers = [trial_markers; sum(this)];
     
-    cin_hit_psth = nanmean(cin_fr(trials,good_cint)./norm_f(trials));
-    cout_hit_psth = nanmean(cout_fr(trials,good_coutt)./norm_f(trials));
+    cin_hit_psth = (cin_fr(trials,good_cint)./norm_f(trials));
+    cout_hit_psth = (cout_fr(trials,good_coutt)./norm_f(trials));
     psths = [psths ; cin_hit_psth cout_hit_psth];
+    cin_raster = [cin_raster; cin_hit_psth]
+    cout_raster = [cout_raster; cout_hit_psth]
+
     if show_errors
         err_color = this_color;
         %err_color = cm_(bb,:);
-        cin_err_psth = nanmean(cin_fr(this  &  err,good_cint)./norm_f(this&  err));
-        cout_err_psth = nanmean(cout_fr(this  & err,good_coutt)./norm_f(this&  err));
+        cin_err_psth = (cin_fr(this  &  err,good_cint)./norm_f(this&  err));
+        cout_err_psth = (cout_fr(this  & err,good_coutt)./norm_f(this&  err));
         psths = [psths ; cin_err_psth cout_err_psth];
         
-        plot(ax(1),cin_t(good_cint),cin_err_psth,'--','color',err_color,'linewidth',1);
-        plot(ax(2),cout_t(good_coutt),cout_err_psth,'--','color',err_color,'linewidth',1);
+        cin_raster = [cin_raster; cin_err_psth]
+        cout_raster = [cout_raster; cout_err_psth]
+        
         
     end
     
-    plot(ax(1),cin_t(good_cint),cin_hit_psth,'color',this_color,'linewidth',1.5);
-    plot(ax(2),cout_t(good_coutt),cout_hit_psth,'color',this_color,'linewidth',1.5);
-    
-end
-linkaxes(ax,'y')
 
-ylim(ax(1),([floor(min(psths(:))*10)/10 ceil(max(psths(:))*10)/10]))
+end
+
+trial_markers_ = cumsum(trial_markers(1:end-1));
+
+hold(ax(1),'on')
+hold(ax(2),'on')
+
+imagesc(ax(1), cin_raster, 'x', cin_t(good_cint))
+imagesc(ax(2), cout_raster, 'x', cout_t(good_coutt))
+
+plot(ax(1), xlim, trial_markers_*[1 1], 'k')
+plot(ax(2), xlim, trial_markers_*[1 1], 'k')
+
+linkaxes(ax,'y')
+colormap(flipud(bone))
+%ylim(ax(1),([floor(min(psths(:))*10)/10 ceil(max(psths(:))*10)/10]))
 
 xlim(ax(1),cintrange)
 xlim(ax(2),couttrange)
@@ -235,17 +252,10 @@ ax(2).TickDir = 'out';
 ylabel(ax(1), 'firing rate (spks/s)')
 xlabel(ax(1), 'time from stim onset (s)')
 xlabel(ax(2), 'from movement (s)')
-
+plot(ax(1),[ 0 0], ylim,'k')
+plot(ax(2),[ 0 0], ylim,'k')
+ylim([0 sum(trial_markers)])
 %%
-colormap(cm);
-% cb = colorbar('north');
-% cb.Position = cb.Position + [.025 .1 -.15 -.05];
-cb = [];
-cb = colorbar('east');
-cb.Position = cb.Position + [.1 .15 -.0 -.3];
-ax(2).YColor = 'w';
-title(cb,cblab);
-set(cb,'ytick',[]);
 % drawnow
 % ax1pos  = get(ax(1),'position');
 % ax2pos  = get(ax(2),'position');
@@ -261,6 +271,8 @@ if ncells == 1
 else
     group_name = 'group';
 end
-print(fh, fullfile(dp.psth_fig_dir, ['cell_' group_name ]),...
+if p.Results.do_print
+print(fh, fullfile(dp.psth_fig_dir, ['cell_' group_name '_raster']),...
     '-dsvg', '-painters')
+end
 

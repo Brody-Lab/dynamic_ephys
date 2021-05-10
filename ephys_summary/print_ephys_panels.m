@@ -28,11 +28,130 @@ xlim_on = [-.55 1.5];
 xlim_off = [-1.55 .5];
 xlim_on = [-.55 1.25];
 xlim_off = [-1.25 .55];
+%%
+[~, align_args]      = dyn_align_LUT;
+cellid = 18181;
+[ad, vd] = package_dyn_phys(cellid);
+i = 2;
+[sp_counts{i}, sp_count_T{i}] = calc_sp_counts(cellid, ...
+        'array_data', ad, 'vec_data', vd, align_args{i}{:});
+
+%% load up spikes and make psths for each cell
+recompute = 0;
+rind = 3;
+lind = 2;
+    
+all_psth_fn = fullfile(dp.spikes_dir, 'all_cells_psth.mat');
+if exist(all_psth_fn, 'file') & ~recompute
+    fprintf('loading file...\n')
+    load(all_psth_fn);
+else
+    select_str = 'normmean > 0' ;
+    ratnames = cell2mat(extracting(cell_list, 'ratname', select_str));
+    cellids = cell2mat(extracting(cell_list, 'cellid', select_str));
+    sessids = cell2mat(extracting(cell_list, 'sessid', select_str));
+
+    psr = cell2mat(extracting(cell_list, 'prefsideright', select_str));
+    prefp = cell2mat(extracting(cell_list, 'prefp', select_str));
+    normmean = cell2mat(extracting(cell_list, 'normmean', select_str));
+    ncells = size(cellids,1);
+    disp(['loaded ' num2str(ncells) ' cells']);
+    
+    for cc = 1:ncells
+        
+        if mod(cc,25)==0
+            fprintf([num2str(cc) '...'])
+        end
+        d=dyn_cell_packager(cellids(cc));
+        cin_frates = d.frate{cin_align_ind};
+        cout_frates = d.frate{cout_align_ind};
+        
+        % now that we know how many timepoints we have, initialize variables
+        if cc == 1
+            cin_t = d.frate_t{cin_align_ind};
+            cout_t = d.frate_t{cout_align_ind};
+            cin_binsz = diff(cin_t([1 2]));
+            cout_binsz = diff(cout_t([1 2]));
+            cin_ntp = length(cin_t);
+            cout_ntp = length(cout_t);
+            
+            % 3rd dimension is both, l, r, both
+            % 4th dimension is all data, split A, split B
+            cin_psth = nan(length(cellids),cin_ntp,3,3);
+            cout_psth = nan(length(cellids),cout_ntp,3,3);
+            cin_psth_hit = nan(length(cellids),cin_ntp,3,3); % 3rd dimension is both, l, r, both
+            cout_psth_hit = nan(length(cellids),cout_ntp,3,3);
+            cin_psth_err = nan(length(cellids),cin_ntp,3,3); % 3rd dimension is both, l, r, both
+            cout_psth_err = nan(length(cellids),cout_ntp,3,3);
+            
+        end
+        
+        poke_r = d.trials.rat_dir==1;
+        poke_l = d.trials.rat_dir==-1;
+        hit = d.trials.hit==1;
+        err = hit == 0;
+        stim_dur = d.trials.cpoke_end - d.trials.stim_start;
+        good = true(size(stim_dur));
+        if long_trials_only
+            good = stim_dur > long_trial_dur;
+        else
+            good_ind = find(good);
+        end
+        split_ind = randperm(length(good_ind));
+        splitAind = split_ind(1:floor(end/2));
+        splitBind = split_ind(ceil(end/2):end);
+        
+        for xx = 1:3
+            if xx == 2
+                good = false(size(stim_dur));
+                good(splitAind) = true;
+            elseif xx==3
+                good = false(size(stim_dur));
+                good(splitBind) = true;
+            end
+            % hits & errors combined
+            cin_psth(cc,:,1,xx)    = nanmean(cin_frates(good,:));
+            cin_psth(cc,:,lind,xx)    = nanmean(cin_frates(good&poke_l,:));
+            cin_psth(cc,:,rind,xx)    = nanmean(cin_frates(good&poke_r,:));
+            
+            cout_psth(cc,:,1,xx)   = nanmean(cout_frates(good,:));
+            cout_psth(cc,:,lind,xx)   = nanmean(cout_frates(good&poke_l,:));
+            cout_psth(cc,:,rind,xx)   = nanmean(cout_frates(good&poke_r,:));
+            
+            % hits only
+            cin_psth_hit(cc,:,1,xx)    = nanmean(cin_frates(hit&good,:));
+            cin_psth_hit(cc,:,lind,xx)    = nanmean(cin_frates(hit&good&poke_l,:));
+            cin_psth_hit(cc,:,rind,xx)    = nanmean(cin_frates(hit&good&poke_r,:));
+            
+            cout_psth_hit(cc,:,1,xx)   = nanmean(cout_frates(hit&good,:));
+            cout_psth_hit(cc,:,lind,xx)   = nanmean(cout_frates(hit&good&poke_l,:));
+            cout_psth_hit(cc,:,rind,xx)   = nanmean(cout_frates(hit&good&poke_r,:));
+            
+            % errors only
+            cin_psth_err(cc,:,1,xx)    = nanmean(cin_frates(err&good,:));
+            cin_psth_err(cc,:,lind,xx)    = nanmean(cin_frates(err&good&poke_l,:));
+            cin_psth_err(cc,:,rind,xx)    = nanmean(cin_frates(err&good&poke_r,:));
+            
+            cout_psth_err(cc,:,1,xx)   = nanmean(cout_frates(err&good,:));
+            cout_psth_err(cc,:,lind,xx)   = nanmean(cout_frates(err&good&poke_l,:));
+            cout_psth_err(cc,:,rind,xx)   = nanmean(cout_frates(err&good&poke_r,:));
+        end
+        
+    end
+    save(all_psth_fn, 'cin_t', 'cout_t',...
+        'cin_psth', 'cout_psth',...
+        'cin_psth_hit', 'cout_psth_hit',...
+        'cin_psth_err', 'cout_psth_err',...
+        'ratnames', 'cellids', 'sessids', 'psr', 'prefp', 'normmean', 'ncells');
+end
+%%
+fprintf('number of cells: %i \n number of sessions: %i',...
+    length(cellids), length(unique(sessids)))
 %% plot example cells in panel B
 ppos = [8 10 fw fht ]
 cellid = 18181;
 [fh, ax] = example_cell_psth('cells',cellid,...
-    'cintrange',xlim_on,'couttrange',xlim_off)
+    'cintrange',xlim_on,'couttrange',xlim_off,'coutstr','stimend-nomask','fig_num',2)
 
 ylim(ax,[14 60])
 xlim(ax(1),xlim_on)
@@ -51,7 +170,9 @@ print(fh, fullfile(dp.psth_fig_dir, ['cell_' num2str(cellid) ]),...
 
 %%
 cellid = 16857;
-[fh ax] = example_cell_psth('cells',cellid)
+[fh ax] = example_cell_psth('cells',cellid)%,'coutstr','stimend-no')
+% [fh ax] = example_cell_psth('cells',cellid,...
+%      'cintrange',xlim_on,'couttrange',xlim_off,'coutstr','stimend-nomask','fig_num',2)
 
 ylim(ax,[0 20])
 xlim(ax(1),xlim_on)
@@ -69,6 +190,9 @@ print(fh, fullfile(dp.psth_fig_dir, ['cell_' num2str(cellid) ]),...
 %%
 cellid = 17784;
 [fh ax] = example_cell_psth('cells',cellid)
+% [fh, ax] = example_cell_psth('cells',cellid,...
+%     'cintrange',xlim_on,'couttrange',xlim_off,'coutstr','stimend-nomask','fig_num',2)
+
 ylim(ax,[0 40])
 xlim(ax(1),xlim_on)
 xlim(ax(2),xlim_off)
@@ -81,101 +205,8 @@ set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4])
 print(fh, fullfile(dp.psth_fig_dir, ['cell_' num2str(cellid) ]),...
     '-dsvg', '-painters')
 
-%% compile a bunch of psths aligned to the center poke time and the center out time
-select_str = 'normmean > 0' ;
-ratnames = cell2mat(extracting(cell_list, 'ratname', select_str));
-cellids = cell2mat(extracting(cell_list, 'cellid', select_str));
-psr = cell2mat(extracting(cell_list, 'prefsideright', select_str));
-prefp = cell2mat(extracting(cell_list, 'prefp', select_str));
-normmean = cell2mat(extracting(cell_list, 'normmean', select_str));
-ncells = size(cellids,1);
-disp(['loaded ' num2str(ncells) ' cells']);
-%%
 
-rind = 3; 
-lind = 2;
 
-for cc = 1:ncells
-    
-    if mod(cc,25)==0
-        fprintf([num2str(cc) '...'])
-    end
-    d=dyn_cell_packager(cellids(cc));
-    cin_frates = d.frate{cin_align_ind};
-    cout_frates = d.frate{cout_align_ind};
-    
-    % now that we know how many timepoints we have, initialize variables
-    if cc == 1
-        cin_t = d.frate_t{cin_align_ind};
-        cout_t = d.frate_t{cout_align_ind};
-        cin_binsz = diff(cin_t([1 2]));
-        cout_binsz = diff(cout_t([1 2]));
-        cin_ntp = length(cin_t);
-        cout_ntp = length(cout_t);
-        
-        % 3rd dimension is both, l, r, both
-        % 4th dimension is all data, split A, split B
-        cin_psth = nan(length(cellids),cin_ntp,3,3);
-        cout_psth = nan(length(cellids),cout_ntp,3,3);
-        cin_psth_hit = nan(length(cellids),cin_ntp,3,3); % 3rd dimension is both, l, r, both
-        cout_psth_hit = nan(length(cellids),cout_ntp,3,3);
-        cin_psth_err = nan(length(cellids),cin_ntp,3,3); % 3rd dimension is both, l, r, both
-        cout_psth_err = nan(length(cellids),cout_ntp,3,3);
-        
-    end
-    
-    poke_r = d.trials.rat_dir==1;
-    poke_l = d.trials.rat_dir==-1;
-    hit = d.trials.hit==1;
-    err = hit == 0;
-    stim_dur = d.trials.cpoke_end - d.trials.stim_start;
-    good = true(size(stim_dur));
-    if long_trials_only
-        good = stim_dur > long_trial_dur;
-    else
-        good_ind = find(good);
-    end
-    split_ind = randperm(length(good_ind));
-    splitAind = split_ind(1:floor(end/2));
-    splitBind = split_ind(ceil(end/2):end);
-    
-    for xx = 1:3
-        if xx == 2
-            good = false(size(stim_dur));
-            good(splitAind) = true;
-        elseif xx==3
-            good = false(size(stim_dur));
-            good(splitBind) = true;
-        end
-        % hits & errors combined
-        cin_psth(cc,:,1,xx)    = nanmean(cin_frates(good,:));
-        cin_psth(cc,:,lind,xx)    = nanmean(cin_frates(good&poke_l,:));
-        cin_psth(cc,:,rind,xx)    = nanmean(cin_frates(good&poke_r,:));
-        
-        cout_psth(cc,:,1,xx)   = nanmean(cout_frates(good,:));
-        cout_psth(cc,:,lind,xx)   = nanmean(cout_frates(good&poke_l,:));
-        cout_psth(cc,:,rind,xx)   = nanmean(cout_frates(good&poke_r,:));
-        
-        % hits only
-        cin_psth_hit(cc,:,1,xx)    = nanmean(cin_frates(hit&good,:));
-        cin_psth_hit(cc,:,lind,xx)    = nanmean(cin_frates(hit&good&poke_l,:));
-        cin_psth_hit(cc,:,rind,xx)    = nanmean(cin_frates(hit&good&poke_r,:));
-        
-        cout_psth_hit(cc,:,1,xx)   = nanmean(cout_frates(hit&good,:));
-        cout_psth_hit(cc,:,lind,xx)   = nanmean(cout_frates(hit&good&poke_l,:));
-        cout_psth_hit(cc,:,rind,xx)   = nanmean(cout_frates(hit&good&poke_r,:));
-        
-        % errors only
-        cin_psth_err(cc,:,1,xx)    = nanmean(cin_frates(err&good,:));
-        cin_psth_err(cc,:,lind,xx)    = nanmean(cin_frates(err&good&poke_l,:));
-        cin_psth_err(cc,:,rind,xx)    = nanmean(cin_frates(err&good&poke_r,:));
-        
-        cout_psth_err(cc,:,1,xx)   = nanmean(cout_frates(err&good,:));
-        cout_psth_err(cc,:,lind,xx)   = nanmean(cout_frates(err&good&poke_l,:));
-        cout_psth_err(cc,:,rind,xx)   = nanmean(cout_frates(err&good&poke_r,:));
-    end
-    
-end
 
 %% plot center in and out aligned plots sorted
 % for now, I'm abandoning the sequences with these data, because the rank
@@ -188,7 +219,7 @@ plot_sorting_data = true;
 % decide which timepoints to use for the plot
 cin_ind = cin_t>-.25 & cin_t<2;%5;
 cout_ind = cout_t>-.25;
-save_name = 'sequence_plot';
+save_2name = 'sequence_plot';
 
 good_cells = mean(cin_psth_hit(:,cin_ind,1,1),2) > 2;
 pref_r = nanmean(cin_psth_hit(:,:,rind,1),2) > nanmean(cin_psth_hit(:,:,lind,1),2);
@@ -236,16 +267,17 @@ tA = cin_t(cin_ind);
 tB = cout_t(cout_ind);
 
 
-%% plot chronometric psth for panel C
-
-mn_fr       = nanmean(cin_psth_hit(:,:,1,1),2);
-
-good_cells  = mn_fr > normmnth & prefp < prefpth;
+%% plot chronometric population psth 
+mn_fr       = nanmean(cin_psth(:,:,1,1),2);
+mn_fr       = nanmean(cin_psth(:, cin_t > 0, 1, 1),2);
+active_cells = mn_fr > normmnth;
+sig_cells = prefp < prefpth;
+good_cells  = active_cells & sig_cells;
 fprintf(['n good cells = ' num2str(sum(good_cells))])
-    
+fprintf('\n%.1f %% (%i/%i) of active cells are signficant',...
+    100*sum(good_cells)/sum(active_cells),sum(sig_cells),sum(active_cells))
 
 edges = [-2 -.5 -.25  0  .25 .5  2];
-%edges = [-2 -.8:.2:.8  2];
 pref_color  = [.8 .25 .8];
 npref_color = [.8 .65 .25];
 [fh, ax] = example_cell_psth('separate_hits', 0, 'min_t', 0, ...
@@ -263,39 +295,157 @@ pbaspect(ax(2),[1 1 1])
 
 set(fh,'position',ppos,...
     'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]))
-
-
 groupname = sprintf('cells_normmnth_%i_prefpth_%.2f.svg',normmnth,prefpth);
+%%
 print(fh, fullfile(dp.psth_fig_dir, groupname),...
-    '-dsvg', '-painters') 
+    '-dsvg', '-painters')
+%% load auc for all neurons
+cout_auc_file = fullfile(dp.ephys_summary_dir,'cout_auc.mat');
+recompute = 0;
+nboot = 250;
+
+if ~exist(cout_auc_file) | recompute
+    dp_cin = nan(size(cin_psth(:,:,1,1)));
+    dp_cout = nan(size(cout_psth(:,:,1,1)));
+    
+    good_cell_ix = 1:ncells;
+    ngood = length(good_cell_ix);
+    
+    n_coutt = length(cout_t);
+    
+    cout_auc = nan(ngood,n_coutt);
+    cout_p   = nan(ngood,n_coutt);
+    cout_ci  = nan(ngood,n_coutt,2);
+    fprintf('working on cell...')
+    tic
+    for cc = 1:ncells
+        if mod(cc,5)==0
+            toc;
+            fprintf('%i of %i...',cc,ncells);
+            tic;
+        end
+        this_id = cellids(good_cell_ix(cc));
+        
+        d           = dyn_cell_packager(this_id);
+        cin_frates  = d.frate{cin_align_ind};
+        cout_frates = d.frate{cout_align_ind};
+        go_r        = d.trials.rat_dir==1;
+        go_l        = d.trials.rat_dir==-1;
+        psth_r      = cout_frates(go_r,:);
+        psth_l      = cout_frates(go_l,:);
+        
+        parfor tt = 1:n_coutt
+            [cout_auc(cc,tt), cout_p(cc,tt), cout_ci(cc,tt,:)] = ...
+                bootroc(psth_r(:,tt),psth_l(:,tt),nboot);
+        end
+    end
+    save(cout_auc_file,'sessids','cellids','good_cells','cout_t','cout_auc','cout_p','cout_ci','nboot');
+
+else
+    load(cout_auc_file);
+end
+
+%%
+%for 
+
+%% plot sorted auc
+%box(s(ii),'off')
+    %pbaspect(s(ii),[1 .8 1])
+n_consec_sig = 8;
+alpha = .05;
+x0 = xlim_off(1);
+gnames = {'all' 'good' };
+fh = figure(10); clf;
+fht_ = 1.3*fht;
+set(fh,'position',[10 10 fw fht_],'paperposition',[0 0 fw fht_],...
+    'papersize',[fw fht_])
+for gg = 1:length(gnames)
+    %
+    subplot(1,2,gg)
+
+    gn = gnames{gg};
+    switch gn
+        case 'all'
+            groupname = 'mnfr_1';
+            ind = mn_fr > 1;
+        case 'good'
+            ind = good_cells;
+            groupname = sprintf('cells_normmnth_%i_prefpth_%.2f.svg',normmnth,prefpth);
+    end
+    
+    sigR  = cout_p(ind,cout_t > x0) > 1-alpha/2;
+    sigL  = cout_p(ind,cout_t > x0) < alpha/2;
+    
+    sigsumL = movsum(sigL, n_consec_sig, 2);
+    sigsumR = movsum(sigR, n_consec_sig, 2);
+    
+    sigsumnp  = (sigsumL == n_consec_sig) | (sigsumR == n_consec_sig);
+    sigsumnp(:,end) = ones(size(sigsumnp,1),1).*n_consec_sig;
+    these_cells = find(ind);
+    [sorted_heatplot, sort_id] = sort_by_peak(cout_auc(ind,:),sigsumnp);
+    these_cells_sorted = these_cells(sort_id);
+    imagesc(sorted_heatplot,'x',cout_t,'Alphadata',~isnan(sorted_heatplot))
+    set(gca,'color',[1 1 1].*.85)
+    colormap(colormapRedBlue.^.6)
+    axpos = get(gca,'position')
+    switch gg
+        case 1
+            title({'all active cells'},'fontweight','normal')
+        case 2
+            title({'side-selective cells'},'fontweight','normal')
+    end
+    drawnow
+    ylabel({'cell # (sorted by latency)'})
+
+    if gg == 2
+        cb = colorbar
+        title(cb, 'AUC')
+        ylabel('')
+        cb.Position = cb.Position + [0.125 0.125 .02 -.5];
+    end
+    caxis([0.25 .75])
+    xlim(xlim_off)
+    hold on
+    line([0 0],ylim,'color','k')
+    box off
+    set(gca, 'position', axpos)
+    cm = flipud(colormapLinear(dp.left_color,50));
+    cm = [cm; colormapLinear(dp.right_color,50)];
+    colormap(cm)
+    xlabel('time from movement (s)')
+   
+    print(fh,fullfile(dp.fig_dir,['coutauc' groupname]),'-dsvg','-painters')
+end
 
 
-
-
-%% plot PREF/NONPREF pop average PSTH for panel D
+%% NOT USED - plot PREF/NONPREF pop average PSTH for panel D
 mn_fr       = nanmean(cin_psth_hit(:,:,1,1),2);
-
-% xlim_on = [-.55 1.25];
-% xlim_off = [-1.25 .55];
 
 good_cint   = cin_t >= xlim_on(1) & cin_t <= xlim_on(2);
 good_coutt  = cout_t >= xlim_off(1) & cout_t <= xlim_off(2);
 
-
 switch 0
     case 0
+        normnth = 1;
+        prefpth = .05;
         good_cells  = mn_fr > 1 & prefp < .05;
         pref_r = nanmean(cin_psth_hit(:,:,rind,1),2) > nanmean(cin_psth_hit(:,:,lind,1),2);
         pref_l = ~pref_r;
     case 1
-        good_cells  = mn_fr > 5 & prefp < .01;
+        normnth = 5;
+        prefpth = .01;
         pref_r = psr == 1;
         pref_l = 0   == psr;
     case 2
-        good_cells  = mn_fr > normmnth & prefp < prefpth;
+        normnth = 1;
+        prefpth = .05;
         pref_r = psr == 1;
         pref_l = 0   == psr;
 end
+
+good_cells  = mn_fr > normnth & prefp < prefpth;
+pref_r = psr == 1;
+pref_l = 0   == psr;
 
 fprintf(['n good cells = ' num2str(sum(good_cells))])
 
@@ -361,17 +511,6 @@ psths = [cin_pref_psth_mn cout_pref_psth_mn; ...
     cin_pref_psth_good_err cout_pref_psth_good_err; ...
     cin_npref_psth_good_err cout_npref_psth_good_err];
 
-
-%pref_color = [.5 .3 .75];
-%npref_color = hsv2rgb(rgb2hsv(1-pref_color).*[1 .25 1]);
-
-% 
-% cin_pref_psth_good = cin_pref_psth;
-% cin_npref_psth_good = cin_npref_psth;
-% 
-% cout_pref_psth_good = cout_pref_psth;
-% cout_npref_psth_good = cout_npref_psth;
-
 pref_combo = [cin_pref_psth_good cout_pref_psth_good];
 
 normsort = @(A,B) sort_by_peak(norm_by_peak(A,B),B);
@@ -405,11 +544,6 @@ plot(s(1),[ 0 0], [0 1000],'k')
 plot(s(2),[ 0 0], [0 1000],'k')
 plot(s(3),[ 0 0], [0 1000],'k')
 plot(s(4),[ 0 0], [0 1000],'k')
-% 
-% colormap(s(2),flipud(colormapLinear(pref_color).^1))
-% colormap(s(1),colormapLinear(pref_color).^.55)
-% colormap(s(3),colormapLinear(npref_color).^1)
-% colormap(s(4),colormapLinear(npref_color).^1)
 
 colormap(colormapLinear([1 1 1].*.0).^.55)
 
@@ -433,12 +567,14 @@ for ii = 1:4
     s(ii).TickDir = 'out';
     box(s(ii),'off')
     pbaspect(s(ii),[1 .8 1])
-
+    
 end
 set(s(1),'XTickLabel',[]); set(s(2),'XTickLabel',[])
 %colormap((colormapLinear([1 1 1].*0,50).^.7))
 print(fh, fullfile(dp.psth_fig_dir, 'sequence_plot'),...
     '-dsvg', '-painters')
+
+
 %%
 [~,i,j] = sort_by_peak(pref_combo);
 pref_combo_t = [cin_t(good_cint) 2+cout_t(good_coutt)];
@@ -467,126 +603,6 @@ cm = colormapLinear([0 0 0], 49)
 colormap(flipud(bone))
 colormap(cm)
 %colormap(parula)
-%% try dprime plot
-cout_auc_file = fullfile(dp.ephys_summary_dir,'cout_auc.mat');
-
-if ~exist(cout_auc_file)
-dp_cin = nan(size(cin_psth(:,:,1,1)));
-dp_cout = nan(size(cout_psth(:,:,1,1)));
-
-
-good_cell_ix = 1:ncells;
-
-ngood = length(good_cell_ix);
-
-nboot = 250;
-n_coutt = size(d.frate{cout_align_ind},2);
-
-cout_auc = nan(ngood,n_coutt);
-cout_p   = nan(ngood,n_coutt);
-cout_ci  = nan(ngood,n_coutt,2);
-fprintf('working on cell...')
-tic
-for cc = 1:ncells
-    if mod(cc,5)==0
-        toc;
-        fprintf('%i...',cc);
-        tic;
-    end
-    this_id = cellids(good_cell_ix(cc));
-    
-    d           = dyn_cell_packager(this_id);
-    cin_frates  = d.frate{cin_align_ind};
-    cout_frates = d.frate{cout_align_ind};
-    go_r        = d.trials.rat_dir==1;
-    go_l        = d.trials.rat_dir==-1;
-    psth_r           = cout_frates(go_r,:);
-    psth_l           = cout_frates(go_l,:);
-    
-    
-    parfor tt = 1:n_coutt
-        [cout_auc(cc,tt), cout_p(cc,tt), cout_ci(cc,tt,:)] = bootroc(psth_r(:,tt),psth_l(:,tt),nboot);
-    end
-end
-else
-    load(cout_auc_file);
-end
-save(cout_auc_file,'cellids','good_cells','cout_t','cout_auc','cout_p','cout_ci','nboot');
-%%
-fh = figure(10); clf;
-np      = 10;
-
-x0 = xlim_off(1);
-sig = abs(.5 - cout_p(good_cells,:) ) > .45;
-gn = 'good';
-switch gn
-    case 'all'
-        ind = 1:ncells;
-        groupname = 'mnfr_1';
-        ind = mn_fr > 1;
-
-    case 'good'
-        ind = good_cells
-
-        groupname = sprintf('cells_normmnth_%i_prefpth_%.2f.svg',normmnth,prefpth);
-end
-
-sigR  = cout_p(ind,cout_t > x0) > .95;
-sigL  = cout_p(ind,cout_t > x0) < .05;
-
-sigsumL = movsum(sigL, np, 2);
-sigsumR = movsum(sigR, np, 2);
-
-sigsumnp  = (sigsumL == np) | (sigsumR == np);
-sigsumnp(:,end) = ones(size(sigsumnp,1),1).*np;
-imagesc(sort_by_peak(cout_auc(ind,:),sigsumnp),'x',cout_t)
-colormap(colormapRedBlue.^.6)
-cb = colorbar
-title(cb, 'auROC')
-caxis([0.3 .7])
-xlim(xlim_off)
-hold on
-line([0 0],ylim,'color','k')
-
-cm = flipud(colormapLinear(dp.left_color,50));
-cm = [cm; colormapLinear(dp.right_color,50)];
-colormap(cm)
-xlabel('time from center out (s)')
-set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]))
-
-ylabel({'cell # (sorted by latency' 'to 10 consecutive p<.05 bins)'})
-
-print(fh,fullfile(dp.fig_dir,['coutauc' groupname]),'-dsvg','-painters')
-%%
-sig   = sigR - sigL;
-
-
-
-sigsumnp = sigsumnp == np;
-nsig        = sum(sum(sort_by_peak(sigsumnp),2)>1);
-
-sigLnp = sigL
-
-
-
-hold on
-plot(xlim,[1 1].*nsig,'k','linewidth',2)
-print(fh, fullfile(dp.psth_fig_dir, ['population_dprime']),...
-    '-dsvg', '-painters')
-%%
-ax = example_cell_psth('cells',cellids(cc))
-axpos = get(ax(2),'position')
-
-ax(2).Position = axpos + [0 0 0 -.2]
-
-ax2 = axes('position', [axpos(1) .8 axpos(3) .15])
-plot(ax2, cout_t, cout_auc)
-hold(ax2,'on')
-plot(cout_t(cout_p < .05), .7 ,'k.')
-line(xlim,[0 0]+.5)
-
-xlim(ax2,get(ax(2),'xlim'))
-
 
 
 
