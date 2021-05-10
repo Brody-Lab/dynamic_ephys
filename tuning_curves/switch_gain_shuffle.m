@@ -49,7 +49,7 @@ this_stadir     = get_sta_dirname(switch_params);
 if ~exist(this_stadir,'dir')
     mkdir(this_stadir);
 end
-fn = fullfile(this_stadir,[cellid '.mat']);
+fn = fullfile(this_stadir,[num2str(cellid) '.mat']);
 
 if exist(fn,'file') & ~p.recompute
     load(fn,'diff_p', 'mt_p')
