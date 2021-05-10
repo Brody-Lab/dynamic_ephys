@@ -50,6 +50,7 @@ p.figpath_psych_acc = 'psycho_';
 p.model_color       = [1 .6 .6];
 p.psth_fig_dir      = fullfile(fig_dir, 'PSTH');
 p.sta_fig_dir       = fullfile(fig_dir, 'STA');
+p.sta_dir           = fullfile(spikes_dir, 'sta');
 p.celldat_filename  = celldat_filename;
 p.celldat_dir       = celldat_dir;
 p.spikes_bin_dir    = spikes_bin_dir;
@@ -76,6 +77,8 @@ p.model_color       = [255 140 140]/255.;
 cm2                 = color_set(2);
 p.left_color        = cm2(1,:);
 p.right_color        = cm2(2,:);
+p.pref_color  = [.8 .25 .8];
+p.npref_color = [.8 .65 .25];
 
 %p.model_color       = 'm';
 p.nice_color        = {[0 140 54]./255, [48 127 255]./255 };
@@ -142,6 +145,7 @@ p.msz = 12;
 p.fsz = 10.5;
 set(0, 'defaultaxesfontsize',p.fsz);
 set(0,'defaultaxeslinewidth',1)
+set(0,'DefaultAxesTitleFontWeight','normal');
 
 
 if pathup
