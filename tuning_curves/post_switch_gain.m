@@ -58,11 +58,12 @@ do_shuffle_trials = 0;
 do_shuffle_fixing_choice = 0;
 do_shuffle_switches = 0;
 
+switch_t0s = [-.55:.025:.55];
+t0s_ = switch_t0s;
+switch_str = ['_' which_switch(1:5) 'switch'];
+badtind = t0s_ > -.2 & t0s_ < .20;
 if ~isempty(which_switch)
-    t0s_ = switch_t0s;
-    switch_str = ['_' which_switch(1:5) 'switch'];
-    badtind = t0s_ > -.2 & t0s_ < .20;
-    
+
 else
     t0s_ = t0s;
     badtind = t0s_ > Inf;
