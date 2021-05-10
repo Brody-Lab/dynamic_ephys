@@ -1,9 +1,10 @@
-function [diff_p, mt_p, res] = switch_gain_shuffle(cellid, n_shuffles, varargin)
+function [real_diff, diff_p, mt_p, res] = switch_gain_shuffle(cellid, n_shuffles, varargin)
 p = inputParser;
 addParameter(p,'data',[])
 addParameter(p,'model',[])
 addParameter(p,'do_save',1)
 addParameter(p,'recompute',0)
+addParameter(p,'switch_params',[])
 parse(p,varargin{:})
 p = p.Results;
 
@@ -33,12 +34,16 @@ badn        = find(badtind,1,'last')+1;
 
 lag             = .1;
 which_switch    = 'model';
-switch_params   = struct('which_switch',which_switch,...
-            't_buffers',[.2 .2],...
-            'clear_bad_strengths', 1, 'bad_strength', 0, 'fit_line', 1,...
-            'min_pre_dur', 0, 'min_post_dur', 0,...
-            'min_switch_t',0,'max_switch_t',Inf,...
-            'exclude_final',0,'final_only',0,'model_smooth_wdw',100);
+if ~isempty(p.switch_params)
+    switch_params = p.switch_params;
+else
+    switch_params   = struct('which_switch',which_switch,...
+        't_buffers',[0 0],...
+        'clear_bad_strengths', 1, 'bad_strength', 0, 'fit_line', 1,...
+        'min_pre_dur', 0, 'min_post_dur', 0,...
+        'min_switch_t',0,'max_switch_t',Inf,...
+        'exclude_final',0,'final_only',0,'model_smooth_wdw',100);
+end
 
 this_stadir     = get_sta_dirname(switch_params);
 if ~exist(this_stadir,'dir')
