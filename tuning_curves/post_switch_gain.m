@@ -46,9 +46,9 @@ for si = 1:length(unique_sessid)
     for ii = 1:length(ind)
         cc          = ind(ii);
         counter     = counter + 1;
-        excellid    = pop_cellids(cc);
+        cellid    = pop_cellids(cc);
         fprintf('\ncell %i...',counter)
-        data        = dyn_cell_packager(excellid);
+        data        = dyn_cell_packager(cellid);
         if ii == 1
             model   = 	get_data_model_p(data, data.trials.trialnums);
         end
