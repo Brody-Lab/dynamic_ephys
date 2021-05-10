@@ -3,12 +3,17 @@ p = inputParser;
 addParameter(p, 'which_switch', 'model')
 addParameter(p, 'savefig', 1)
 addParameter(p, 'correction_num', 2)
-addParameter(p, 'bad_strength', 0)
 addParameter(p, 'recompute', 0)
 addParameter(p, 'lag', 0)
 addParameter(p, 'max_t', 1)
 addParameter(p, 'min_t', -1)
 addParameter(p, 'fig_type', '-dsvg')
+addParameter(p, 'clear_bad_strengths',1 )
+addParameter(p, 'bad_strength', 0)
+addParameter(p, 't_buffers', [0 0])
+addParameter(p, 'min_post_dur', 0)
+addParameter(p, 'min_pre_dur', 0)
+addParameter(p, 'alpha', 0.05)
 parse(p,varargin{:})
 p = p.Results;
 which_switch    = p.which_switch;
@@ -21,9 +26,12 @@ dp              = set_dyn_path;
 max_t           = p.max_t;
 min_t           = p.min_t;
 fig_type        = p.fig_type;
-[res, cellids, computed,not_computed] = ...
+[res, cellids, computed, not_computed] = ...
     load_STA_population(which_switch, 'force',force,'slim_data',1,...
-    'bad_strength', bad_strength);
+    'bad_strength', p.bad_strength, ...
+    't_buffers', p.t_buffers, ...
+    'min_pre_dur', p.min_pre_dur,'min_post_dur', p.min_post_dur,...
+    'clear_bad_strengths',p.clear_bad_strengths);
 dprime = [];
 ptiles = [];
 
@@ -247,17 +255,20 @@ posdex = posdex(pval_plot_lags);
 negdex = negdex(pval_plot_lags);
 cmap = [repmat(clrs(1,:),10,1); repmat([1 1 1], 200, 1); repmat(clrs(end,:),10,1)];
 
+alpha = p.alpha;
+
 if correction == 1 % bonferroni corrections
     m = numel(ptiles_plot);
-    threshold = 0.5 - 0.05/ m;
+    threshold = 0.5 - alpha/2/ m;
     correction_str = '_bonferroni';
 elseif correction == 2 % modified bonferroni, because tests are correlated
-    % threshold determined by emperically checking for false positives in the shuffle data, and asking what index keeps it below 0.05
+    % threshold determined by emperically checking for false positives...
+    %in the shuffle data, and asking what index keeps it below 0.05
     m = 5;
-    threshold = 0.5 - 0.05/ m;
+    threshold = 0.5 - alpha/2/ m;
     correction_str = '_bonferroni_modified';
 else
-    threshold = 0.5 - 0.05;
+    threshold = 0.5 - alpha/2;
     correction_str = '';
 end
 
@@ -403,8 +414,8 @@ const_map(const_map > 0.99)     = 1;
 const_map(const_map < 0.01)     = -1;
 const_map(const_map < 1 & const_map > -1) = 0;
 const_pmap   = plot_map;
-const_pmap(const_pmap > 0.95)     = 1;
-const_pmap(const_pmap < 0.05)     = -1;
+const_pmap(const_pmap > (1-alpha/2))     = 1;
+const_pmap(const_pmap < (alpha/2))     = -1;
 const_pmap(const_pmap < 1 & const_pmap > -1) = 0;
 const_dex   = zeros(size(const_map));
 Q1          = zeros(size(const_map));
@@ -487,8 +498,8 @@ middle_ts_sort       = mean([ts_sort; tslast_sort]);
 
 figure(4); clf; hold on;
 sortplot = true;
-plot_map(plot_map > 0.95) =1;
-plot_map(plot_map < 0.05) =0;
+plot_map(plot_map > (1-alpha/2)) =1;
+plot_map(plot_map < alpha/2) =0;
 if sortplot
     imagesc(plot_map(sort_ind,:),'x',plot_lags(pval_plot_lags),[0 1]); 
 %    sorted_plot_map = plot_map(sort_ind,:);
@@ -579,11 +590,12 @@ selective_only = 1;
 plot_val = (1-ptiles_plot).*(time_vec<=0) + ptiles_plot.*(time_vec>0);
 %plot_val = 1-ptiles;
 a = .05;
+
 nconsec = 40;
 use_pre  = 0;
 use_mid = 1
 
-sigp = ptiles_plot < a | ptiles_plot > (1-a);
+sigp = ptiles_plot < alpha/2 | ptiles_plot > (1-alpha);
 csigp = cumsum(sigp,2);
 
 postswitchsigp = sigp.*(time_vec>0);
@@ -651,7 +663,9 @@ end
 plotMat = plot_val(i_s(j_s>min_val),:);
 
 n = 20;
-sig_bins = [linspace(0, .05,n) linspace(.1,.9,n) linspace(.95, 1,n)];
+sig_bins = unique([linspace(0, alpha/2,n) ...
+    linspace(alpha/2,1-alpha/2,n) ...
+    linspace(1-alpha/2, 1,n)]);
 sig_val = sig_bins(1:end-1) + diff(sig_bins)/2;
 cm = flipud(colormapLinear(dp.left_color,n-1));
 cm = [cm; ones(n,3);  colormapLinear(dp.right_color,n-1)];
@@ -748,12 +762,12 @@ ylim([-1 1.5])
 
 % pvals indices match
  pplot = pvals(dex,:);
- pplot(pplot < 0.95 & pplot > 0.05) = NaN;
+ pplot(pplot < (1-alpha/2) & pplot > alpha/2) = NaN;
  pplot1 = pplot;
- pplot1(pplot < 0.95) = NaN;
+ pplot1(pplot < (1-alpha/2)) = NaN;
  pplot1(~isnan(pplot1)) = 1.2;
  pplot2 = pplot;
- pplot2(pplot > 0.05) = NaN;
+ pplot2(pplot > alpha/2) = NaN;
  pplot2(~isnan(pplot2)) = 1.2;
  plot(res{dex}.lags(pval_plot_lags),pplot1, 'gs', 'linewidth',1, 'markerfacecolor','g','markersize',5);
  plot(res{dex}.lags(pval_plot_lags),pplot1, 'g-', 'linewidth',5);
@@ -762,12 +776,12 @@ ylim([-1 1.5])
 
 % plot map indicies match
  pmplot = plot_map(dex,:);
- pmplot(pmplot < 0.95 & pmplot > 0.05) = NaN;
+ pmplot(pmplot < (1-alpha/2) & pmplot > alpha/2) = NaN;
  pmplot1 = pmplot;
- pmplot1(pmplot < 0.95) = NaN;
+ pmplot1(pmplot < (1-alpha/2)) = NaN;
  pmplot1(~isnan(pmplot1)) = 1;
  pmplot2 = pmplot;
- pmplot2(pmplot > 0.05) = NaN;
+ pmplot2(pmplot > alpha/2) = NaN;
  pmplot2(~isnan(pmplot2)) = 1;
  plot(res{dex}.lags(pval_plot_lags),pmplot1, 'gs', 'linewidth',1, 'markerfacecolor','g','markersize',5);
  plot(res{dex}.lags(pval_plot_lags),pmplot1, 'g-', 'linewidth',5);

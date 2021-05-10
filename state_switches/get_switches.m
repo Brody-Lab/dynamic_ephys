@@ -14,11 +14,15 @@ addParameter(p,'min_pre_dur',0);
 addParameter(p,'min_post_dur',0);
 addParameter(p,'min_switch_t',0);
 addParameter(p,'max_switch_t',2);
+addParameter(p,'t_buffers',[0 0]);
 addParameter(p,'which_trials',[]);
 addParameter(p,'remove_initial_choice', 1);
 addParameter(p,'eval_dt', 1e-3);
 addParameter(p,'strength_window', .1);
 addParameter(p,'model_smooth_wdw', 100);
+addParameter(p,'change_bounds', [0 0]);
+addParameter(p,'recompute_switches', 0);
+
 
 parse(p,varargin{:});
 p = p.Results;
@@ -39,20 +43,23 @@ end
 array_data = cleanup_array_data(array_data, vec_data);
 % add generative state switches to array_data
 array_data = compute_state_switches(array_data);
-array_data = compute_gen_state(array_data)
+array_data = compute_gen_state(array_data);
 % decide either to use the model or generative switches
 switch p.which_switch
     case 'model'
         % if array_data wasn't passed in with model switches, compute them
         % using the saved model mean and the relevant model parameters
-        if ~isfield(array_data, 'model_switch_to_0') ||  ~isfield(array_data, 'model_switch_to_1')
+        has_switches = ~isfield(array_data, 'model_switch_to_0') ||  ~isfield(array_data, 'model_switch_to_1');
+        if has_switches | p.recompute_switches
             array_data = compute_model_switches(array_data, this_sessid, ...
                 'remove_initial_choice', p.remove_initial_choice,...
                 'eval_dt', p.eval_dt, ...
                 'strength_window', p.strength_window, ...
                 'clear_bad_strengths', p.clear_bad_strengths, ...
                 'bad_strength', p.bad_strength, 'fit_line', p.fit_line,...
-                'model_smooth_wdw',p.model_smooth_wdw);
+                'model_smooth_wdw',p.model_smooth_wdw,...
+                'change_bounds',p.change_bounds,...
+                't_buffers',p.t_buffers);
         end
         switch_to_0 = {array_data.model_switch_to_0};
         switch_to_1 = {array_data.model_switch_to_1};
@@ -82,11 +89,17 @@ NT = length(switch_to_0);
 for tt = 1:NT
    this_to_0 = sort(switch_to_0{tt}); 
    this_to_1 = sort(switch_to_1{tt});
+   max_t_buff = T(tt)-p.t_buffers(2);
    if ~isempty(this_to_0)
        isi = diff([0 this_to_0 T(tt)]);
        good_pre     = isi(1:end-1) > p.min_pre_dur;
        good_post    = isi(2:end) > p.min_post_dur;
-       good_t       = this_to_0 > p.min_switch_t & this_to_0 < p.max_switch_t;
+       good_t       = this_to_0 > p.min_switch_t & ...
+           this_to_0 < p.max_switch_t &...
+           this_to_0 > p.t_buffers(1) & ...
+           this_to_0 < max_t_buff;
+       % this is a little clumsy, but we are reimposing the t_buffers for
+       % generative switches
        good_switch  = good_pre & good_post & good_t;
         switch_to_0{tt}    = this_to_0(good_switch);
 
@@ -95,7 +108,10 @@ for tt = 1:NT
        isi = diff([0 this_to_1 T(tt)]);
        good_pre     = isi(1:end-1) > p.min_pre_dur;
        good_post    = isi(2:end) > p.min_post_dur;
-       good_t       = this_to_1 > p.min_switch_t & this_to_1 < p.max_switch_t;
+       good_t       = this_to_1 > p.min_switch_t & ...
+           this_to_1 < p.max_switch_t & ...
+           this_to_1 > p.t_buffers(1) & ...
+           this_to_1 < max_t_buff;
        good_switch  = good_pre & good_post & good_t;
        switch_to_1{tt}    = this_to_1(good_switch);
    end

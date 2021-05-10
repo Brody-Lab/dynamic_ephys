@@ -6,6 +6,10 @@ function [array_data] = compute_model_state(array_data,model_mean)
     % model_switch_to_1 = 
     % model_mean = model mean trajectory
 
+
+change_bounds = [0 0];
+
+    
 if length(array_data) ~= length(model_mean)
     error('array_data and model_mean are different sizes') 
 end
@@ -22,7 +26,9 @@ for i=1:length(array_data)
     array_data(i).raw_model_mean = model_mean(i).raw_mean;
     array_data(i).model_mean = model_mean(i).mean;
     array_data(i).model_mean(1:clkdex) = 0;
-    array_data(i).model_state = double(array_data(i).model_mean > 0);
+    array_data(i).model_state = .5 * ones(size(array_data(i).model_mean));
+    array_data(i).model_state(array_data(i).model_mean > change_bounds(2)) = 1;
+    array_data(i).model_state(array_data(i).model_mean < change_bounds(1)) = 0;
     array_data(i).model_state(1:clkdex) = 0.5;
     array_data(i).model_T = model_mean(i).T;
     array_data(i).model_switch_to_0 = ...

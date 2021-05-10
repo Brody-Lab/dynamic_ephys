@@ -31,17 +31,12 @@ function res = compute_switch_triggered_average(data,varargin)
 
 % optional parameters specified by user
 p = inputParser;
-addParameter(p, 'n_shuffles', 0) % whether to run a shuffle test
 addParameter(p, 'which_switch', 'model') % other option is 'generative'
 addParameter(p, 'align_ind', 1) % 1 means align to stim on and masked after stim off
 addParameter(p, 'norm_type', 'none') % 'div', 'log_div', 'z' are other options
-addParameter(p, 'post', 2) % time over which to make this plot
-addParameter(p, 'model_smooth_wdw', 100);
 addParameter(p, 'array_data', []);
 addParameter(p, 'vec_data', []);
 addParameter(p, 'include_str', 'true(size(data.trials.hit == 1))');
-addParameter(p, 'clear_bad_strengths', 1);
-addParameter(p, 'bad_strength', 0);
 addParameter(p, 'save_dir', '');
 addParameter(p, 'model_dir', '');
 addParameter(p, 'save_file', 0);
@@ -54,13 +49,19 @@ addParameter(p, 'exclude_final', 0);
 addParameter(p, 'final_only', 0); 
 addParameter(p, 'min_pre_dur', 0); 
 addParameter(p, 'min_post_dur', 0); 
+addParameter(p, 't_buffers', [0 0]); 
+addParameter(p, 'post', 2) % time over which to make this plot
+addParameter(p, 'model_smooth_wdw', 100);
 addParameter(p, 'shift_switches', 0); 
+addParameter(p, 'clear_bad_strengths', 1);
+addParameter(p, 'bad_strength', 0);
+addParameter(p, 'n_shuffles', 0) % whether to run a shuffle test
 parse(p,varargin{:});
 p = p.Results;
 
 dp = set_dyn_path;
 if isempty(p.save_dir)
-    p.save_dir = dp.celldat_dir;
+    p.save_dir = dp.sta_dir;
 end
 if isempty(p.model_dir)
     p.model_dir = dp.model_mean_dir;
@@ -73,24 +74,20 @@ else
     cellid = data.cellid;
 end
 
-
 if (~isempty(p.save_dir) && ~exist(p.save_dir, 'dir')) || ...
         (~isempty(p.model_dir) && ~exist(p.model_dir, 'dir'))
     error('your default save or model directory don''t exist')
 end
 
+
+
 % determine the file path for this STA and load the file if desired
 if ~isempty(p.save_dir)
-    if p.clear_bad_strengths
-        save_path = fullfile(p.save_dir, [p.which_switch '_STA_' num2str(cellid) '_' num2str(p.bad_strength) '.mat']);
-    else
-        save_path = fullfile(p.save_dir, [p.which_switch '_STA_' num2str(cellid) '.mat']);
-    end
+    p.stadir = get_sta_dirname(p);
+    save_path = fullfile(p.stadir, [num2str(cellid) 'sta_res.mat']);
     if ~p.force & exist(save_path,'file')
         load(save_path,'res');
         return
-    elseif ~exist(p.save_dir,'dir') | isempty(p.save_dir)
-        warning('save dir incorrectly specified')
     end
 end
 
@@ -109,7 +106,8 @@ end
     'bad_strength', p.bad_strength, 'fit_line', p.fit_line,...
     'exclude_final', p.exclude_final, 'final_only', p.final_only,...
     'min_pre_dur',p.min_pre_dur,'min_post_dur',p.min_post_dur,...
-    'model_smooth_wdw', p.model_smooth_wdw);
+    'model_smooth_wdw', p.model_smooth_wdw,...
+    't_buffers', p.t_buffers);
 
 % decide which trials to analyze and which to discard
 has_switch  = (cellfun(@length, switch_to_0) + cellfun(@length, switch_to_1)) > 0;
@@ -167,7 +165,7 @@ elseif p.condition_residual
     left_mean   = nanmean(norm_ys(left_trials,:));
     right_mean  = nanmean(norm_ys(right_trials,:));
     fr_residual(left_trials,:) = norm_ys(left_trials,:) - left_mean;
-    fr_residual(right_trials,:) = norm_ys(right_trials,:) - right_mean
+    fr_residual(right_trials,:) = norm_ys(right_trials,:) - right_mean;
     if p.n_shuffles
         warning('not sure if we are handling shuffle test with a choice-conditioned residual')
     end

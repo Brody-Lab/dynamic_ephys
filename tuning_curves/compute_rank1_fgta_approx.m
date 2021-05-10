@@ -32,8 +32,7 @@ u1(goodt)   = u(:,1);
 v1          = nan(size(res.dv_axis))';
 v1(goodx)   = v(:,1);
 map_hat     = u1*s1*v1';
-alpha       = 1/range(v1);
-beta        = s1/alpha;
+
 rank1_mt    = u1;
 rank1_ra    = v1;
 % force average firing rate modulation to be positive
@@ -41,7 +40,9 @@ if nanmean(rank1_mt) < 0
     rank1_mt = -rank1_mt;
     rank1_ra = -rank1_ra;
 end
-k = max(rank1_mt);
+k           = max(rank1_mt);
+alpha       = 1/range(v1);
+beta        = s1/alpha;
 rank1_mt_n      = rank1_mt*beta;
 rank1_ra_n      = rank1_ra*alpha;
 rank1_mt_nm     = rank1_mt ./ k;

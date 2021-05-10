@@ -8,10 +8,15 @@ addParameter(p,'lag',0)
 addParameter(p,'max_t',.55)
 addParameter(p,'min_t',-.55)
 addParameter(p,'fig_type','svg')
+addParameter(p,'ylims',[])
 addParameter(p,'n_shuffles',250)
 addParameter(p,'recompute',0)
-
-
+addParameter(p, 'clear_bad_strengths',1 )
+addParameter(p, 'bad_strength', 0)
+addParameter(p, 't_buffers', [0 0])
+addParameter(p, 'min_post_dur', 0)
+addParameter(p, 'min_pre_dur', 0)
+addParameter(p, 'alpha', 0.05)
 parse(p,varargin{:})
 p = p.Results;
 which_switch    = p.which_switch;
@@ -38,7 +43,11 @@ else
     res =  compute_switch_triggered_average(cellid, 'force', p.recompute,...
         'post',2,...
         'which_switch',which_switch, 'n_shuffles', p.n_shuffles,...
-        'save_file',1,'mask_other_switch',1);
+        'save_file',1,'mask_other_switch',1,...
+        'bad_strength', p.bad_strength, ...
+        't_buffers', p.t_buffers, ...
+        'min_pre_dur', p.min_pre_dur,'min_post_dur', p.min_post_dur,...
+        'clear_bad_strengths',p.clear_bad_strengths);
     %     res =  compute_switch_triggered_average(cellid,...
     %             'post',2,'exclude_final',0, 'condition_residual',0,...
     %           'include_str','true(size(data.trials.hit == 1))',...
@@ -76,18 +85,24 @@ shadedErrorBar(lags(posdex),nanmean(STR_right(:,posdex)),...
 ylabel('\Delta Firing Rate (Hz)')
 xlabel(['time from ' which_switch ' state change (s)'])
 %pbaspect([2 1 1])
-plot([0 0], ylim, 'k--')
+if isempty(p.ylims)
+    ylims = ylim;
+else
+    ylims = p.ylims;
+end
+ylim(ylims)
+plot([0 0], ylims, 'k--')
 
 ax.TickDir = 'out';
 
 %%
-
+alpha = p.alpha;
 sig = nan(size(res.pval));
-sig(abs(res.pval-.5) > .45) = 1;
+sig(abs(res.pval-.5) > (.5-alpha/2)) = 1;
 sigside = res.pval > .5;
 posdex  = (lags > -0.001)';
 negdex  = (lags <  0.001)';
-maxy = max(ylim())*.95;
+maxy = max(ylims)*.95;
 lw = 5;
 pre_left = sigside==1 & negdex;
 pre_right = sigside==0 & negdex;

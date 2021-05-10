@@ -1,20 +1,18 @@
-
-% plot example trial for explaining analysis for panel A
+check_switch_inclusion;
+strength_histograms;
+%% plot example trial for explaining analysis for panel A
 posterior_example;
 %%
 plotSTA_example_switches; 
-%%
-check_switch_inclusion;
-
-strength_histograms;
-
 %%
 lag = .1;
 max_t = .55;
 min_t = -.55;
 which_switch = 'model';
+t_buffers = [.2 .2];
 plot_sta_fn = @(cellid,fig_num) plotSTA(cellid,'which_switch',which_switch,...
-    'lag',lag,'fig_num',fig_num,'recompute',1)
+    'lag',lag,'fig_num',fig_num,'recompute',0,'ylims',[-1 1].*11,...
+    't_buffers', t_buffers, 'alpha',.05)
 % plot example cell STAs for panel B
 [res, fh, axsta] = plot_sta_fn(18181,1);
 
@@ -25,8 +23,8 @@ set(fh,'position',[2 5 fw fht],'papersize', [fw fht])
 fig_name = [ num2str(res.cellid) '_' which_switch '_STA'];
 print(gcf,  fullfile(dp.fig_dir,fig_name),'-dsvg','-painters')
 %%
-plot_sta_fn(16857,2);
-plot_sta_fn(17784,3);
+% plot_sta_fn(16857,2);
+% plot_sta_fn(17784,3);
 %% plot population STA for panel C and D
 recompute = 0;
 cnum = 0;
@@ -39,15 +37,22 @@ switch cnum
         which_correction_str = '_bonferroni_modified';
 end
 which_correction_str = [which_correction_str  '_0']; 
-%%
-pop_sta_fn = @(which_switch,lag) plot_population_STA(...
+
+pop_sta_fn = @(which_switch,lag,recompute) plot_population_STA(...
     'which_switch',which_switch,...
     'recompute',recompute,'savefig',1,'correction_num',cnum,'lag',lag,...
-    'min_t',min_t,'max_t',max_t);
+    'min_t',min_t,'max_t',max_t,...
+    'bad_strength', 0,...
+    't_buffers', t_buffers);
+profile on
 
-axpopsta = pop_sta_fn('model',lag)
 
-axpopsta = pop_sta_fn('generative',lag)
+axpopsta = pop_sta_fn('model',lag,recompute)
+profile off 
+profile report
+%%
+recompute = 0;
+axpopsta = pop_sta_fn('generative',lag,recompute)
 
 
 %%

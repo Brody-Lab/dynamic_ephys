@@ -3,7 +3,8 @@ which_switch = 'model';
 
 res =  compute_switch_triggered_average(cellid, 'force', 1,...
     'which_switch', which_switch, 'n_shuffles', 0, ...
-    'save_file', 0,'min_pre_dur', .4, 'min_post_dur', .4);
+    'save_file', 0,'min_pre_dur', .4, 'min_post_dur', .4,...
+    'include_str', 'true(size(data.trials.hit == 1))');
 STR_left    = res.STR_left_real;
 STR_right   = res.STR_right_real;
 lags        = res.lags;

@@ -26,72 +26,108 @@ p = inputParser();
 addParameter(p,'remove_initial_choice',1)
 addParameter(p,'clear_bad_strengths',1);
 addParameter(p,'bad_strength',0);
+addParameter(p,'change_bounds',[0 0]);
+addParameter(p,'t_buffers',[0 0]);
+
 parse(p,varargin{:});
 p = p.Results;
 
-
 % Remove start of trial state change "initial choice"
-if p.remove_initial_choice
-for i=1:length(array_data)
-    if (length(array_data(i).model_switch_to_0) >= 1) & (length(array_data(i).model_switch_to_1) >= 1)
-        % had multiple state changes, need to determine which one was first
-        if array_data(i).model_switch_to_0(1) < array_data(i).model_switch_to_1(1)
-            array_data(i).ignore_model_switch_to_0 = array_data(i).model_switch_to_0(1);
-            array_data(i).model_switch_to_0(1) = [];     
-            array_data(i).ignore_0_strength = array_data(i).model_switch_to_0_strength(1);
-            array_data(i).model_switch_to_0_strength(1) = [];      
+
+for ii=1:length(array_data)
+    array_data(ii).ignore_model_switch_to_0 = [];
+    array_data(ii).ignore_model_switch_to_1 = [];
+    array_data(ii).ignore_0_strength = [];
+    array_data(ii).ignore_1_strength = [];
+    
+    switch_t =  [array_data(ii).model_switch_to_0 ...
+        array_data(ii).model_switch_to_1];
+    switch_state =  [zeros(size(array_data(ii).model_switch_to_0 ))...
+        ones(size(array_data(ii).model_switch_to_1))];
+    strengths =  [array_data(ii).model_switch_to_0_strength...
+        array_data(ii).model_switch_to_1_strength];
+    [switch_t_sorted sort_ind] = sort(switch_t);
+    switch_state_sorted = switch_state(sort_ind);
+    strengths_sorted    = strengths(sort_ind);
+    baddex = zeros(size(strengths));
+    
+    % if there are no switches, move to the next trial
+    if isempty(switch_state_sorted)
+        continue;
+    end
+    
+    if p.remove_initial_choice 
+        baddex(1) = 1;
+    end
+    
+    baddex(switch_t_sorted < p.t_buffers(1)) = 1;
+    max_t = array_data(ii).stim_end - p.t_buffers(2);
+    baddex(switch_t_sorted > max_t) = 1;
+            
+    if p.clear_bad_strengths
+        weak_0 = strengths_sorted > -p.bad_strength &...
+            switch_state_sorted==0;
+        weak_1 = strengths_sorted < p.bad_strength & ...
+            switch_state_sorted==1;
+        baddex(weak_0 | weak_1) = 1;
+    end
+    
+    % CLEAR BASED ON BOUND CROSSING
+    for ss = 1:length(switch_t_sorted);
+        if ss == 1
+            t0 = 0;
         else
-            array_data(i).ignore_model_switch_to_1 = array_data(i).model_switch_to_1(1);
-            array_data(i).model_switch_to_1(1) = [];           
-            array_data(i).ignore_1_strength = array_data(i).model_switch_to_1_strength(1);
-            array_data(i).model_switch_to_1_strength(1) = []; 
+            t0 = switch_t_sorted(ss-1);
         end
-    elseif length(array_data(i).model_switch_to_0) == 0
-        % Only had one initial choice, 
-        array_data(i).ignore_model_switch_to_1 = array_data(i).model_switch_to_1;
-        array_data(i).model_switch_to_1 = [];
-        array_data(i).ignore_1_strength = array_data(i).model_switch_to_1_strength;
-        array_data(i).model_switch_to_1_strength = []; 
-    else
-        % Only had one initial choice, 
-        array_data(i).ignore_model_switch_to_0 = array_data(i).model_switch_to_0;
-        array_data(i).model_switch_to_0 = [];
-        array_data(i).ignore_0_strength = array_data(i).model_switch_to_0_strength;
-        array_data(i).model_switch_to_0_strength = [];      
-    end
-
-end
-end
-
-% Remove weak changes
-if p.clear_bad_strengths 
-for i=1:length(array_data)
-    baddex = [];
-    for j=1:length(array_data(i).model_switch_to_0);
-        if array_data(i).model_switch_to_0_strength(j) > -p.bad_strength
-            baddex = [baddex j];
+        if ss == length(switch_t_sorted)
+            tN = array_data(ii).stim_end;
+        else
+            tN = switch_t_sorted(ss+1);
+        end
+        pre_T_ind   = array_data(ii).model_T > t0 & ...
+            array_data(ii).model_T < switch_t_sorted(ss);
+        post_T_ind  = array_data(ii).model_T > switch_t_sorted(ss) & ...
+            array_data(ii).model_T < tN;
+        pre_mean    = array_data(ii).model_mean(pre_T_ind);
+        post_mean    = array_data(ii).model_mean(post_T_ind);
+        if switch_state_sorted(ss) == 1
+            % currently in state 1, so look for state 0 change bound before cross
+            pre_cross   = sum(pre_mean < p.change_bounds(1)) > 0;
+            % look for state 1 change bound after cross
+            post_cross  = sum(post_mean > p.change_bounds(2)) > 0;
+            
+        else
+            % currently in state 0, so look for state 1 change bound before
+            % cross and state 0 change after
+            pre_cross   = sum(pre_mean > p.change_bounds(2)) > 0;
+            post_cross  = sum(post_mean < p.change_bounds(1)) > 0;
+        end
+        if ~pre_cross | ~post_cross
+            baddex(ss)   = 1;
         end
     end
-    if ~isempty(baddex);
-    array_data(i).ignore_0_strength = [array_data(i).ignore_0_strength array_data(i).model_switch_to_0_strength(baddex)];
-    array_data(i).ignore_model_switch_to_0 = [array_data(i).ignore_model_switch_to_0 array_data(i).model_switch_to_0(baddex)];
-    array_data(i).model_switch_to_0_strength(baddex) = [];
-    array_data(i).model_switch_to_0(baddex) = [];
-    end
+    
+    baddex_0 = find(baddex(switch_state_sorted == 0));
+    baddex_1 = find(baddex(switch_state_sorted == 1));
 
-    baddex = [];
-    for j=1:length(array_data(i).model_switch_to_1);
-        if array_data(i).model_switch_to_1_strength(j) < p.bad_strength
-            baddex = [baddex j];
-        end
+    
+    if ~isempty(baddex_0);
+        array_data(ii).ignore_0_strength = ...
+            [array_data(ii).ignore_0_strength ...
+            array_data(ii).model_switch_to_0_strength(baddex_0)];
+        array_data(ii).ignore_model_switch_to_0 = [array_data(ii).ignore_model_switch_to_0...
+            array_data(ii).model_switch_to_0(baddex_0)];
+        array_data(ii).model_switch_to_0_strength(baddex_0) = [];
+        array_data(ii).model_switch_to_0(baddex_0) = [];
     end
-    if ~isempty(baddex)
-    array_data(i).ignore_1_strength = [array_data(i).ignore_1_strength array_data(i).model_switch_to_1_strength(baddex)];
-    array_data(i).ignore_model_switch_to_1 = [array_data(i).ignore_model_switch_to_1 array_data(i).model_switch_to_1(baddex)];
-    array_data(i).model_switch_to_1_strength(baddex) = [];
-    array_data(i).model_switch_to_1(baddex) = [];
+    if ~isempty(baddex_1);
+        array_data(ii).ignore_1_strength = [array_data(ii).ignore_1_strength ...
+            array_data(ii).model_switch_to_1_strength(baddex_1)];
+        array_data(ii).ignore_model_switch_to_1 = [array_data(ii).ignore_model_switch_to_1...
+            array_data(ii).model_switch_to_1(baddex_1)];
+        array_data(ii).model_switch_to_1_strength(baddex_1) = [];
+        array_data(ii).model_switch_to_1(baddex_1) = [];
     end
 end
-end
 
-% Remove sequential matching state changes?
+

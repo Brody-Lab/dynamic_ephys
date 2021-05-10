@@ -8,6 +8,9 @@ addParameter(p,'strength_window',.1);
 addParameter(p,'clear_bad_strengths',1);
 addParameter(p,'bad_strength',0);
 addParameter(p,'fit_line',1);
+addParameter(p,'change_bounds',[0 0]);
+addParameter(p,'t_buffers',[0 0]);
+
 parse(p,varargin{:});
 p = p.Results;
 
@@ -17,7 +20,7 @@ if isempty(p.model_dir)
 else
     model_dir = p.model_dir;
 end
-
+assert(diff(p.change_bounds) >= 0)
 ratname = bdata('select ratname from sessions where sessid={S}',sessid);
 ratname = ratname{1};
 
@@ -44,8 +47,14 @@ if ~isempty(p.model_smooth_wdw)
 end
 % compute the model switch times
 array_data = compute_model_state(array_data, model_mean);
+
 array_data = quantify_model_state_strength(array_data,'eval_dt',p.eval_dt,...
     'strength_window', p.strength_window, 'fit_line', p.fit_line);
-array_data = smooth_model_state(array_data,'remove_initial_choice',p.remove_initial_choice,...
-    'clear_bad_strengths',p.clear_bad_strengths,'bad_strength',p.bad_strength);
+
+array_data = smooth_model_state(array_data,...
+    'remove_initial_choice', p.remove_initial_choice,...
+    'clear_bad_strengths',p.clear_bad_strengths,'bad_strength',p.bad_strength,...
+    'change_bounds',p.change_bounds, 't_buffers',p.t_buffers);
+
+array_data = get_model_state_durs(array_data);
 end

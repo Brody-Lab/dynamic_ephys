@@ -23,6 +23,7 @@ addParameter(p,'shuffle_trials',   0);
 addParameter(p,'model',   []);
 addParameter(p,'n_dv_bins',   []);
 addParameter(p,'which_switch',   []);
+addParameter(p,'switch_params',   []);
 addParameter(p,'demean_frates',   0);
 addParameter(p,'zscore_frates',   0);
 parse(p,varargin{:});
