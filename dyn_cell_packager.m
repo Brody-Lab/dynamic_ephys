@@ -57,7 +57,7 @@ if ~repack && exist(save_path, 'file')
     repack = check_params(data,krn_width,bin_size,krn_type); %#ok<NODEF>
     if ~repack
         return;
-    elseif any(~isempty([krn_width, bin_size, krn_type]))
+    elseif any(isempty([krn_width, bin_size, krn_type]))
         error('need to repack, but you didn''t fully specify the kernel')
     end
 end;
@@ -107,7 +107,8 @@ for i=1:numel(align_strs)
     [data.frate{i}, data.frate_t{i}] = make_rate_functions(cellid, 'array_data', array_data, 'vec_data', vec_data,...
                                                             'krn_width',krn_width,'bin_size',bin_size,align_args{i}{:},...
                                                             'krn_type', krn_type);
-    [data.sp_counts{i}, data.sp_count_T{i}] = calc_sp_counts(cellid, 'array_data', array_data, 'vec_data', vec_data, align_args{i}{:});
+    [data.sp_counts{i}, data.sp_count_T{i}] = calc_sp_counts(cellid, ...
+        'array_data', array_data, 'vec_data', vec_data, align_args{i}{:});
 end
 data.align_strs = align_strs;
 data.align_args = align_args;
