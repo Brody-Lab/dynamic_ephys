@@ -1,8 +1,8 @@
-p = set_dyn_path;
+dp = set_dyn_path;
 %%
-fw = 2.5;
-msz = 12;
-fsz = 10.5;
+fw = dp.fw;
+msz = dp.msz;
+fsz = dp.fsz;
 set(0, 'defaultaxesfontsize',fsz);
 set(0,'defaultaxeslinewidth',1)
 %%
@@ -12,25 +12,120 @@ f = [];
 d = [];
 
 example_rat = 'H037';
-all_rats = p.ratlist;
+all_rats = dp.ratlist;
 which_rats = 'all';
 switch which_rats
     case 'example'
         rats = {example_rat};
     case 'all'
-        rats = p.ratlist;
+        rats = dp.ratlist;
 end
-
-
-%%
-for rr = 1:length(rats)
+nrats = length(rats);
+%% get all rats' data
+for rr = 1:nrats
     ratname = rats{rr};
-    fn = fullfile(p.behav_data_dir, [ratname '.mat']);
-    fitfn = fullfile(p.model_fits_dir, ['fit_analytical_' ratname '.mat']);
-    f{rr} = fit_rat_analytical(ratname,'results_dir', p.model_fits_dir,...
-        'data_dir',p.behav_data_dir,'overwrite',over); %#ok<*SAGROW>
+    fn = fullfile(dp.behav_data_dir, [ratname '.mat']);
+    fitfn = fullfile(dp.model_fits_dir, ['fit_analytical_' ratname '.mat']);
+    f{rr} = fit_rat_analytical(ratname,'results_dir', dp.model_fits_dir,...
+        'data_dir',dp.behav_data_dir,'overwrite',over); %#ok<*SAGROW>
     
     d{rr} = load(fn,'data');
+end
+%% compute number of trials and sessions for each rat
+NT = zeros(length(rats),1);
+NS = zeros(length(rats),1);
+
+for rr = 1:nrats
+    NT(rr) = length(d{rr}.data);
+    NS(rr) = length(unique([d{rr}.data.sessid]));
+end
+fprintf('\nmean %.2f \t SD %.2f trials min %.2f max %.2f',...
+    mean(NT), std(NT), min(NT), max(NT))
+fprintf('\nmean %.2f \t SD %.2f sessions min %.2f max %.2f \n', ...
+    mean(NS), std(NS), min(NS), max(NS))
+%% get the fits for each rat and make sure it has the optimal lambda  
+F = analyze_fits('ephys');
+%% plot the comparison to bing's rats
+close all
+plot_parameter_comparisons(F,'ephys')
+ylim_ = ylim;
+%%
+load ~/Dropbox/model_fits/FITS/best_fits_v35_rats.mat;
+B = allfits;
+B(:,3) = B(:,3)./40;
+Bse = allci;
+Bse(:,3) = Bse(:,3)./40;
+pi = 1;
+
+[h,p,~,~,fh] = plot_parameter_dist(F,pi,...
+    '\lambda',B(:,pi),Bse(:,pi),[-7.5 1.75],'ephys',...
+     'point_plot', 1 );
+set(fh,'position',[5 5 fw fw], 'paperposition',[0 0 fw fw], ...
+        'papersize',[fw+.5 fw+.5]);
+ax = gca
+pbaspect(ax,[1 1.2 1])
+set(ax,'xticklabel',{'dynamic' 'stationary*'})
+ylabel('discounting parameter (\lambda)')
+
+fname = fullfile(dp.fig_dir, ['ephys_param_comparison_1_main']);
+print(fh,fname,'-dsvg')
+
+%%
+lambda = nan(length(F),1);
+for ll = 1:length(F)
+    lambda(ll) = F{ll}.final(1);
+end
+%%
+[h, p, ci] = ttest(lambda);
+fprintf('\nlambda different than zero. p < %.3f', p)
+[h, p, ci] = ttest2(lambda, B(1,:));
+fprintf('\nlambda different than bing. p < %.3f', p)
+
+%% figure out how many switches there are
+n_gen_switches = cell(nrats,1);
+for rr = 1:nrats
+    n_gen_switches{rr} = cellfun(@length, {d{rr}.data.genSwitchTimes});
+    rat_sess = unique([d{rr}.data.sessid]);
+end
+%%
+mean_switches = mean([n_gen_switches{:}]);
+std_switches  = std([n_gen_switches{:}]);
+sem_switches  = sem([n_gen_switches{:}]);
+ebar = std_switches;
+
+fprintf('mean switches %.2f (min %i, max %i)', mean_switches, ...
+    min([n_gen_switches{:}]),max([n_gen_switches{:}]));
+
+fh = figure(2); clf
+ax = axes
+set(fh,'position',[5 5 fw fw], 'paperposition',[0 0 fw fw], ...
+        'papersize',[fw+.5 fw+.5]);
+h = histogram([n_gen_switches{:}],'normalization','probability',...
+    'facecolor',[1 1 1].*.75,'edgecolor',[1 1 1].*.55)
+hold on
+
+
+if 0 
+    
+    plot(mean_switches + ebar*[-1 1], [1 1]* ymax, 'k')
+    plot(mean_switches, ymax, '.k', 'markersize', 10)
+end
+ylim([0 .35])
+xlim([-1 7])
+set(ax,'ytick',[0 .1 .2 .3], 'yticklabel', [0 10 20 30])
+ymax = max(ylim);
+text(2,ymax, ' ','FontSize',fsz)
+pbaspect(ax,[1 1.2 1])
+box off
+xlabel('# state changes')
+ylabel('% trials')
+%%5title('environmental switches','fontweight','normal')
+print(fh, fullfile(dp.fig_dir, ['n_gen_switch_hist.svg']),'-dsvg','-painters')
+%%
+
+%% make psychometric and chronometric plot for each rat
+for rr = 1:length(rats)
+    ratname = rats{rr};
     data = d{rr}.data;
     
     assert(length(unique([data.Hazard]'))<5)
@@ -68,7 +163,7 @@ for rr = 1:length(rats)
     
     model_h = (1 - model_r).*(~sides)+model_r.*sides;
     
-    fh = figure(1); clf;
+    fh = figure(10); clf;
     set(fh,'position',[5 5 fw fw], 'paperposition',[0 0 fw fw], ...
         'papersize',[fw+.5 fw+.5]);
     
@@ -76,8 +171,8 @@ for rr = 1:length(rats)
     plotPsychometric(s_, model_r, 'axHandle',ax,...
         'compute_fit', 0, 'plotfit',0, 'edges',medges,...
         'dataLineStyle','-','ploterrorbar',1,...
-        'errorbar','gaussian',...
-        'dataShaded',1, 'dataColor', p.model_color);
+        'errorbar','binomial',...
+        'dataShaded',1, 'dataColor', dp.model_color);
     
     plotPsychometric(s_, r, 'axHandle',ax,...
         'compute_fit', 0, 'plotfit',1,'edges',edges,...
@@ -93,23 +188,17 @@ for rr = 1:length(rats)
     ax.YTickLabel = {'0' '' '' '' '' '' '' '' '' '' '1'};
     ax.YTick = [0 .25 .5 .75 1];
     ax.YTickLabel = {'0' '' '' '' '1'};
-    %     plot([-.1 -.1], [.48 .495], 'w', 'linewidth', 2.5)
-    %     plot([-.1 -.005], [.48 .48], 'w', 'linewidth', 2.5)
     
     ylabel('prob. go right');
     xlabel('log-odds supporting ''go right''');
-    %     hl=legend('model','data','location','eastoutside');
-    %
-    %     box(hl,'off');
-    %     set(hl, 'fontsize', fsz);
-    %     hl.Position = hl.Position + [.05 -.2 .0 0];
-    txt = text( -2.5,.9, 'model','color',p.model_color,'FontSize',fsz)
+   
+    txt = text( 1,.35, 'model','color',dp.model_color,'FontSize',fsz)
     txt.FontSize = fsz;
-    text(-2.5, .8, 'data','FontSize',fsz)
+    text(1, .2, 'data','FontSize',fsz)
+    text(-.5, 1, ratname,'FontSize',fsz)
     pbaspect(ax,[1 1.2 1])
-    %set(ax,'fontname','dejavu sans')
-    %set(ax,'fontname','dhelvetica neue')
-    print(fh, fullfile(p.fig_dir, [ratname '_odds_psycho.svg']),'-dsvg','-painters')
+
+    print(fh, fullfile(dp.fig_dir, [ratname '_odds_psycho.svg']),'-dsvg','-painters')
     
     %% plot chrono for panel D
     dt = .2;
@@ -128,7 +217,7 @@ for rr = 1:length(rats)
         'edges',tedges, 'axHandle',ax,'compute_fit',0,'plotfit',0,...
         'nbin',20,...
         'dataLineStyle','-','ploterrorbar',1,...
-        'dataShaded',1, 'dataColor', p.model_color)
+        'dataShaded',1, 'dataColor', dp.model_color)
     
     for ii = 2:length(stbins)
         
@@ -163,24 +252,29 @@ for rr = 1:length(rats)
     
     hl.Position = hl.Position + [.0 -.225 0 0]
     pbaspect(ax,[1 1.2 1])
-    
-    print(fh, fullfile(p.fig_dir, [ratname '_chrono_nswitches.svg']),'-dsvg',...
+    text(.75, 1, ratname,'FontSize',fsz)
+
+    print(fh, fullfile(dp.fig_dir, [ratname '_chrono_nswitches.svg']),'-dsvg',...
         '-painters')
+end
+%% plot excess clicks
+for rr = 1:length(rats)
     
+    ratname = rats{rr};
     %% excess clicks for panel F
-    excess_path = fullfile(p.data_dir, ratname, 'excess1');
+    excess_path = fullfile(dp.data_dir, ratname, 'excess1');
     if ~exist(excess_path,'file')
-        S = load_data(ratname, p);
-        p.include.save = 0;
-        S = save_good_data(ratname, S, p);
-        clicks = analyze_excess_rates(ratname, S, p);
+        S = load_data(ratname, dp);
+        dp.include.save = 0;
+        S = save_good_data(ratname, S, dp);
+        clicks = analyze_excess_rates(ratname, S, dp);
     end
     load(excess_path,'clicks');
     %%
     figure(4); clf
     
     [fh ax] = plot_excess_rates(clicks,'plot_model', 1, 'fig_num',4,...
-        'model_color',p.model_color,'left_color',p.left_color,'right_color',p.right_color);
+        'model_color',dp.model_color,'left_color',dp.left_color,'right_color',dp.right_color);
     
     set(fh,'position',[11 5 fw fw], 'paperposition',[0 0 fw fw], ...
         'papersize',[fw+.5 fw+.5]);
@@ -192,14 +286,15 @@ for rr = 1:length(rats)
     ax.YTickLabel = {'-8' '' '' '' '0' '' '' '' '8'};
     
     pbaspect(ax,[1.1 1.2 1])
-    txt = text( -.5,-7, 'go left','color',p.left_color,'FontSize',fsz)
+    txt = text( -.5,-7, 'go left','color',dp.left_color,'FontSize',fsz)
     txt.FontSize = fsz;
-    text(-.5, -5.5, 'go right','color',p.right_color,'FontSize',fsz)
-    
+    text(-.5, -5.5, 'go right','color',dp.right_color,'FontSize',fsz)
+    text(-.3125, max(ylim), ratname,'FontSize',fsz)
+
     ax.TickDir = 'out';
     xlabel(ax,'time from end of trial (s)')
     ylabel('stimulus weighting')
-    print(fh, fullfile(p.fig_dir, [ratname '_excess']),'-dsvg','-painters')
+    print(fh, fullfile(dp.fig_dir, [ratname '_excess']),'-dsvg','-painters')
 end
 
 
@@ -256,12 +351,12 @@ pbaspect(ax,[1 1.2 1])
 txt = text( 1,.65, 'rats (n=6)','color',[1 1 1].*.5,'FontSize',fsz)
 txt.FontSize = fsz;
 text(1, .6, 'mean','color','k','FontSize',fsz)
-print(fh, fullfile(p.fig_dir, ['population_chrono.svg']),'-dsvg',...
+print(fh, fullfile(dp.fig_dir, ['population_chrono.svg']),'-dsvg',...
     '-painters')
 
 
 %% panel G
-load(fullfile(p.data_dir,'group_analysis'),'F')
+load(fullfile(dp.data_dir,'group_analysis'),'F')
 %%
 [fh ax] = plot_noise_lambda_tradeoff(F,'ephys')
 
@@ -269,7 +364,7 @@ set(fh,'position',[2 5 fw fw], 'paperposition',[0 0 fw fw], ...
     'papersize',[fw+.5 fw+.5]);
 pbaspect(ax,[.9 1.2 1])
 ax.TickDir = 'out';
-print(fh, fullfile(p.fig_dir, ['lambda_tradeoff.svg']),'-dsvg',...
+print(fh, fullfile(dp.fig_dir, ['lambda_tradeoff.svg']),'-dsvg',...
     '-painters')
 
 
@@ -292,7 +387,7 @@ plotPsychometric(time_from_last(ind), model_h(ind),...
     'edges',tedges, 'axHandle',ax,'compute_fit',0,'plotfit',0,...
     'nbin',20,...
     'dataLineStyle','-','ploterrorbar',1,...
-    'dataShaded',1, 'dataColor', p.model_color)
+    'dataShaded',1, 'dataColor', dp.model_color)
 
 plotPsychometric(time_from_last(ind), h(ind),...
     'edges',tedges, 'axHandle',ax,'compute_fit',0,'plotfit',1,...
@@ -319,7 +414,7 @@ ylabel('prob. correct')
 set(ax,'yticklabel',{'.5' '' '' '' '' '1'})
 pbaspect(ax,[1 1.2 1])
 
-print(fh, fullfile(p.fig_dir, [ratname '_chrono.svg']),'-dsvg')
+print(fh, fullfile(dp.fig_dir, [ratname '_chrono.svg']),'-dsvg')
 
 
 %%
@@ -336,7 +431,7 @@ plotPsychometric(time_from_last(ind), model_h(ind),...
     'edges',tedges, 'axHandle',ax,'compute_fit',0,'plotfit',0,...
     'nbin',20,...
     'dataLineStyle','-','ploterrorbar',1,...
-    'dataShaded',1, 'dataColor', p.model_color)
+    'dataShaded',1, 'dataColor', dp.model_color)
 
 for ii = 2:length(ctbins)
     ind = T <= ctbins(ii-1) & T > ctbins(ii);
@@ -368,7 +463,7 @@ set(ax,'yticklabel',{'.5' '' '' '' '' '1'})
 hl=legend('model','short trials','long trials','location','eastoutside')
 box(hl,'off')
 hl.Position = hl.Position + [.0 -.225 0 0]
-print(fh, fullfile(p.fig_dir, [ratname '_chrono_short_long.svg']),'-dsvg')
+print(fh, fullfile(dp.fig_dir, [ratname '_chrono_short_long.svg']),'-dsvg')
 
 %%
 fh = figure(5);clf
