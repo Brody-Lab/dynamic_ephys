@@ -1,4 +1,48 @@
+dp = set_dyn_path;
+temp = dir(fullfile(dp.sta_dir,'model*/gain_change.mat'));
+%%
+do_print = 1;
+alpha = .05;
+edges = [0:alpha/2:1]
+fht = 2.5;
+fw = 1.75*fht;
+fh = figure(2);  clf
+set(fh,'position',[10 10 fw fht])
+ncells = sum(~isnan(diff_p));
 
+for ii = 1:length(temp);
+load(fullfile(temp(ii).folder,temp(ii).name),'real_diff','diff_p')
+[~, criterion_str] = fileparts(temp(ii).folder);
+sig_increase = diff_p>(1-alpha/2);
+sig_decrease = diff_p<(alpha/2);
+
+clf(fh);
+this_ax = axes();
+
+h = histogram(this_ax,diff_p,edges,'edgecolor',[1 1 1]*.3,'displaystyle','stairs');
+hold on
+histogram(this_ax,diff_p(sig_increase),h.BinEdges,'facecolor',[1 0 0].*1);
+histogram(this_ax,diff_p(sig_decrease),h.BinEdges,'facecolor',[0 0 1].*1);
+plot([0 1],ceil([1 1].*ncells*alpha/2),'m:')
+
+ylabel('# cells');
+xlabel(this_ax,{'gain change %tile in shuffle' });
+hl=legend('all cells','significant');
+set(hl,'location','eastoutside');
+box off;
+ylim([0 12])
+title({'switch histogram' strrep(criterion_str,'_','\_')},'fontweight','normal')
+fprintf('using criterion %s, %i%% of cells increased significantly (p<%.2f)',...
+  criterion_str, 100*nanmean(sig_increase),alpha)
+
+set(this_ax,'xtick',[alpha/2 0.5 1-alpha/2])
+
+if do_print
+    print(fh,fullfile(dp.fig_dir,...
+        [criterion_str '_gain_change_ptiles']),'-dsvg','-painters');
+end
+end
+%%
 sp = struct('which_switch', 'model',...
             'clear_bad_strengths', 1, 'bad_strength', 0, 'fit_line', 1,...
             't_buffers',[.2 .2], 'min_pre_dur', 0, 'min_post_dur', 0,...
@@ -6,33 +50,18 @@ sp = struct('which_switch', 'model',...
             'exclude_final',0,'final_only',0,'model_smooth_wdw',100);
 this_stadir = get_sta_dirname(sp);
 load(fullfile(this_stadir,   'post_switch_gain_workspace.mat'))
+
 %%
-do_print = 0;
-fht = 2.5;
-fw = 1.75*fht;
-alpha = .05;
-fh = figure(2); clf
-set(fh,'position',[10 10 fw fht])
-this_ax = axes();
-edges = [0:alpha/2:1]
+
 
 % histogram(this_ax,diff_p,edges,'facecolor',[1 1 1])
 % hold on
 % histogram(this_ax,diff_p(diff_p>.95),edges,'facecolor',[1 1 1].*0)
-ncells = sum(~isnan(diff_p));
-h = histogram(this_ax,diff_p,edges,'facecolor',[1 1 1])
-hold on
-histogram(this_ax,diff_p(diff_p>(1-alpha/2)),h.BinEdges,'facecolor',[1 1 1].*0)
-histogram(this_ax,diff_p(diff_p<(alpha/2)),h.BinEdges,'facecolor',[1 1 1].*0)
-plot([0 1],[1 1].*	,'r--')
-ylabel('# cells')
-xlabel(this_ax,{'modulation increase percentile rel. shuffle' })
-title('')
-hl=legend('all cells','significant')
-set(hl,'location','eastoutside')
-box off
-axis tight
-title('switch histogram','fontweight','normal')
+
+
+
+
+
 %plot([1 1].*mean(real_diff),ylim,'k')
 if do_print
     print(fh,fullfile(dp.fig_dir,...

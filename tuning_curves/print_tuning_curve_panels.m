@@ -1,4 +1,3 @@
-n_dv_bins   = 100;          % triggers rebinning, but not recompiling 
 krn_width   = 0.1;
 force_frdv  = 1;            % keep as one if rebinning
 force_bin   = 0;
@@ -22,7 +21,7 @@ direction   = 'backward';
 
 krn_type    = 'halfgauss';
 end_mask_s  = 0.0;
-alignment   = 'stimstart'; %'cpokeout'
+alignment   = 'stimstart'; 
 
 
 %% re-analyze cell 18181 
@@ -35,10 +34,17 @@ data = dyn_cell_packager(excellid);
 align_ind = strmatch(alignment,align_strs,'exact');
 nanfrates   = isnan(data.frate{align_ind});
 %%
+use_switches = 0;
+if use_switches
 which_switch    = 'model';
 switch_params   = struct('t_buffers', [.2 .2]);
+else
+    which_switch    = [];
+    switch_params   = [];
+end
 %%
 do_print        = 1;
+
 dv_bins         = linspace(-6.5,6.5,9);
 
 aticks      = [-7.5 -2.5 2.5 7.5];
@@ -49,6 +55,7 @@ switch_t0s  = [-.55:.025:.55];
 %dv_bins = 6;
 switch alignment
     case 'stimend'
+        max_dur = 2;
         t0s         = -1-lag:0.025:-0.1;  % 
         t0s         = -max_dur:0.025:-0.1-lag;  % 
     case 'stimstart'
