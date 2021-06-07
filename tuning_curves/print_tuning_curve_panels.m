@@ -34,7 +34,7 @@ data = dyn_cell_packager(excellid);
 align_ind = strmatch(alignment,align_strs,'exact');
 nanfrates   = isnan(data.frate{align_ind});
 %%
-use_switches = 0;
+use_switches = 1;
 if use_switches
 which_switch    = 'model';
 switch_params   = struct('t_buffers', [.2 .2]);
@@ -42,7 +42,7 @@ else
     which_switch    = [];
     switch_params   = [];
 end
-%%
+
 do_print        = 1;
 
 dv_bins         = linspace(-6.5,6.5,9);
@@ -377,7 +377,7 @@ for cc = 1:length(pop_cellids)
 end
 %% population level
 
-refit = 1;
+refit = 0;
 norm_type = 'none';
 frbins = [];
 demean_frates = 0;

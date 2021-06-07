@@ -42,9 +42,9 @@ cellpref = 'l';
 pd = S.pd{1};
 good = pd.hits & pd.sides==cellpref & ~pd.violations;
 which_trials = find(nswitches > 1 & pd.samples > 1 & good);
-ii = 1
+ii = 1;
 %egtrial = 51;
-tt = 2
+tt = 2;
 which_trial = which_trials(tt)
 data = data_full(which_trial);
 [model1,p]          = accumulation_model(data, params, ...
@@ -62,7 +62,24 @@ switch data(ii).pokedR
         chosen = 'right';
         unchosen = 'left';
 end
+%%
+sp = struct('clear_bad_strengths',1,'bad_strength',0,'fit_line',1,...
+    'exclude_final',0,'final_only',0,...
+    'min_pre_dur',0,'min_post_dur',0,...
+    'model_smooth_wdw',100,'t_buffers',[.2 .2]);
 
+[~, ~, array_data, vec_data] = ...
+    get_switches(cellid, ...
+    'which_switch','model',...
+    'clear_bad_strengths', sp.clear_bad_strengths, ...
+    'bad_strength', sp.bad_strength, 'fit_line', sp.fit_line,...
+    'exclude_final', sp.exclude_final, 'final_only', sp.final_only,...
+    'min_pre_dur',sp.min_pre_dur,'min_post_dur',sp.min_post_dur,...
+    'model_smooth_wdw', sp.model_smooth_wdw,...
+    't_buffers', sp.t_buffers);
+
+tn = find([array_data.trialnum]==which_trial);
+ad = array_data(tn);
 
 %% plot accumulator distribution and clicks for this trial
 SD  = get_sessdata(sessid);
@@ -95,6 +112,7 @@ plot_pdf(D_)
 
 pbaspect([2.5 1 1])
 ylim([-5.75 5.75 ])
+
 fht = 2.5;
 fw  = 3.75;
 set(fig,'position',[5 5 fw fht],'papersize', [fw fht])
@@ -144,6 +162,8 @@ ax2.Position = [pos(1) .125 pos(3) .2];
 hold(ax2,'on');
 state_switches = data.genSwitchTimes;
 
+D.model_switches = sort([ad.model_switch_to_0 ad.model_switch_to_1]);
+
 
 xlabel(ax2,'time from stim onset (s)');
 ax2.TickDir = 'out';
@@ -162,6 +182,7 @@ plot([D.right_clicks; D.right_clicks]', 2-[0;1],  '-', ...
 
 plot([D.state_switches; D.state_switches],3-[0;1],...
     '-','color', 'k','linewidth',2)
+
 plot([D.model_switches; D.model_switches],4-[0;1],...
     '-','color', 'r','linewidth',2)
 
@@ -193,6 +214,7 @@ krn=(krn)/sum(krn)/bin_size;
 %plot(ax3,t, fr,'k')
 hold(ax3,'on')
 
+model_mean = movmean(D.mean,100);
 
 end_state = data.genEndState;
 odd_nstates = mod(length(state_switches)+1,2);
@@ -217,13 +239,14 @@ for ss = 1:length(blocks)-1
     end
     
     patch(ax3,x([a a:b b a]),[0 y(a:b) 0 0],this_color,'edgecolor',this_color)
-    plot(ax3,x(a:b),y(a:b),'color',this_color,'linewidth',1.5)
+    plot(ax3,x(a:b),y(a:b),'color',this_color,'linewidth',1)
     alpha(.5)
     
     this_t_ = D.T >= blocks(ss) & D.T <= blocks(ss+1);
     a_ = find(this_t_,1,'first');
     b_ = find(this_t_,1,'last');
-    plot(ax(1),D.T(a_:b_),D.mean(a_:b_),'color',this_color,'linewidth',1)
+    plot(ax(1),D.T(a_:b_),model_mean(a_:b_),...
+        'color',this_color,'linewidth',1)
     
 end
 
@@ -237,13 +260,21 @@ set(ax3,'xlim',get(ax,'xlim'))
 ylabel(ax3,'spikes')
 xlabel(ax3,'time from stim onset (s)');
 
+ylim(ax(1),[-1 1 ].*5.75)
 %%
+ylim(ax3,[-5 100])
+fht = 2.5;
+fw  = 3.5;
+
 axpos = get(ax3,'position')
 set(fig, 'position', [5 5 fw fht])
-set(fh2, 'position', [5 10 fw 1.1*fht])
+set(fh2, 'position', [5 10 fw fht])
+%%
+
 %%
 fh2_name = fullfile(dp.fig_dir,['spikes_posterior_' chosen '_choice']);
-print(fh2, fh2_name,'-dsvg','-painters')
+fig_name = fullfile(dp.fig_dir,['model_posterior_' chosen '_choice']);
 
+print(fh2, fh2_name,'-dsvg','-painters')
 print(fig, fig_name,'-dsvg','-painters')
 

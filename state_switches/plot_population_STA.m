@@ -1,4 +1,4 @@
-function [fh ] = plot_population_STA(varargin)
+function [axsta ] = plot_population_STA(varargin)
 p = inputParser;
 addParameter(p, 'which_switch', 'model')
 addParameter(p, 'savefig', 1)
@@ -116,7 +116,7 @@ shadedErrorBar(plot_lags(posdex),nanmean(STR_npref_good(:,posdex)),...
 shadedErrorBar(plot_lags(posdex),nanmean(STR_pref_good(:,posdex)),...
     nansem(STR_pref_good(:,posdex)),{'color', dp.pref_color},[],sat-satdiff)
 axis tight
-ylim([-1 1]*.4)
+ylim([-1 1]*.425)
 set(axsta, 'ytick', [-.4 -.2 0 .2 .4])
 plot([0 0],ylim,'--k')
 xlim([min_t max_t])

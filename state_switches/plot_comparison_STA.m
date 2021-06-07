@@ -12,7 +12,7 @@ end
 dp = set_dyn_path;
 % make fig comparing fraction of cells for each alignment
 %%
-fh1 = figure(1); clf; hold on;
+fh1 = figure(11); clf; hold on;
 
 fht = 2;
 fw  = 3.75;

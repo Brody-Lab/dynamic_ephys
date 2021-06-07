@@ -4,7 +4,8 @@ which_switch = 'model';
 res =  compute_switch_triggered_average(cellid, 'force', 1,...
     'which_switch', which_switch, 'n_shuffles', 0, ...
     'save_file', 0,'min_pre_dur', .4, 'min_post_dur', .4,...
-    'include_str', 'true(size(data.trials.hit == 1))');
+    'include_str', 'true(size(data.trials.hit == 1))',...
+    't_buffers',[.2 .2]);
 STR_left    = res.STR_left_real;
 STR_right   = res.STR_right_real;
 lags        = res.lags;
@@ -73,7 +74,7 @@ set(ax1,'ytick',[], 'xtick', [])
 ax2.TickDir = 'out';
 box(ax2,'off')
 set(ax2,'ytick',[])
-xlabel(ax2,['time from ' which_switch ' state switch (s)']) 
+xlabel(ax2,['Time from ' which_switch ' state change (s)']) 
 ylabel(ax2,'state switch #') 
 ylabel(ax1,'state switch #') 
 hold(ax1,'on')

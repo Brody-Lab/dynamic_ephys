@@ -16,7 +16,7 @@ p.min_post_dur          = 0;
 
 p.which_switch          = 'model' ;
 cellid   = 18181;
-cellid = 16898;
+% cellid = 16898;
 
 
 p.remove_initial_choice = 0; %1;

@@ -1,4 +1,5 @@
 check_switch_inclusion;
+%%
 strength_histograms;
 %% plot example trial for explaining analysis for panel A
 posterior_example;
@@ -44,26 +45,21 @@ pop_sta_fn = @(which_switch,lag,recompute) plot_population_STA(...
     'min_t',min_t,'max_t',max_t,...
     'bad_strength', 0,...
     't_buffers', t_buffers);
-profile on
 
 
 axpopsta = pop_sta_fn('model',lag,recompute)
-profile off 
-profile report
+
 %%
 recompute = 0;
 axpopsta = pop_sta_fn('generative',lag,recompute)
 
-
 %%
-[fh ax] = plot_comparison_STA(which_correction_str,1);
-set(ax,'position',get(axsta,'position'))
+[fh, ax] = plot_comparison_STA(which_correction_str,1);
 xlim(ax,[-.55 .55])
 ylim(ax,[-.65 50])
 ylabel(ax,'% significant')
-
-ppos = [8 10 fw fht ]
-set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]))
-set(fh,'position',[2 5 fw fht],'papersize', [fw fht])
+set(fh,'position',get(figure(1),'position'))
+%%
+set(ax,'position',get(axpopsta,'position'))
 
 print(fh, fullfile(dp.fig_dir,['STA_comparison_' which_correction_str ]),fig_type,'-painters')
