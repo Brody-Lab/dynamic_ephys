@@ -34,7 +34,7 @@ data = dyn_cell_packager(excellid);
 align_ind = strmatch(alignment,align_strs,'exact');
 nanfrates   = isnan(data.frate{align_ind});
 %%
-use_switches = 1;
+use_switches = 1
 if use_switches
 which_switch    = 'model';
 switch_params   = struct('t_buffers', [.2 .2]);
@@ -142,7 +142,7 @@ ppos = [1 6 fw fht ];
 if ~isempty(which_switch)
     badtind = t0s_ > -.175 & t0s_ < .175;
     xlab = ['time from ' which_switch ' switch (s)'];
-    title_str = sprintf('cell %i $E[r(a,t-t_c)]$', res.cellid);
+    title_str = sprintf('cell %i $E[r|a,t-t_c]$', res.cellid);
 else
     badtind = t0s_ > Inf;
     switch alignment
@@ -151,7 +151,7 @@ else
         case 'stimend'
             xlab = 'time from stim off (s)';
     end
-    title_str = sprintf('cell %i $E[r(a,t)]$', res.cellid);
+    title_str = sprintf('cell %i $E[r|a,t]$', res.cellid);
 end
 
 
@@ -225,13 +225,13 @@ fgta_line_plot(res,'goodtind',~badtind,...
 %title(ax_r,'E[r(a,t)] - E[r(t)]','interpreter','latex')
 xlabel(xlab)
 ylabel({'\Delta FR (spikes/s)'})
-title(ax_r,'$E[\Delta r(a,t)]$ for cell 18181','interpreter','latex')
+title(ax_r,'$E[\Delta r|a,t]$ for cell 18181','interpreter','latex')
 
 if ~isempty(which_switch)
-    title_str = sprintf('cell %i $E[\\Delta r(a,t-t_c)]$', res.cellid);
+    title_str = sprintf('cell %i $E[\\Delta r|a,t-t_c]$', res.cellid);
     ylim(ax_r, [-1 1]*10)
 else
-    title_str = sprintf('cell %i $E[\\Delta r(a,t)]$', res.cellid);
+    title_str = sprintf('cell %i $E[\\Delta r|a,t]$', res.cellid);
     ylim(ax_r, [-1 1]*7)
 end
 title(title_str,'fontweight','normal','interpreter','latex')
@@ -239,6 +239,7 @@ title(title_str,'fontweight','normal','interpreter','latex')
 xlim(res.t0s([1 end]))
 hold on
 plot([0 0],ylim,'-k','linewidth',.1,'color',[1 1 1].*.5)
+axpos = get(gca,'position');
 print_fn(fh,'example_fgta_resid',fig_type);
 
 %%
@@ -246,23 +247,25 @@ fh = figure(4); clf
 ppos = [0 2 fw fht ];
 set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],...
     'papersize',ppos([3 4]));
-ax = axes;
+axt = axes;
+set(axt,'fontsize',12)
 fgta_plot_tuning(res,'plot_field','fga_resid_tmn', ...
-    'errorbar_field','fga_resid_std','ax',ax,'dvlims',dvlims,...
+    'errorbar_field','fga_resid_std','ax',axt,'dvlims',dvlims,...
     'linewidth', 1)
-pbaspect(ax, [1 1 1])
-title('$E[\Delta r(a)]$','interpreter','latex')
+pbaspect(axt, [1 1 1])
+
 
 xlabel('accumulated value (a)')
 ylabel({'\Delta FR (spikes/s)'})
 xlim(res.dv_axis([1 end])+[-1 1]);
-set(ax,'XTick',aticks);
+set(axt,'XTick',aticks);
 hold on
 ylim([-5 5]+[-.5 .5]);
 plot([0 0],ylim,'-k');
-
+tfsz = ax_r.Title.FontSize;
+title('$E[\Delta r|a]$','fontsize',tfsz,'fontweight','normal','interpreter','latex')
 %ylim(ax, [-1 1]*7)
-
+axt.Position([2 4]) = axpos([2 4]);
 print_fn(fh,'example_fga_tmn',fig_type);
 
 %%
@@ -377,7 +380,7 @@ for cc = 1:length(pop_cellids)
 end
 %% population level
 
-refit = 0;
+refit = 1;
 norm_type = 'none';
 frbins = [];
 demean_frates = 0;
