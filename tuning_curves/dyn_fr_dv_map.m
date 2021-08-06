@@ -39,6 +39,7 @@ addParameter(p,'min_switch_t',   0);
 addParameter(p,'max_switch_t', 2);
 addParameter(p,'switch_params', []);
 addParameter(p,'verbose', 0);
+addParameter(p,'bias_param', []);
 parse(p,varargin{:});
 p = p.Results;
 
@@ -86,6 +87,7 @@ if ~isfield(data.trials, 'trialnums')
             'krn_type', p.krn_type, 'bin_size', p.fr_dt,'repack',1);
     end
 end
+  
 
 % pull time axis associated with firing rates
 if isempty(p.ft)
@@ -168,6 +170,28 @@ mt_offset   = ref_times - ss_times;  % offset between model and fr_t on each tri
 
 sessid      = data.sessid;
 
+
+if isempty(p.model)
+    % only grab the trials that are in the data struct
+    model = get_data_model_p(data, trialnums);
+else
+    %warning('temporary fix to choose model trials')
+    if length(p.model) > length(which_trials)
+        model = get_data_model_p(p.model, trialnums(which_trials));
+    elseif length(p.model) == length(which_trials)
+        model = get_data_model_p(p.model, which_trials);
+    else
+        error('not sure what to do with model trialnums')
+    end
+    p.model = [];
+end
+    
+modelT  = cellfun(@(x) x.T(end), {model.posterior});
+
+if ~(all(abs(modelT(:)-T(:)) < .1))
+    warning('model T and T don''t match up perfectly')
+end
+
 if ~isempty(p.which_switch)
     sp = struct('which_switch',p.which_switch,...
             'clear_bad_strengths', 1, 'bad_strength', 0, 'fit_line', 1,...
@@ -207,26 +231,6 @@ end
 
 
 
-if isempty(p.model)
-    % only grab the trials that are in the data struct
-    model = get_data_model_p(data, trialnums);
-else
-    %warning('temporary fix to choose model trials')
-    if length(p.model) > length(which_trials)
-        model = get_data_model_p(p.model, trialnums(which_trials));
-    elseif length(p.model) == length(which_trials)
-        model = get_data_model_p(p.model, which_trials);
-    else
-        error('not sure what to do with model trialnums')
-    end
-    p.model = [];
-end
-    
-modelT  = cellfun(@(x) x.T(end), {model.posterior});
-
-if ~(all(abs(modelT(:)-T(:)) < .1))
-    warning('model T and T don''t match up perfectly')
-end
 %{
 there's some discrepancy between the time in the model posterior and the
 trial duration T which corresponds. you can see that here
@@ -480,15 +484,19 @@ a_given_tfr     = zeros(numel(res.t0s), numel(res.frbins));
 
 for tx = 1:numel(res.t0s) % iterate over timepoints
     
-    this_pfa = squeeze(res.pjoint_tfa(tx,:,:));
+    this_pfa = squeeze(res.pjoint_tfa(tx,:,:)); % p(r,a,t=tx) nfr x na
+    
     % normalize Pjoint to get firing rate tuning curve wrt a
-    this_fnorm = ones(size(this_pfa,1),1)*sum(this_pfa,1);
-    pj_given_a(tx,:,:) = this_pfa ./ this_fnorm;
+    this_fnorm = sum(this_pfa,1); % sum over r to get p(a, t=tx) na x 1;
+    
+    %this_fnorm = ones(size(this_pfa,1),1)*this_fnorm
+    
+    pj_given_a(tx,:,:) = this_pfa ./ this_fnorm; % p(r|a,t=tx) = p(r,a,t=tx) / p(a,t=tx)
     % normalize Pjoint to get a distribution wrt firing rate
     this_anorm = sum(this_pfa,2)*ones(1,size(this_pfa,2));
     pj_given_fr(tx,:,:)     = this_pfa ./ this_anorm;
     
-    fr_given_ta(tx,:)        = squeeze(pj_given_a(tx,:,:))'*res.frbins';
+    fr_given_ta(tx,:)        = squeeze(pj_given_a(tx,:,:))'*res.frbins'; % sum over r * p(r|a,t)
     fr_var_given_ta(tx,:)   = (squeeze(pj_given_a(tx,:,:))'*(res.frbins'.^2)) - ...
         (fr_given_ta(tx,:)'.^2);
     a_given_tfr(tx,:)       = squeeze(pj_given_fr(tx,:,:))*res.dv_axis';

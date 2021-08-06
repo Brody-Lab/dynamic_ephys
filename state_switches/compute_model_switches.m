@@ -10,6 +10,7 @@ addParameter(p,'bad_strength',0);
 addParameter(p,'fit_line',1);
 addParameter(p,'change_bounds',[0 0]);
 addParameter(p,'t_buffers',[0 0]);
+addParameter(p,'change_thresh', 0);
 
 parse(p,varargin{:});
 p = p.Results;
@@ -46,7 +47,7 @@ if ~isempty(p.model_smooth_wdw)
     end
 end
 % compute the model switch times
-array_data = compute_model_state(array_data, model_mean);
+array_data = compute_model_state(array_data, model_mean, p.change_thresh);
 
 array_data = quantify_model_state_strength(array_data,'eval_dt',p.eval_dt,...
     'strength_window', p.strength_window, 'fit_line', p.fit_line);

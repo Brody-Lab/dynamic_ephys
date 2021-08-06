@@ -22,6 +22,7 @@ addParameter(p,'strength_window', .1);
 addParameter(p,'model_smooth_wdw', 100);
 addParameter(p,'change_bounds', [0 0]);
 addParameter(p,'recompute_switches', 0);
+addParameter(p,'change_thresh', []);
 
 
 parse(p,varargin{:});
@@ -29,14 +30,21 @@ p = p.Results;
 
 array_data  = p.array_data;
 vec_data    = p.vec_data;
+dp = set_dyn_path;
 
 if isempty(array_data) || isempty(vec_data)
-    [array_data, vec_data, this_sessid] = package_dyn_phys(cellid);
+    [array_data, vec_data, this_sessid, ratname] = package_dyn_phys(cellid);
 else
     this_sessid = bdata('select sessid from cells where cellid={S}',cellid);
     if iscell(this_sessid)
         this_sessid = this_sessid{1};
     end
+end
+
+if isempty(p.change_thresh)
+    fit = fit_rat_analytical(ratname,'results_dir',dp.model_fits_dir);
+    bias_param = fit.final(end-1);
+    p.change_thresh = bias_param;
 end
 
 % align events to stimulus onset
@@ -59,7 +67,8 @@ switch p.which_switch
                 'bad_strength', p.bad_strength, 'fit_line', p.fit_line,...
                 'model_smooth_wdw',p.model_smooth_wdw,...
                 'change_bounds',p.change_bounds,...
-                't_buffers',p.t_buffers);
+                't_buffers',p.t_buffers,...
+                'change_thresh', p.change_thresh);
         end
         switch_to_0 = {array_data.model_switch_to_0};
         switch_to_1 = {array_data.model_switch_to_1};
