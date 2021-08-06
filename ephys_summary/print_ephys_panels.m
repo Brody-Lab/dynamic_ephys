@@ -147,6 +147,21 @@ end
 %%
 fprintf('number of cells: %i \n number of sessions: %i',...
     length(cellids), length(unique(sessids)))
+%%
+rats = dp.ratlist';
+
+ncells = nan(size(rats));
+nsess = nan(size(rats));
+for rr = 1:length(rats)
+    idx = sum(ratnames == rats{rr},2)==4;
+    ncells(rr) = sum(idx);
+    nsess(rr) = length(unique(sessids(idx)));
+end
+fprintf('\nmin/max cells: %i/%i \nmin/max sessions: %i/%i\n',...
+    min(ncells),max(ncells),min(nsess),max(nsess))
+fprintf('\nmean cells: %.2f \nmean sessions: %.2f\n',...
+    mean(ncells),mean(nsess))
+table(rats,ncells,nsess)
 %% plot example cells in panel B
 ppos = [8 10 fw fht ]
 cellid = 18181;
