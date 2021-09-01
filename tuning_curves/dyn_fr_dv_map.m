@@ -193,24 +193,7 @@ if ~(all(abs(modelT(:)-T(:)) < .1))
 end
 
 if ~isempty(p.which_switch)
-    sp = struct('which_switch',p.which_switch,...
-            'clear_bad_strengths', 1, 'bad_strength', 0, 'fit_line', 1,...
-            't_buffers',[0 0], 'min_pre_dur', 0, 'min_post_dur', 0,...
-            'min_switch_t',0,'max_switch_t',Inf,...
-            'exclude_final',0,'final_only',0,'model_smooth_wdw',100);
-        
-    if ~isempty(p.switch_params)
-        %sp = p.switch_params;
-        if isfield(p.switch_params,'which_switch')
-            assert(strcmp(p.switch_params.which_switch, p.which_switch));
-        end
-        spfields = fieldnames(p.switch_params);
-        for pp = 1:length(spfields)
-            spfield = spfields{pp};
-            sp.(spfield) = p.switch_params.(spfield);
-        end
-    end
-    p.switch_params = sp;
+    sp = get_switch_params(p.which_switch,p.switch_params);
     
     [switch_to_0, switch_to_1, ~, vd] = ...
         get_switches(cellid, 'which_switch',sp.which_switch,...
