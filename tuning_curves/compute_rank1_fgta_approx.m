@@ -54,7 +54,9 @@ rank_var = nan(nranks,1);
 for ii = 1:nranks
     rank_var(ii) = sum(s_squared(1:ii))./sum(s_squared);
 end
-
+res.u       = u;
+res.s       = diag(s);
+res.v       = v;
 res.u1      = u1;
 res.s1      = s1;
 res.v1      = v1;
