@@ -102,7 +102,11 @@ D.model_switch_y = -3.75;
 D.state_switch_y = -4.75;
 
 fig = figure(1); clf
-D.plot_mean_line = 0
+D.plot_mean_line = 0;
+D.plot_zero_line = 0;
+D.plot_bias_line = 1;
+D.bias_param    = params(end-1);
+
 D_ = D;
 D_ = rmfield(D_,'model_switches');
 D_ = rmfield(D_, 'state_switches');
@@ -125,27 +129,28 @@ set(gca,'fontsize',dp.fsz)
 % fig.PaperSize = [3 3];
 end_color = dp.model_color;
 
-colormap(colormapLinear(end_color).^2)
+colormap(colormapLinear(end_color).^1.5)
 
 %colormap(flipud(gray))
 box off
 ax = gca
 %ax.YColor = 'w'
 ax.TickDir = 'out'
-caxis([0 1])
+caxis([0 round(max(D.pdf(:))*10)/10])
+caxis([0 max(D.pdf(:))])
 
 pos = ax.Position;
 xlim([-0.05 max(xlim)])
 cb = colorbar
 
 cb.Position = cb.Position+[.0 .35 -.025 -.25];
-title(cb,{ 'posterior' 'p(a|\theta,choice)'})
+title(cb,{ 'p(a)'})
 ax.Position = pos;
 ylabel('accumulated evidence (a)')
 title('')
 xlabel('time from stim onset (s)')
 
-%%
+%
 ts = bdata('select ts from spktimes where cellid={S}',cellid);
 ts = ts{1};
 
@@ -154,7 +159,7 @@ cend_ts = cin_ts + data.T;
 this_ts = ts(ts > (cin_ts -5) & ts < (cend_ts + 5))';
 this_ts = this_ts - cin_ts;
 
-%% plot spikes and smoothed rates from same trial
+% plot spikes and smoothed rates from same trial
 fh2 = figure(2); clf
 fh2.Position = [5 9 6 3];
 ax2 = axes;
@@ -261,7 +266,7 @@ ylabel(ax3,'spikes')
 xlabel(ax3,'time from stim onset (s)');
 
 ylim(ax(1),[-1 1 ].*5.75)
-%%
+
 ylim(ax3,[-5 100])
 fht = 2.5;
 fw  = 3.5;
@@ -269,9 +274,7 @@ fw  = 3.5;
 axpos = get(ax3,'position')
 set(fig, 'position', [5 5 fw fht])
 set(fh2, 'position', [5 10 fw fht])
-%%
 
-%%
 fh2_name = fullfile(dp.fig_dir,['spikes_posterior_' chosen '_choice']);
 fig_name = fullfile(dp.fig_dir,['model_posterior_' chosen '_choice']);
 
