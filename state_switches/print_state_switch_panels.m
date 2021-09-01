@@ -39,13 +39,15 @@ switch cnum
 end
 which_correction_str = [which_correction_str  '_0']; 
 
+
+
 pop_sta_fn = @(which_switch,lag,recompute) plot_population_STA(...
     'which_switch',which_switch,...
     'recompute',recompute,'savefig',1,'correction_num',cnum,'lag',lag,...
     'min_t',min_t,'max_t',max_t,...
     'bad_strength', 0,...
     't_buffers', t_buffers);
-
+%%
 
 axpopsta = pop_sta_fn('model',lag,recompute)
 
@@ -58,8 +60,9 @@ axpopsta = pop_sta_fn('generative',lag,recompute)
 xlim(ax,[-.55 .55])
 ylim(ax,[-.65 50])
 ylabel(ax,'% significant')
-set(fh,'position',get(figure(1),'position'))
-%%
-set(ax,'position',get(axpopsta,'position'))
-
+set(fh,'position',get(figure(1),'position'),...
+    'papersize',get(figure(1),'papersize'),...
+    'paperposition',get(figure(1),'paperposition'))
+%set(ax,'position',get(axpopsta,'position'))
+%set(ax,'position',[2 5 fw fht])
 print(fh, fullfile(dp.fig_dir,['STA_comparison_' which_correction_str ]),fig_type,'-painters')
