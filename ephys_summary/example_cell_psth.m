@@ -24,6 +24,7 @@ addParameter(p,'couttrange',[-1.5 .75])
 addParameter(p,'fpos',[5 5 6 3])
 addParameter(p, 'cinstr', 'stimstart-cout-mask');
 addParameter(p, 'coutstr', 'cpokeout');
+addParameter(p, 'ploterrorbar', 0);
 parse(p,varargin{:});
 cintrange = p.Results.cintrange;
 couttrange = p.Results.couttrange;
@@ -40,6 +41,7 @@ do_pause = p.Results.pause;
 edges = p.Results.edges;
 separate_hits = p.Results.separate_hits;
 fig_num     = p.Results.fig_num;
+ploterrorbar = p.Results.ploterrorbar;
 
 if length(cell_to_plot) > 1 & ~meta
     for cc = 1:length(cell_to_plot)
@@ -47,7 +49,7 @@ if length(cell_to_plot) > 1 & ~meta
             cell_to_plot(cc), cc, length(cell_to_plot))
         example_cell_psth('cells',cell_to_plot(cc),...
             'type',type,'meta',meta,'norm',norm,'flip',flip,...
-            'edges',edges);
+            'edges',edges,'ploterrorbar',ploterrorbar);
         if do_pause
             pause();
             disp(cell_to_plot)
@@ -209,7 +211,9 @@ for bb = 1:nbins
     end
     
     cin_hit_psth = nanmean(cin_fr(trials,good_cint)./norm_f(trials));
+    cin_hit_psth_sem = nansem(cin_fr(trials,good_cint)./norm_f(trials));
     cout_hit_psth = nanmean(cout_fr(trials,good_coutt)./norm_f(trials));
+    cout_hit_psth_sem = nansem(cout_fr(trials,good_coutt)./norm_f(trials));
     psths = [psths ; cin_hit_psth cout_hit_psth];
     if show_errors
         err_color = this_color;
@@ -223,8 +227,17 @@ for bb = 1:nbins
         
     end
     
-    plot(ax(1),cin_t(good_cint),cin_hit_psth,'color',this_color,'linewidth',1.5);
-    plot(ax(2),cout_t(good_coutt),cout_hit_psth,'color',this_color,'linewidth',1.5);
+    if ploterrorbar
+        set(fh,'currentaxes',ax(1))
+        shadedErrorBar(cin_t(good_cint),cin_hit_psth,cin_hit_psth_sem,...
+            {'color',this_color,'linewidth',1.5,'parent', ax(1)});
+        set(fh,'currentaxes',ax(2))
+        shadedErrorBar(cout_t(good_coutt),cout_hit_psth, cout_hit_psth_sem,...
+            {'color',this_color,'linewidth',1.5,'parent', ax(2)});
+    else
+        plot(ax(1),cin_t(good_cint),cin_hit_psth,'color',this_color,'linewidth',1.5);
+        plot(ax(2),cout_t(good_coutt),cout_hit_psth,'color',this_color,'linewidth',1.5);
+    end
     
 end
 linkaxes(ax,'y')
