@@ -26,6 +26,7 @@ dp              = set_dyn_path;
 max_t           = p.max_t;
 min_t           = p.min_t;
 fig_type        = p.fig_type;
+
 [res, cellids, computed, not_computed] = ...
     load_STA_population(which_switch, 'force',force,'slim_data',1,...
     'bad_strength', p.bad_strength, ...
@@ -365,7 +366,7 @@ plot([.1 .1], ylim, 'r--')
 plot([0 0], [-1 100], 'k--')
 ylabel('Significant cells (% of total)')
 xlabel(['time from ' which_switch ' switch (s)'])
-pbaspect([1 1 1]);
+%pbaspect([1 1 1]);
 xlim([-.45 .75])
 ax.TickDir = 'out'
 box(ax,'off')
