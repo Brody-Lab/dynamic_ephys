@@ -1,5 +1,9 @@
 function [fh ax] = example_cell_psth(varargin)
-
+% function [fh ax] = example_cell_psth(varargin) 
+% example usage 
+% [fh, ax] = example_cell_psth('cells', cellid,...
+%     'cintrange', xlim_on, 'couttrange', xlim_off, ...
+%     'coutstr', 'stimend-nomask', 'fig_num', 2)
 
 p = inputParser;
 addParameter(p,'cells',[ 16857 17784 18181 ]);
@@ -17,6 +21,7 @@ addParameter(p,'fig_num',1)
 addParameter(p,'repack',0)
 addParameter(p,'cintrange',[-1 1.5])
 addParameter(p,'couttrange',[-1.5 .75])
+addParameter(p,'fpos',[5 5 6 3])
 addParameter(p, 'cinstr', 'stimstart-cout-mask');
 addParameter(p, 'coutstr', 'cpokeout');
 parse(p,varargin{:});
@@ -30,6 +35,7 @@ type = p.Results.type;
 meta = p.Results.meta;
 norm = p.Results.norm;
 flip = p.Results.flip;
+fpos = p.Results.fpos;
 do_pause = p.Results.pause;
 edges = p.Results.edges;
 separate_hits = p.Results.separate_hits;
@@ -179,7 +185,7 @@ err = hit == 0;
 good = T > min_t;
 
 fh = figure(fig_num); clf
-set(fh,'position',[5 5 6 3 ],'papersize',[6 3],'paperpositionmode','auto')
+set(fh,'position',fpos,'papersize',fpos([3 4]),'paperpositionmode','auto')
 
 ax(1) = subplot(121);hold(ax(1),'on');
 ax(2) = subplot(122);hold(ax(2),'on');
