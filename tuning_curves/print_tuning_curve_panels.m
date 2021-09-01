@@ -380,7 +380,7 @@ for cc = 1:length(pop_cellids)
 end
 %% population level
 
-refit = 1;
+refit = 0;
 norm_type = 'none';
 frbins = [];
 demean_frates = 0;
@@ -388,7 +388,7 @@ zscore_frates = 1;
 
 switch which_switch
     case ''
-        fun = @() pop_dyn_fr_dv_map(pop_cellids, pop_sessids,...
+        fun = @(pop_cellids) pop_dyn_fr_dv_map(pop_cellids, pop_sessids,...
             't0s', t0s, 'lag', lag, ...
             'alignment', alignment,...
             'krn_width', krn_width, 'krn_type', krn_type,...
@@ -398,7 +398,7 @@ switch which_switch
         
         fig_prefix = '';
     case 'model'
-        fun = @() pop_dyn_fr_dv_map(pop_cellids, pop_sessids,...
+        fun = @(pop_cellids) pop_dyn_fr_dv_map(pop_cellids, pop_sessids,...
             't0s', switch_t0s, 'lag', lag, ...
             'alignment', alignment,...
             'krn_width', krn_width, 'krn_type', krn_type,...
@@ -409,7 +409,7 @@ switch which_switch
             'switch_params',switch_params);
         fig_prefix = 'modelswitch_';
     case 'generative'
-        fun = @() pop_dyn_fr_dv_map(pop_cellids, pop_sessids,...
+        fun = @(pop_cellids) pop_dyn_fr_dv_map(pop_cellids, pop_sessids,...
             't0s', switch_t0s, 'lag', lag, ...
             'alignment', alignment,...
             'krn_width', krn_width, 'krn_type', krn_type,...
@@ -421,21 +421,25 @@ switch which_switch
         fig_prefix = 'genswitch_';
 end
 
+sp = get_switch_params(which_switch,switch_params);
+
 if zscore_frates
     fig_prefix = [fig_prefix 'zscore_'];
 end
 
-if refit | ~exist(fn,'file')
-    pop_res = fun();
-    keyboard
-    if isempty(which_switch)
-        fn = fullfile(dp.model_fits_dir, ['pop_' fig_prefix...
-            'tuning_res.mat']);
-    else
-        stadir = get_sta_dirname(pop_res(1).params.switch_params);
-        fn = fullfile(stadir, ['pop_' fig_prefix...
-            'tuning_res.mat']);
+if isempty(which_switch)
+    fn = fullfile(dp.model_fits_dir, ['pop_' fig_prefix...
+        'tuning_res.mat']);
+else
+    stadir = get_sta_dirname(sp);
+    fn = fullfile(stadir, ['pop_' fig_prefix...
+        'tuning_res.mat']);
 end
+
+if refit | ~exist(fn,'file')
+    keyboard
+pop_res = fun(pop_cellids);
+    
     save(fn, 'pop_res','-v7.3')
 else
     load(fn,'pop_res')
@@ -537,10 +541,11 @@ fh = figure(3); clf
 set(fh,'position',[5 5 fht fht])
 histogram(all_var)
 fprintf(['\nfor single cells, svd rank 1 explains an average of '...
-    '%.1f %% of the variance SD %.1f%% \n'],100*mean(all_var),100*std(all_var))
+    '%.1f %% of the variance SD %.1f%% \n'],...
+    100*mean(all_var),100*std(all_var))
 
-%%
-fprintf('\n population average svd rank 1 explains %.1f %% of the variance\n',100*tempres.rank_var(1))
+fprintf('\n population average svd rank 1 explains %.1f %% of the variance\n',...
+    100*tempres.rank_var(1))
 
 %%
 pref_clr = [.8 .25 .8];
