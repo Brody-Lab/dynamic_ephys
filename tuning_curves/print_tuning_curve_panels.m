@@ -21,10 +21,10 @@ direction   = 'backward';
 
 krn_type    = 'halfgauss';
 end_mask_s  = 0.0;
-alignment   = 'stimstart'; 
+alignment   = 'stimstart';
 
 
-%% re-analyze cell 18181 
+%% re-analyze cell 18181
 excellid = 18181;
 data = dyn_cell_packager(excellid);
 [~, vec_data, ~,~] = get_behavior_data(dp.spikes_dir, ...
@@ -34,12 +34,12 @@ data = dyn_cell_packager(excellid);
 align_ind = strmatch(alignment,align_strs,'exact');
 nanfrates   = isnan(data.frate{align_ind});
 %%
-use_switches = 1
+use_switches = 0
 if use_switches
-which_switch    = 'model';
-switch_params   = struct('t_buffers', [.2 .2]);
+    which_switch    = 'model';
+    switch_params   = struct('t_buffers', [.2 .2]);
 else
-    which_switch    = [];
+    which_switch    = '';
     switch_params   = [];
 end
 
@@ -56,10 +56,10 @@ switch_t0s  = [-.55:.025:.55];
 switch alignment
     case 'stimend'
         max_dur = 2;
-        t0s         = -1-lag:0.025:-0.1;  % 
-        t0s         = -max_dur:0.025:-0.1-lag;  % 
+        t0s         = -1-lag:0.025:-0.1;  %
+        t0s         = -max_dur:0.025:-0.1-lag;  %
     case 'stimstart'
-        t0s         = 0.1:0.025:max_dur-lag;  % 
+        t0s         = 0.1:0.025:max_dur-lag;  %
 end
 
 min_switch_t = 0;
@@ -103,7 +103,7 @@ if use_fake
         'shuffle_switches', do_shuffle_switches,...
         'min_switch_t',min_switch_t, 'max_switch_t',max_switch_t,...
         'shuffle_trials_fixing_choice',do_shuffle_fixing_choice);
-
+    
     print_fn = @(fh, str, fig_type) print(fh,fullfile(dp.fig_dir,...
         ['fake_' str switch_str]),fig_type,'-painters');
     
@@ -123,7 +123,7 @@ else
         'min_switch_t',min_switch_t, 'max_switch_t',max_switch_t,...
         'shuffle_trials_fixing_choice',do_shuffle_fixing_choice);
     
-
+    
     print_fn = @(fh, str, fig_type) print(fh,fullfile(dp.fig_dir,[str switch_str]),...
         fig_type,'-painters')
 end
@@ -133,7 +133,7 @@ res = res_fn(do_shuffle_switches, model, t0s_);
 
 if ~do_print
     print_fn = @(fh, str, fig_type) fh;
-end 
+end
 
 %%
 fprintf('\nsvd rank 1 explains %.1f %% of the variance\n',100*res.rank_var(1))
@@ -194,7 +194,7 @@ ax = axes;
 title(title_str,'fontweight','normal', 'interpreter', 'latex');
 xlabel(xlab);
 if demean_frates
-     ylabel('\Delta FR (spikes/s)');
+    ylabel('\Delta FR (spikes/s)');
 else
     ylabel('FR (spikes/s)');
     %ylabel('firing rate (spikes/s)')
@@ -318,7 +318,7 @@ print_fn(fh,'example_rank1_tuning',fig_type);
 %     fgta_plot_tuning(res_,'plot_field',ra_field, ...
 %     'errorbar_field','','ax',ax,'dvlims',dvlims, 'linewidth', 1,...
 %     'linecolor',[1 1 1].*.5)
-% 
+%
 % end
 % %%
 fh = figure(6); clf
@@ -347,18 +347,18 @@ end
 xlim(x([1 end]))
 
 if ~isempty(which_switch)
-title_str = 'rank 1 $\hat{m}(t-t_c)$';
+    title_str = 'rank 1 $\hat{m}(t-t_c)$';
 else
     title_str = 'rank 1 $\hat{m}(t)$';
 end
 
-    title(title_str,'interpreter','latex')
+title(title_str,'interpreter','latex')
 xlabel(xlab)
 ylabel(mt_ylab)
 box off
 ax.TickDir = 'out';
 cb = colorbar
-drawnow 
+drawnow
 pos = get(ax,'position')
 delete(cb)
 set(ax,'position',pos)
@@ -373,7 +373,7 @@ pop_cellids = pop_cellids(1:end);
 
 %pop_cellids = [18181 17784 ]%16857  ];
 pop_sessids = zeros(size(pop_cellids));
-
+%%
 for cc = 1:length(pop_cellids)
     pop_sessids(cc) = bdata(['select sessid from cells where ' ...
         'cellid={S}'],pop_cellids(cc));
@@ -384,255 +384,270 @@ refit = 0;
 norm_type = 'none';
 frbins = [];
 demean_frates = 0;
-zscore_frates = 1;
-
-switch which_switch
-    case ''
-        fun = @(pop_cellids) pop_dyn_fr_dv_map(pop_cellids, pop_sessids,...
-            't0s', t0s, 'lag', lag, ...
-            'alignment', alignment,...
-            'krn_width', krn_width, 'krn_type', krn_type,...
-            'norm_type', norm_type,'shuffle_trials',0,...
-            'demean_frates',demean_frates,'zscore_frates',zscore_frates,...
-            'n_dv_bins',dv_bins,'end_mask_s',end_mask_s);
-        
-        fig_prefix = '';
-    case 'model'
-        fun = @(pop_cellids) pop_dyn_fr_dv_map(pop_cellids, pop_sessids,...
-            't0s', switch_t0s, 'lag', lag, ...
-            'alignment', alignment,...
-            'krn_width', krn_width, 'krn_type', krn_type,...
-            'norm_type', norm_type,'shuffle_trials',0,...
-            'n_dv_bins',dv_bins,'end_mask_s',end_mask_s,...
-            'demean_frates',demean_frates,'zscore_frates',zscore_frates,...
-            'which_switch','model',...
-            'switch_params',switch_params);
-        fig_prefix = 'modelswitch_';
-    case 'generative'
-        fun = @(pop_cellids) pop_dyn_fr_dv_map(pop_cellids, pop_sessids,...
-            't0s', switch_t0s, 'lag', lag, ...
-            'alignment', alignment,...
-            'krn_width', krn_width, 'krn_type', krn_type,...
-            'norm_type', norm_type,'shuffle_trials',0,...
-            'n_dv_bins',dv_bins,'end_mask_s',end_mask_s,...
-            'demean_frates',demean_frates,'zscore_frates',zscore_frates,...
-            'which_switch','generative',...
-            'switch_params',switch_params);
-        fig_prefix = 'genswitch_';
-end
-
-sp = get_switch_params(which_switch,switch_params);
-
-if zscore_frates
-    fig_prefix = [fig_prefix 'zscore_'];
-end
-
-if isempty(which_switch)
-    fn = fullfile(dp.model_fits_dir, ['pop_' fig_prefix...
-        'tuning_res.mat']);
-else
-    stadir = get_sta_dirname(sp);
-    fn = fullfile(stadir, ['pop_' fig_prefix...
-        'tuning_res.mat']);
-end
-
-if refit | ~exist(fn,'file')
-    keyboard
-pop_res = fun(pop_cellids);
+%%
+for zscore_frates = 0:1;
+    %%
+    switch which_switch
+        case ''
+            fun = @(pop_cellids) pop_dyn_fr_dv_map(pop_cellids, pop_sessids,...
+                't0s', t0s, 'lag', lag, ...
+                'alignment', alignment,...
+                'krn_width', krn_width, 'krn_type', krn_type,...
+                'norm_type', norm_type,'shuffle_trials',0,...
+                'demean_frates',demean_frates,'zscore_frates',zscore_frates,...
+                'n_dv_bins',dv_bins,'end_mask_s',end_mask_s);
+            
+            fig_prefix = '';
+        case 'model'
+            fun = @(pop_cellids) pop_dyn_fr_dv_map(pop_cellids, pop_sessids,...
+                't0s', switch_t0s, 'lag', lag, ...
+                'alignment', alignment,...
+                'krn_width', krn_width, 'krn_type', krn_type,...
+                'norm_type', norm_type,'shuffle_trials',0,...
+                'n_dv_bins',dv_bins,'end_mask_s',end_mask_s,...
+                'demean_frates',demean_frates,'zscore_frates',zscore_frates,...
+                'which_switch','model',...
+                'switch_params',switch_params);
+            fig_prefix = 'modelswitch_';
+        case 'generative'
+            fun = @(pop_cellids) pop_dyn_fr_dv_map(pop_cellids, pop_sessids,...
+                't0s', switch_t0s, 'lag', lag, ...
+                'alignment', alignment,...
+                'krn_width', krn_width, 'krn_type', krn_type,...
+                'norm_type', norm_type,'shuffle_trials',0,...
+                'n_dv_bins',dv_bins,'end_mask_s',end_mask_s,...
+                'demean_frates',demean_frates,'zscore_frates',zscore_frates,...
+                'which_switch','generative',...
+                'switch_params',switch_params);
+            fig_prefix = 'genswitch_';
+    end
     
-    save(fn, 'pop_res','-v7.3')
-else
-    load(fn,'pop_res')
-end
-
-%% plot population level results
-%close all
-do_normalize_tuning = -0;
-
-fignamefun = @(x) fullfile(dp.fig_dir,[fig_prefix x]);
-print_fn = @(fh,x,fig_type) print(fh,fignamefun(x),fig_type,'-painters');
-
-
-ra_field = 'rank1_ra_n';
-mt_field = 'rank1_mt_n';
-
-mt = [pop_res.(mt_field)]';
-ra = [pop_res.(ra_field)]';
-
-if do_normalize_tuning
-    ra = ra - min(ra,[],2);
-    ra = ra ./ max(ra,[],2);
-    ylab = {'fractional change' 'in firing rate r'}
-else
-    ylab = '\Delta FR';
-end
-
-
-dv_axis = pop_res(1).dv_axis;
-flip_cell = mean(ra(:,dv_axis>0),2) < mean(ra(:,dv_axis<0),2);
-
-pop_fgta = cat(3,pop_res.fr_given_ta);
-pop_fgta_r = cat(3,pop_res.fgta_resid);
-
-ra(flip_cell,:) = fliplr(ra(flip_cell,:));
-pop_fgta_r(:,:,flip_cell) = fliplr(pop_fgta_r(:,:,flip_cell)); 
-pop_fgta(:,:,flip_cell) = fliplr(pop_fgta(:,:,flip_cell)); 
-
-mean_pop_fgta_r = mean(pop_fgta_r,3);
-mean_pop_fgta = mean(pop_fgta,3);
-tempres = pop_res(1);
-tempres.fgta_resid = mean_pop_fgta_r;
-tempres.fr_given_ta = mean_pop_fgta;
-
-tempres = compute_rank1_fgta_approx(tempres,'which_map','fr_given_ta');
-tempres.dv_axis = dv_axis;
-
-fh = figure(1); clf
-set(fh,'position',[5 5 fw fht])
-set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]))
-
-x = pop_res.t0s;
-plot(x([1 end]),[0 0],'k')
-hold on
-plot(x,mt,'color',[1 1 1].*.7)
-plot(x,mean(mt),'k','linewidth',2)
-%errorbar(x,mean(mt),1.96*nansem(mt),'linewidth',lw,'color','k','capsize',0)
-box off
-
-xlabel(xlab)
-xlim(x([1 end]))
-cb = colorbar
-if zscore_frates
-ylabel({'modulation' '(z-scores)'})
-end
-
-drawnow
-pos = get(gca,'position')
-
-delete(cb)
-set(gca,'position',pos)
-print_fn(fh,['selective_' mt_field],fig_type)
-
-fh = figure(11); clf
-set(fh,'position',[5 5 fht fht])
-xx = pop_res.dv_axis;
-plot(xx,ra,'color',[.5 .5 .5])
-hold on
-plot(xx,mean(ra),'k','linewidth',2)
-%errorbar(xx,mean(ra),1.96*sem(ra),'linewidth',lw,'color','k','capsize',0)
-
-%ylim([-6 6])
-box off
-ylabel(ylab)
-xlabel('accumulated value (a)')
-xlim(tempres.dv_axis([1 end])+[-1 1])
-if ~do_normalize_tuning & strcmp(ra_field, 'rank1_ra_n')
-    ylim([-.61 .61])
-elseif do_normalize_tuning
-    ylim([-.1 1.1])
-end
-%ylim([-5.5 5.5])
-set(gca, 'TickDir', 'out')
-print_fn(fh,['selective_' ra_field],fig_type)
-%%
-all_var = horzcat(pop_res.rank_var);
-all_var = all_var(1,:);
-fh = figure(3); clf
-set(fh,'position',[5 5 fht fht])
-histogram(all_var)
-fprintf(['\nfor single cells, svd rank 1 explains an average of '...
-    '%.1f %% of the variance SD %.1f%% \n'],...
-    100*mean(all_var),100*std(all_var))
-
-fprintf('\n population average svd rank 1 explains %.1f %% of the variance\n',...
-    100*tempres.rank_var(1))
-
-%%
-pref_clr = [.8 .25 .8];
-npref_clr = [.8 .65 .25];
-fh = figure(21); clf
-
-set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]))
-ax = axes;
-fgta_line_plot(tempres,'goodtind',~badtind,'ax',ax,...
-    'plot_field','fr_given_ta','dvlims',dvlims,...
-    'up_clr', pref_clr, 'down_clr', npref_clr);
-ylabel(ax,'\Delta FR (z-score)')
-xlabel(ax,xlab)
-title('population average','interpreter','latex')
-ylim([-1 1].*.175)
-print_fn(fh,'pop_fgta',fig_type)
-%% population average residual map
-
-fh = figure(20); clf
-ppos = [1 1 fw fht ]
-
-set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]))
-ax = axes;
-
-
-[ax, cb] = fgta_line_plot(tempres,'goodtind',~badtind,'ax',ax,...
-    'plot_field','fgta_resid','dvlims',dvlims,...
-    'up_clr', [.8 .25 .8], 'down_clr', [.8 .65 .25]);
-ylabel(ax,'\Delta FR (z-score)')
-title('average of selective cells','interpreter','latex')
-xlabel(xlab)
-if isempty(which_switch)
-    ylim([-1 1].*.125)
-else
-    ylim([-1 1].*.15)
-end
-title(cb,{'a for ' 'pref. side'})
-d = 1/length(tempres.dv_axis)
-drawnow
-axpos = get(ax,'position')
-cb.Ticks = [0 1] + [1 -1]*(d*1.5);
-cb.Position = cb.Position + [0.02 .15 -.02 -.4];
-cb.TickLabels = round(10*tempres.dv_axis([2 end-1]))/10;
-
-set(ax,'position',get(ax_r,'position'),'ytick',[-.1 0 .1])
-print_fn(fh,'pop_fgta_resid',fig_type)
-
-
-%% POP TUNING + MOD
-do_normalize_tuning = 0
-this_tmn = tempres.(ra_field);
-
-if do_normalize_tuning
+    sp = get_switch_params(which_switch,switch_params);
+    
+    if zscore_frates
+        fig_prefix = [fig_prefix 'zscore_'];
+    end
+    
+    if isempty(which_switch)
+        fn = fullfile(dp.model_fits_dir, ['pop_' fig_prefix...
+            'tuning_res.mat']);
+    else
+        stadir = get_sta_dirname(sp);
+        fn = fullfile(stadir, ['pop_' fig_prefix...
+            'tuning_res.mat']);
+    end
+    
+    if refit | ~exist(fn,'file')
+        %keyboard
+        pop_res = fun(pop_cellids);
+        
+        save(fn, 'pop_res','-v7.3')
+    else
+        load(fn,'pop_res')
+    end
+    
+    
+    % plot population level results
+    %close all
+    do_normalize_tuning = -0;
+    
+    fignamefun = @(x) fullfile(dp.fig_dir,[fig_prefix x]);
+    print_fn = @(fh,x,fig_type) print(fh,fignamefun(x),fig_type,'-painters');
+    
+    
+    ra_field = 'rank1_ra_n';
+    mt_field = 'rank1_mt_n';
+    
+    mt = [pop_res.(mt_field)]';
+    ra = [pop_res.(ra_field)]';
+    
+    if do_normalize_tuning
+        ra = ra - min(ra,[],2);
+        ra = ra ./ max(ra,[],2);
+        ylab = {'fractional change' 'in firing rate r'}
+    else
+        ylab = '\Delta FR';
+    end
+    
+    
+    dv_axis = pop_res(1).dv_axis;
+    flip_cell = mean(ra(:,dv_axis>0),2) < mean(ra(:,dv_axis<0),2);
+    
+    pop_fgta = cat(3,pop_res.fr_given_ta);
+    pop_fgta_r = cat(3,pop_res.fgta_resid);
+    
+    ra(flip_cell,:) = fliplr(ra(flip_cell,:));
+    pop_fgta_r(:,:,flip_cell) = fliplr(pop_fgta_r(:,:,flip_cell));
+    pop_fgta(:,:,flip_cell) = fliplr(pop_fgta(:,:,flip_cell));
+    
+    mean_pop_fgta_r = mean(pop_fgta_r,3);
+    mean_pop_fgta = mean(pop_fgta,3);
+    tempres = pop_res(1);
+    tempres.fgta_resid = mean_pop_fgta_r;
+    tempres.fr_given_ta = mean_pop_fgta;
+    
+    tempres = compute_rank1_fgta_approx(tempres,'which_map','fr_given_ta');
+    tempres.dv_axis = dv_axis;
+    
+    fh = figure(1); clf
+    set(fh,'position',[5 5 fw fht])
+    set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]))
+    
+    x = pop_res.t0s;
+    plot(x([1 end]),[0 0],'k')
+    hold on
+    plot(x,mt,'color',[1 1 1].*.7)
+    plot(x,mean(mt),'k','linewidth',2)
+    %errorbar(x,mean(mt),1.96*nansem(mt),'linewidth',lw,'color','k','capsize',0)
+    box off
+    
+    xlabel(xlab)
+    xlim(x([1 end]))
+    cb = colorbar
+    if zscore_frates
+        ylabel({'modulation' '(z-scores)'})
+    end
+    
+    drawnow
+    pos = get(gca,'position')
+    
+    delete(cb)
+    set(gca,'position',pos)
+    print_fn(fh,['selective_' mt_field],fig_type)
+    
+    fh = figure(11); clf
+    set(fh,'position',[5 5 fht fht])
+    xx = pop_res.dv_axis;
+    plot(xx,ra,'color',[.5 .5 .5])
+    hold on
+    plot(xx,mean(ra),'k','linewidth',2)
+    %errorbar(xx,mean(ra),1.96*sem(ra),'linewidth',lw,'color','k','capsize',0)
+    
+    %ylim([-6 6])
+    box off
+    ylabel(ylab)
+    xlabel('accumulated value (a)')
+    xlim(tempres.dv_axis([1 end])+[-1 1])
+    if ~do_normalize_tuning & strcmp(ra_field, 'rank1_ra_n')
+        ylim([-.61 .61])
+    elseif do_normalize_tuning
+        ylim([-.1 1.1])
+    end
+    %ylim([-5.5 5.5])
+    set(gca, 'TickDir', 'out')
+    print_fn(fh,['selective_' ra_field],fig_type)
+    %%
+    all_var = horzcat(pop_res.rank_var);
+    all_var = all_var(1,:);
+    fh = figure(3); clf
+    set(fh,'position',[5 5 fht fht])
+    histogram(all_var)
+    fprintf(['\nfor single cells, svd rank 1 explains an average of '...
+        '%.1f %% of the variance SD %.1f%% \n'],...
+        100*mean(all_var),100*std(all_var))
+    
+    fprintf('\n population average svd rank 1 explains %.1f %% of the variance\n',...
+        100*tempres.rank_var(1))
+    
+    %%
+    pref_clr = [.8 .25 .8];
+    npref_clr = [.8 .65 .25];
+    fh = figure(21); clf
+    
+    set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]))
+    ax = axes;
+    fgta_line_plot(tempres,'goodtind',~badtind,'ax',ax,...
+        'plot_field','fr_given_ta','dvlims',dvlims,...
+        'up_clr', pref_clr, 'down_clr', npref_clr);
+    ylabel(ax,'\Delta FR (z-score)')
+    xlabel(ax,xlab)
+    title('population average','interpreter','latex')
+    if zscore_frates
+        ylim([-1 1].*.13)
+        set(ax, 'ytick', [-.1 0 .1])
+    end
+    print_fn(fh,'pop_fgta',fig_type)
+    %% population average residual map
+    
+    fh = figure(20); clf
+    ppos = [1 1 fw fht ]
+    
+    set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]))
+    ax = axes;
+    
+    
+    [ax, cb] = fgta_line_plot(tempres,'goodtind',~badtind,'ax',ax,...
+        'plot_field','fgta_resid','dvlims',dvlims,...
+        'up_clr', [.8 .25 .8], 'down_clr', [.8 .65 .25]);
+    ylabel(ax,'\Delta FR (z-score)')
+    title('average of selective cells','interpreter','latex')
+    xlabel(xlab)
+    if zscore_frates 
+        if isempty(which_switch)
+        ylim([-1 1].*.125)
+        else
+        ylim([-1 1].*.15)
+        end
+        set(ax,'ytick',[-.1 0 .1])
+    else
+        ylim([-1 1].*max(abs(ylim)))
+    end
+    title(cb,{'a for ' 'pref. side'})
+    d = 1/length(tempres.dv_axis)
+    drawnow
+    axpos = get(ax,'position')
+    cb.Ticks = [0 1] + [1 -1]*(d*1.5);
+    cb.Position = cb.Position + [0.02 .15 -.02 -.4];
+    cb.TickLabels = round(10*tempres.dv_axis([2 end-1]))/10;
+    
+    set(ax,'position',get(ax_r,'position'))
+    print_fn(fh,'pop_fgta_resid',fig_type)
+    
+    
+    %% POP TUNING + MOD
+    do_normalize_tuning = 0
     this_tmn = tempres.(ra_field);
-    this_tmn_ = this_tmn - min(this_tmn)
-    tempres.(ra_field) = this_tmn_;
+    
+    if do_normalize_tuning
+        this_tmn = tempres.(ra_field);
+        this_tmn_ = this_tmn - min(this_tmn)
+        tempres.(ra_field) = this_tmn_;
+    end
+    mt_ylab = 'FR modulation (z-score)';
+    
+    fh = figure(7); clf
+    ppos = [5 2 fw fht ]
+    set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],...
+        'papersize',ppos([3 4]))
+    ax = axes;
+    fgta_plot_tuning(tempres,'linecolor','k',...
+        'plot_field',ra_field, ...
+        'errorbar_field','','ax',ax,'dvlims',dvlims,'linewidth',1,...
+        'up_clr',pref_clr, 'dwn_clr', npref_clr)
+    hold(ax,'on')
+    pbaspect(ax, [1 1 1])
+    set(ax,'XTick',aticks)
+    title('rank 1 $\hat{f}(a)$','interpreter','latex')
+    xlabel('accumulated value (a)')
+    ylabel(ra_ylab)
+    if zscore_frates 
+        ylim([-.55 .55])
+    end
+    %
+    plot([0 0],ylim,'-','color',[1 1 1]*.8)
+    box off
+    ax.TickDir = 'out';
+    drawnow
+    xlim(res.dv_axis([1 end])+[-1 1])
+    xx = tempres.dv_axis;
+    this_b = fit_four_param_psycho(xx(:),this_tmn(:));
+    %plot(xx,fourParamPsychometric(this_b, xx(:))+min(this_tmn(:)),'r');
+    slope_pop_mean = prod(this_b([2 3]))/4;
+    
+    print_fn(fh,'pop_ra',fig_type)
 end
-mt_ylab = 'FR modulation (z-score)';
-
-fh = figure(7); clf
-ppos = [5 2 fw fht ]
-set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],...
-    'papersize',ppos([3 4]))
-ax = axes;
-fgta_plot_tuning(tempres,'linecolor','k',...
-    'plot_field',ra_field, ...
-    'errorbar_field','','ax',ax,'dvlims',dvlims,'linewidth',1,...
-    'up_clr',pref_clr, 'dwn_clr', npref_clr)
-hold(ax,'on')
-pbaspect(ax, [1 1 1])
-set(ax,'XTick',aticks)
-title('rank 1 $\hat{f}(a)$','interpreter','latex')
-xlabel('accumulated value (a)')
-ylabel(ra_ylab)
-ylim([-.55 .55])
-plot([0 0],ylim,'-','color',[1 1 1]*.8)
-box off
-ax.TickDir = 'out';
-drawnow
-xlim(res.dv_axis([1 end])+[-1 1])
-xx = tempres.dv_axis;
-this_b = fit_four_param_psycho(xx(:),this_tmn(:));
-%plot(xx,fourParamPsychometric(this_b, xx(:))+min(this_tmn(:)),'r');
-slope_pop_mean = prod(this_b([2 3]))/4;
-
-print_fn(fh,'pop_ra',fig_type)
-
+%%
+keyboard
 %%
 if ~isempty(which_switch)
     temp = load(fullfile(dp.model_fits_dir, ['pop_tuning_res.mat']));
@@ -645,7 +660,7 @@ if ~isempty(which_switch)
     
     ra_ = [pop_res_.(ra_field)]';
     flip_cell_ = mean(ra_(:,dv_axis>0),2) < mean(ra_(:,dv_axis<0),2);
-
+    
     
     ra_(flip_cell_,:) = fliplr(ra_(flip_cell_,:));
     
@@ -662,14 +677,14 @@ if ~isempty(which_switch)
     tempres_ = compute_rank1_fgta_approx(tempres_,'which_map','fr_given_ta');
     tempres_.dv_axis = dv_axis;
     fgta_plot_tuning(tempres_,'plot_field',ra_field, ...
-    'errorbar_field','','ax',ax,'dvlims',dvlims, 'linewidth', 1,...
-    'linecolor',[1 0 1].*.5)
-%%
-tempflip = res_;
-tempflip.(ra_field) = -(tempflip.(ra_field));
-fgta_plot_tuning(tempflip,'plot_field',ra_field, ...
-    'errorbar_field','','ax',ax,'dvlims',dvlims, 'linewidth', 2,...
-    'linecolor',[1 0 1].*.5)
+        'errorbar_field','','ax',ax,'dvlims',dvlims, 'linewidth', 1,...
+        'linecolor',[1 0 1].*.5)
+    %%
+    tempflip = res_;
+    tempflip.(ra_field) = -(tempflip.(ra_field));
+    fgta_plot_tuning(tempflip,'plot_field',ra_field, ...
+        'errorbar_field','','ax',ax,'dvlims',dvlims, 'linewidth', 2,...
+        'linecolor',[1 0 1].*.5)
 end
 %%
 
@@ -756,22 +771,22 @@ for ii = 1:length(pop_res)
     this_tmn = this_tmn - min(this_tmn);
     this_tmn = this_tmn ./ max(this_tmn);
     tmns(ii,:) = this_tmn';
-
+    
     b(ii,:) = fit_four_param_psycho(xx(:),this_tmn(:))
     
     subplot(121); cla
     plot(xx,fourParamPsychometric(b(ii,:), xx(:)),'r');
     hold on
     plot(xx,this_tmn,'k.-');
-       ylim([0 1])
+    ylim([0 1])
     
     subplot(122);
     
     hold on
     plot(xx,this_tmn,'.-','color',[.5 .5 .5]);
-       ylim([0 1])
+    ylim([0 1])
     drawnow
- 
+    
     %%
     %pause()
 end
@@ -798,7 +813,7 @@ print_fn(fh,['pop_slopes' slope_field],fig_type)
 
 debugcell = 18181;
 debugsessid = bdata(['select sessid from cells where cellid={S}'],...
-	debugcell); %#ok<NBRAK>
+    debugcell); %#ok<NBRAK>
 
 dv_bins = [ -8:.25:8 ];
 %dv_bins = 20;
@@ -880,7 +895,7 @@ fgta_plot_tuning(res_xval1,'linecolor','k',...
     'errorbar_field','fga_std','ax',ax,'dvlims',dvlims)
 hold(ax,'on')
 fgta_plot_tuning(res_xval2,'linecolor','r',...
-'plot_field','fga_tmn', ...
+    'plot_field','fga_tmn', ...
     'errorbar_field','fga_std','ax',ax,'dvlims',dvlims)
 pbaspect(ax, [1 1 1])
 title('E[r(a)]','interpreter','latex')
@@ -900,7 +915,7 @@ fgta_plot_tuning(res_xval1,'linecolor','k',...
     'errorbar_field','','ax',ax,'dvlims',dvlims)
 hold(ax,'on')
 fgta_plot_tuning(res_xval2,'linecolor','r',...
-'plot_field','rank1_ra_nm', ...
+    'plot_field','rank1_ra_nm', ...
     'errorbar_field','','ax',ax,'dvlims',dvlims)
 %pbaspect(ax, [1 1 1])
 title('rank 1 $\hat{f}(a)$','interpreter','latex')
@@ -919,12 +934,15 @@ ylabel('\Delta FR')
 box off
 ax.TickDir = 'out';
 cb = colorbar
-drawnow 
+drawnow
 pos = get(ax,'position')
 delete(cb)
 set(ax,'position',pos)
 legend('split 1','split 2','location','southeast')
 %print(fh,fignamefun('example_rank1_mod'),'-dsvg','-painters')
+
+
+
 
 %% SWITCH
 
@@ -978,7 +996,7 @@ switch which_switch
     case 'model'
         badtind = pop_res(1).t0s > -.15 & pop_res(1).t0s < .15;
 end
-       
+
 %%
 ra_field = 'rank1_ra_n';
 
@@ -1042,7 +1060,7 @@ hold on
 plot([0 0],ylim,':k')
 ylim([-.55 .55])
 %print_fn(fh,'example_rank1_mod',fig_type);
-% 
+%
 % hold on
 % plot(res.dv_axis, ra_shuffle)
 
@@ -1205,7 +1223,7 @@ ylabel('\Delta FR')
 box off
 ax.TickDir = 'out';
 cb = colorbar
-drawnow 
+drawnow
 pos = get(ax,'position')
 delete(cb)
 hold on
