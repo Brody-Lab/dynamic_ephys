@@ -219,21 +219,36 @@ for bb = 1:nbins
         err_color = this_color;
         %err_color = cm_(bb,:);
         cin_err_psth = nanmean(cin_fr(this  &  err,good_cint)./norm_f(this&  err));
+        cin_err_psth_sem = nansem(cin_fr(this  &  err,good_cint)./norm_f(this&  err));
         cout_err_psth = nanmean(cout_fr(this  & err,good_coutt)./norm_f(this&  err));
+        cout_err_psth_sem = nansem(cout_fr(this  & err,good_coutt)./norm_f(this&  err));
         psths = [psths ; cin_err_psth cout_err_psth];
         
-        plot(ax(1),cin_t(good_cint),cin_err_psth,'--','color',err_color,'linewidth',1);
-        plot(ax(2),cout_t(good_coutt),cout_err_psth,'--','color',err_color,'linewidth',1);
+        
+        plot(ax(1),cin_t(good_cint),cin_err_psth,'--','color',err_color,'linewidth',1.5);
+        plot(ax(2),cout_t(good_coutt),cout_err_psth,'--','color',err_color,'linewidth',1.5);
+        
+%             if ploterrorbar
+%                 set(fh,'currentaxes',ax(1))
+%                 shadedErrorBar(cin_t(good_cint),cin_err_psth,cin_err_psth_sem,...
+%                     {'color',this_color,'linewidth',1.5,'parent', ax(1)},1);
+%                 set(fh,'currentaxes',ax(2))
+%                 shadedErrorBar(cout_t(good_coutt),cout_err_psth, cout_err_psth_sem,...
+%                     {'color',this_color,'linewidth',1.5,'parent', ax(2)},1);
+%             else
+%                 plot(ax(1),cin_t(good_cint),cin_err_psth,'--','color',err_color,'linewidth',1);
+%                 plot(ax(2),cout_t(good_coutt),cout_err_psth,'--','color',err_color,'linewidth',1);
+%             end
         
     end
     
     if ploterrorbar
         set(fh,'currentaxes',ax(1))
         shadedErrorBar(cin_t(good_cint),cin_hit_psth,cin_hit_psth_sem,...
-            {'color',this_color,'linewidth',1.5,'parent', ax(1)});
+            {'linestyle','-','color',this_color,'linewidth',1,'parent', ax(1)},1);
         set(fh,'currentaxes',ax(2))
         shadedErrorBar(cout_t(good_coutt),cout_hit_psth, cout_hit_psth_sem,...
-            {'color',this_color,'linewidth',1.5,'parent', ax(2)});
+            {'linestyle','-','color',this_color,'linewidth',1,'parent', ax(2)},1);
     else
         plot(ax(1),cin_t(good_cint),cin_hit_psth,'color',this_color,'linewidth',1.5);
         plot(ax(2),cout_t(good_coutt),cout_hit_psth,'color',this_color,'linewidth',1.5);
