@@ -290,7 +290,7 @@ sig_cells = prefp < prefpth;
 good_cells  = active_cells & sig_cells;
 fprintf(['n good cells = ' num2str(sum(good_cells))])
 fprintf('\n%.1f %% (%i/%i) of active cells are signficant',...
-    100*sum(good_cells)/sum(active_cells),sum(sig_cells),sum(active_cells))
+    100*sum(good_cells)/sum(active_cells),sum(sig_cells&active_cells),sum(active_cells))
 
 edges = [-2 -.5 -.25  0  .25 .5  2];
 pref_color  = [.8 .25 .8];
@@ -359,9 +359,6 @@ if ~exist(cout_auc_file) | recompute
 else
     load(cout_auc_file);
 end
-
-%%
-%for 
 
 %% plot sorted auc
 %box(s(ii),'off')
