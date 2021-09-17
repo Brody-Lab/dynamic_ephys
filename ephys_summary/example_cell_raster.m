@@ -162,11 +162,7 @@ if meta
         bot = p.Results.bot_color;
     end
     %top = [.75 .75 .25];
-    
-    
-    
-    
-    
+
     cm_bot = colormapLinear(bot, ceil(nbins/2));
     cm_top = colormapLinear(top, ceil(nbins/2));
     cm = [cm_bot(end:-1:2,:); cm_top(2:end,:)];
@@ -208,8 +204,8 @@ for bb = 1:nbins
     cin_hit_psth = (cin_fr(trials,good_cint)./norm_f(trials));
     cout_hit_psth = (cout_fr(trials,good_coutt)./norm_f(trials));
     psths = [psths ; cin_hit_psth cout_hit_psth];
-    cin_raster = [cin_raster; cin_hit_psth]
-    cout_raster = [cout_raster; cout_hit_psth]
+    cin_raster = [cin_raster; cin_hit_psth];
+    cout_raster = [cout_raster; cout_hit_psth];
 
     if show_errors
         err_color = this_color;
@@ -218,8 +214,8 @@ for bb = 1:nbins
         cout_err_psth = (cout_fr(this  & err,good_coutt)./norm_f(this&  err));
         psths = [psths ; cin_err_psth cout_err_psth];
         
-        cin_raster = [cin_raster; cin_err_psth]
-        cout_raster = [cout_raster; cout_err_psth]
+        cin_raster = [cin_raster; cin_err_psth];
+        cout_raster = [cout_raster; cout_err_psth];
         
         
     end

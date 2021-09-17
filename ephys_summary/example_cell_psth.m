@@ -49,7 +49,7 @@ if length(cell_to_plot) > 1 & ~meta
             cell_to_plot(cc), cc, length(cell_to_plot))
         example_cell_psth('cells',cell_to_plot(cc),...
             'type',type,'meta',meta,'norm',norm,'flip',flip,...
-            'edges',edges,'ploterrorbar',ploterrorbar);
+            'edges',edges,'ploterrorbar',ploterrorbar,'repack',repack);
         if do_pause
             pause();
             disp(cell_to_plot)
@@ -79,7 +79,9 @@ cout_fr     = [];
 norm_f      = [];
 end_state_s = [];
 
+
 for cc = 1:ncells
+    fprintf('cell %i (%i/%i)...',     cell_to_plot(cc), cc, ncells);
     d       = dyn_cell_packager(cell_to_plot(cc),'repack',repack);
     
     if ~isfield(d.trials,'end_state_dur')
@@ -168,12 +170,8 @@ if meta
     if ~isempty(p.Results.bot_color)
         bot = p.Results.bot_color;
     end
-    %top = [.75 .75 .25];
-    
-    
-    
-    
-    
+    bot = [.75 .75 .25];
+   
     cm_bot = colormapLinear(bot, ceil(nbins/2));
     cm_top = colormapLinear(top, ceil(nbins/2));
     cm = [cm_bot(end:-1:2,:); cm_top(2:end,:)];
@@ -224,21 +222,24 @@ for bb = 1:nbins
         cout_err_psth_sem = nansem(cout_fr(this  & err,good_coutt)./norm_f(this&  err));
         psths = [psths ; cin_err_psth cout_err_psth];
         
-        
-        plot(ax(1),cin_t(good_cint),cin_err_psth,'--','color',err_color,'linewidth',1.5);
-        plot(ax(2),cout_t(good_coutt),cout_err_psth,'--','color',err_color,'linewidth',1.5);
-        
-%             if ploterrorbar
-%                 set(fh,'currentaxes',ax(1))
-%                 shadedErrorBar(cin_t(good_cint),cin_err_psth,cin_err_psth_sem,...
-%                     {'color',this_color,'linewidth',1.5,'parent', ax(1)},1);
-%                 set(fh,'currentaxes',ax(2))
-%                 shadedErrorBar(cout_t(good_coutt),cout_err_psth, cout_err_psth_sem,...
-%                     {'color',this_color,'linewidth',1.5,'parent', ax(2)},1);
-%             else
-%                 plot(ax(1),cin_t(good_cint),cin_err_psth,'--','color',err_color,'linewidth',1);
-%                 plot(ax(2),cout_t(good_coutt),cout_err_psth,'--','color',err_color,'linewidth',1);
-%             end
+%         
+%         plot(ax(1),cin_t(good_cint),cin_err_psth,'--','color',err_color,'linewidth',1.5);
+%         plot(ax(2),cout_t(good_coutt),cout_err_psth,'--','color',err_color,'linewidth',1.5);
+%         
+            if ploterrorbar
+                %%
+                hsvcolor = rgb2hsv(this_color)
+                this_color_light = hsv2rgb([hsvcolor(1) .35 .9]);
+                set(fh,'currentaxes',ax(1))
+                shadedErrorBar(cin_t(good_cint),cin_err_psth,cin_err_psth_sem,...
+                    {'linestyle','--','color',this_color_light,'linewidth',1.5,'parent', ax(1)},1);
+                set(fh,'currentaxes',ax(2))
+                shadedErrorBar(cout_t(good_coutt),cout_err_psth, cout_err_psth_sem,...
+                    {'linestyle','--','color',this_color_light,'linewidth',1.5,'parent', ax(2)},1);
+            else
+                plot(ax(1),cin_t(good_cint),cin_err_psth,'--','color',err_color,'linewidth',1);
+                plot(ax(2),cout_t(good_coutt),cout_err_psth,'--','color',err_color,'linewidth',1);
+            end
         
     end
     
