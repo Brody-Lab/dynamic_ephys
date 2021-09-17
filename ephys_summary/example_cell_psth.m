@@ -25,6 +25,7 @@ addParameter(p,'fpos',[5 5 6 3])
 addParameter(p, 'cinstr', 'stimstart-cout-mask');
 addParameter(p, 'coutstr', 'cpokeout');
 addParameter(p, 'ploterrorbar', 0);
+addParameter(p, 'errorbarfun', @nansem);
 parse(p,varargin{:});
 cintrange = p.Results.cintrange;
 couttrange = p.Results.couttrange;
@@ -42,6 +43,7 @@ edges = p.Results.edges;
 separate_hits = p.Results.separate_hits;
 fig_num     = p.Results.fig_num;
 ploterrorbar = p.Results.ploterrorbar;
+errorbarfun = p.Results.errorbarfun;
 
 if length(cell_to_plot) > 1 & ~meta
     for cc = 1:length(cell_to_plot)
@@ -209,17 +211,17 @@ for bb = 1:nbins
     end
     
     cin_hit_psth = nanmean(cin_fr(trials,good_cint)./norm_f(trials));
-    cin_hit_psth_sem = nansem(cin_fr(trials,good_cint)./norm_f(trials));
+    cin_hit_psth_sem = errorbarfun(cin_fr(trials,good_cint)./norm_f(trials));
     cout_hit_psth = nanmean(cout_fr(trials,good_coutt)./norm_f(trials));
-    cout_hit_psth_sem = nansem(cout_fr(trials,good_coutt)./norm_f(trials));
+    cout_hit_psth_sem = errorbarfun(cout_fr(trials,good_coutt)./norm_f(trials));
     psths = [psths ; cin_hit_psth cout_hit_psth];
     if show_errors
         err_color = this_color;
         %err_color = cm_(bb,:);
         cin_err_psth = nanmean(cin_fr(this  &  err,good_cint)./norm_f(this&  err));
-        cin_err_psth_sem = nansem(cin_fr(this  &  err,good_cint)./norm_f(this&  err));
+        cin_err_psth_sem = errorbarfun(cin_fr(this  &  err,good_cint)./norm_f(this&  err));
         cout_err_psth = nanmean(cout_fr(this  & err,good_coutt)./norm_f(this&  err));
-        cout_err_psth_sem = nansem(cout_fr(this  & err,good_coutt)./norm_f(this&  err));
+        cout_err_psth_sem = errorbarfun(cout_fr(this  & err,good_coutt)./norm_f(this&  err));
         psths = [psths ; cin_err_psth cout_err_psth];
         
 %         
