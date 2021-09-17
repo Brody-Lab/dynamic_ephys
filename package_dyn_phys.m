@@ -97,8 +97,26 @@ state_0_entries = extract_event(peh,'state_0(2,1)');
 % times relative to state_0
 cpoke_start = extract_event(peh,'cpoke1(end,1)') - state_0_exits;
 cpoke_end   = extract_event(peh,'cpoke1(end,2)') - state_0_exits;
+wait_spoke  = extract_event(peh, 'wait_for_spoke(end,1)') - state_0_exits;
 sstr        = 'u = find(pk.C(:,1)<ps.wait_for_spoke(end,1),1,''last''); this_trial=pk.C(u,2)';
 cpoke_out   = extract_alignment(sessid, sstr, peh) - state_0_exits;
+
+err_in      = extract_event(peh, 'error_state1(1)') ;
+hit_in      = extract_event(peh, 'hit_state(1)') ;
+lh_in       = extract_event(peh, 'left_reward(1)');
+rh_in       = extract_event(peh, 'right_reward(1)');
+side_in     = nansum([err_in, lh_in, rh_in], 2);
+errfn       = @(x) nan;
+%%
+temp_        = cellfun(@(x,y) find(x.C(:,1)< y,1,'last') , {peh.pokes}', ...
+    num2cell(side_in), 'uniformoutput', 0, 'errorhandler', errfn);
+temp_        = cellfun(@(x,y) max(x.C(y,:)) , {peh.pokes}', ...
+    temp_, 'uniformoutput', 0, 'errorhandler', errfn);
+temp = cell2num(temp_) - state_0_exits;
+cpoke_out   = temp;
+%%
+
+side_in     = side_in - state_0_exits;
 pokedR      = (pd.sides=='r' & pd.hits==1) | (pd.sides=='l' & pd.hits==0);
 spoke_in    = nan * ones(size(cpoke_start));
 gamma       = nan * ones(size(cpoke_start));
@@ -126,11 +144,12 @@ end;
 good = find(pd.violations == 0);
 for i=1:length(peh)
     if isnan(cpoke_start(i))
-        disp('Weird trial! no cpoke')
+        fprintf('\nWeird trial! no cpoke. wait for cpoke dur = %i',...
+            round(diff(peh(i).states.wait_for_cpoke1)))
         good(good == i) = [];
         stim_start_delay(i) = NaN;
     elseif isempty(peh(i).waves.sound_on)
-        disp('Weird trial! no sound_on')
+        fprintf('\nWeird trial! no sound_on')
         good(good == i) = [];
         stim_start_delay(i) = NaN;
     else
