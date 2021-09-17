@@ -72,11 +72,16 @@ switch krn_type
         krn=normpdf(-dx:dx,0,krn_width/bin_size);
         krn(1:dx)=0;
         krn=(krn)/sum(krn)/bin_size;
+        normalize_krn = 1;
     case 'fullgauss'
         % make half gaussian causal kernel
         dx=ceil(5*krn_width/bin_size);
         krn=normpdf(-dx:dx,0,krn_width/bin_size);
         krn=(krn)/sum(krn)/bin_size;
+        normalize_krn = 1;
+    case 'raster'
+        krn = 1;
+        normalize_krn = 0;
     otherwise
         error('Do not recognize krn_type')
 end
@@ -86,7 +91,9 @@ end
 n_bins = ceil((pre+post)/bin_size);
 y = nan*ones(length(array_data),n_bins);
 for j=1:length(array_data)
-    [y(j,:), x] = spike_filter(ref(j),array_data(j).spikes,krn,'pre',pre,'post',post,'kernel_bin_size',bin_size);
+    [y(j,:), x] = spike_filter(ref(j), array_data(j).spikes, krn,...
+        'pre', pre, 'post', post, 'kernel_bin_size', bin_size,...
+        'normalize_krn', normalize_krn);
 end
 
 
