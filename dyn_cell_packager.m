@@ -14,7 +14,7 @@
 %
 
 
-function [data] = dyn_cell_packager(cellid, varargin)
+function [data, array_data, vec_data] = dyn_cell_packager(cellid, varargin)
 
 p = inputParser();
 addParameter(p, 'repack', false);
