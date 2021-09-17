@@ -12,12 +12,13 @@ assert(all([~isempty(cout_align_ind),~isempty(cin_align_ind)]));
 % figures
 long_trial_dur = 1;
 long_trials_only = false;
-
+ploterrorbar = 1;
+coutstr = 'cpokeout';
+repack  = 1;
 %% get full cell_list; *all* units recorded in project
 cell_list = dyn_cells_db;   % That has to be run once to create cell_list
 normmnth = 1;
 prefpth  = .05;
-
 %%
 fht = 2.5;
 fw = 1.75*fht;
@@ -26,8 +27,8 @@ set(0, 'defaultaxesfontsize',fsz);
 set(0,'defaultaxeslinewidth',1)
 xlim_on = [-.55 1.5];
 xlim_off = [-1.55 .5];
-xlim_on = [-.55 1.25];
-xlim_off = [-1.25 .55];
+% xlim_on = [-.55 1.25];
+% xlim_off = [-1.25 .55];
 %%
 [~, align_args]      = dyn_align_LUT;
 cellid = 18181;
@@ -166,7 +167,9 @@ table(rats,ncells,nsess)
 ppos = [8 10 fw fht ]
 cellid = 18181;
 [fh, ax] = example_cell_psth('cells',cellid,...
-    'cintrange',xlim_on,'couttrange',xlim_off,'coutstr','stimend-nomask','fig_num',2)
+    'cintrange',xlim_on,'couttrange',xlim_off,...
+    'coutstr',coutstr,'fig_num',2, ...
+    'ploterrorbar',ploterrorbar,'repack',repack)
 
 ylim(ax,[14 60])
 xlim(ax(1),xlim_on)
@@ -177,18 +180,17 @@ ax(2).YTickLabel = {};
 
 set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],...
     'papersize',ppos([3 4]))
-%pbaspect(ax(1),[1 .8 1])
-%pbaspect(ax(2),[1 .8 1])
+pbaspect(ax(1),[1 .8 1])
+pbaspect(ax(2),[1 .8 1])
 
 print(fh, fullfile(dp.psth_fig_dir, ['cell_' num2str(cellid) ]),...
     '-dsvg', '-painters')
-
 %%
 cellid = 16857;
-[fh ax] = example_cell_psth('cells',cellid)%,'coutstr','stimend-no')
-% [fh ax] = example_cell_psth('cells',cellid,...
-%      'cintrange',xlim_on,'couttrange',xlim_off,'coutstr','stimend-nomask','fig_num',2)
-
+[fh, ax] = example_cell_psth('cells',cellid,...
+    'cintrange',xlim_on,'couttrange',xlim_off,...
+    'coutstr',coutstr,'fig_num',2, ...
+    'ploterrorbar',ploterrorbar,'repack',repack)
 ylim(ax,[0 20])
 xlim(ax(1),xlim_on)
 xlim(ax(2),xlim_off)
@@ -204,10 +206,10 @@ print(fh, fullfile(dp.psth_fig_dir, ['cell_' num2str(cellid) ]),...
 
 %%
 cellid = 17784;
-[fh ax] = example_cell_psth('cells',cellid)
-% [fh, ax] = example_cell_psth('cells',cellid,...
-%     'cintrange',xlim_on,'couttrange',xlim_off,'coutstr','stimend-nomask','fig_num',2)
-
+[fh, ax] = example_cell_psth('cells',cellid,...
+    'cintrange',xlim_on,'couttrange',xlim_off,...
+    'coutstr',coutstr,'fig_num',2, ...
+    'ploterrorbar',ploterrorbar,'repack',repack)
 ylim(ax,[0 40])
 xlim(ax(1),xlim_on)
 xlim(ax(2),xlim_off)
@@ -219,7 +221,57 @@ pbaspect(ax(2),[1 .8 1])
 set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]))
 print(fh, fullfile(dp.psth_fig_dir, ['cell_' num2str(cellid) ]),...
     '-dsvg', '-painters')
+%% raster plots
+ppos = [8 10 fw fht ]
+cellid = 18181;
+[fh, ax] = example_cell_raster('cells',cellid,...
+    'cintrange',xlim_on,'couttrange',xlim_off,...
+    'coutstr',coutstr,'fig_num',2,'repack',0);
 
+% % ylim(ax,[14 60])
+% % xlim(ax(1),xlim_on)
+% % xlim(ax(2),xlim_off)
+% ax(1).YTick = [15:15:60];
+% ax(2).YTick = [15:15:60];
+% ax(2).YTickLabel = {};
+set(ax(1),'ZLim',get(ax(2),'Zlim'))
+set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],...
+    'papersize',ppos([3 4]))
+pbaspect(ax(1),[1 .8 1])
+pbaspect(ax(2),[1 .8 1])
+%%
+[d, array_data, vec_data]       = dyn_cell_packager(cellid, 'repack', 1)
+%%
+print(fh, fullfile(dp.psth_fig_dir, ['cell_' num2str(cellid) '_raster' ]),...
+    '-dsvg', '-painters')
+%%
+cin_ind = cin_t>-.25 & cin_t<2;%5;
+good_cells1 = mean(cin_psth_hit(:,cin_ind,1,1),2) > 2;
+mn_fr       = nanmean(cin_psth(:,:,1,1),2);
+mn_fr       = nanmean(cin_psth(:, cin_t > 0, 1, 1),2);
+active_cells = mn_fr > normmnth;
+sig_cells = prefp < prefpth;
+good_cells  = active_cells & sig_cells;
+fprintf(['n good cells = ' num2str(sum(good_cells))])
+fprintf('\n%.1f %% (%i/%i) of active cells are signficant',...
+    100*sum(good_cells)/sum(active_cells),sum(sig_cells&active_cells),sum(active_cells))
+
+%%
+[fh, ax] = example_cell_psth('cells',cellids(good_cells),...
+    'ploterrorbar',1,'meta',1,...
+    'cintrange',xlim_on,'couttrange',xlim_off,...
+    'coutstr',coutstr,'fig_num',2, 'norm', 'onset', 'repack',repack)
+
+xlim(ax(1),xlim_on)
+xlim(ax(2),xlim_off)
+% ax(1).YTick = [15:15:60];
+% ax(2).YTick = [15:15:60];
+ax(2).YTickLabel = {};
+pbaspect(ax(1),[1 .8 1])
+pbaspect(ax(2),[1 .8 1])
+set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]))
+print(fh, fullfile(dp.psth_fig_dir, 'selective_cells_psth'),...
+    '-dsvg', '-painters')
 
 
 
@@ -232,11 +284,11 @@ print(fh, fullfile(dp.psth_fig_dir, ['cell_' num2str(cellid) ]),...
 % the heldout data
 plot_sorting_data = true;
 % decide which timepoints to use for the plot
-cin_ind = cin_t>-.25 & cin_t<2;%5;
+
 cout_ind = cout_t>-.25;
 save_2name = 'sequence_plot';
 
-good_cells = mean(cin_psth_hit(:,cin_ind,1,1),2) > 2;
+
 pref_r = nanmean(cin_psth_hit(:,:,rind,1),2) > nanmean(cin_psth_hit(:,:,lind,1),2);
 
 cin_psth_hit_pref           = vertcat(cin_psth_hit(good_cells&pref_r,:,rind,1), ...
@@ -283,14 +335,6 @@ tB = cout_t(cout_ind);
 
 
 %% plot chronometric population psth 
-mn_fr       = nanmean(cin_psth(:,:,1,1),2);
-mn_fr       = nanmean(cin_psth(:, cin_t > 0, 1, 1),2);
-active_cells = mn_fr > normmnth;
-sig_cells = prefp < prefpth;
-good_cells  = active_cells & sig_cells;
-fprintf(['n good cells = ' num2str(sum(good_cells))])
-fprintf('\n%.1f %% (%i/%i) of active cells are signficant',...
-    100*sum(good_cells)/sum(active_cells),sum(sig_cells&active_cells),sum(active_cells))
 
 edges = [-2 -.5 -.25  0  .25 .5  2];
 pref_color  = [.8 .25 .8];
