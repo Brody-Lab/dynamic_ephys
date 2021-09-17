@@ -25,9 +25,11 @@ addParameter(p, 'file_prefix',  'cell_packager_data_');
 addParameter(p, 'krn_width',   0.1); % kernel std (in secs)  
 addParameter(p, 'krn_type', 'halfgauss'); % 'halfgauss' or 'fullgauss' for causal or acausal filter
 addParameter(p, 'bin_size',  0.025); % (in secs)
+addParameter(p, 'save_repack',  1); % (in secs)
 parse(p, varargin{:});
 par     = p.Results;
 
+save_repack = par.save_repack;
 repack      = par.repack;
 datadir     = par.datadir; 
 do_save     = par.do_save;
@@ -56,6 +58,9 @@ if ~repack && exist(save_path, 'file')
     load(save_path,'data');
     repack = check_params(data,krn_width,bin_size,krn_type); %#ok<NODEF>
     if ~repack
+        if nargout > 1
+            [array_data, vec_data] = package_dyn_phys(cellid,'save_to_file',0);
+        end
         return;
     elseif any(isempty([krn_width, bin_size, krn_type]))
         error('need to repack, but you didn''t fully specify the kernel')
@@ -64,7 +69,8 @@ end;
 
 % get packaged data from cell. This includes event times and spike times
 % without any further processing.
-[array_data, vec_data, sessid, ratname] = package_dyn_phys(cellid,'save_to_file',0,'repack',repack);
+[array_data, vec_data, sessid, ratname] = package_dyn_phys(cellid,...
+    'save_to_file',repack&save_repack,'repack',repack);
 [array_data] = compute_gen_state(array_data);
 [array_data] = compute_state_switches(array_data);
 
@@ -104,9 +110,10 @@ end
     [align_strs, align_args] = dyn_align_LUT(2);
 % loop through each alignment and get smoothed rate functions and spike counts
 for i=1:numel(align_strs)
-    [data.frate{i}, data.frate_t{i}] = make_rate_functions(cellid, 'array_data', array_data, 'vec_data', vec_data,...
-                                                            'krn_width',krn_width,'bin_size',bin_size,align_args{i}{:},...
-                                                            'krn_type', krn_type);
+    [data.frate{i}, data.frate_t{i}] = make_rate_functions(cellid, ...
+        'array_data', array_data, 'vec_data', vec_data,...
+        'krn_width',krn_width,'bin_size',bin_size,align_args{i}{:},...
+        'krn_type', krn_type);
     [data.sp_counts{i}, data.sp_count_T{i}] = calc_sp_counts(cellid, ...
         'array_data', array_data, 'vec_data', vec_data, align_args{i}{:});
 end
