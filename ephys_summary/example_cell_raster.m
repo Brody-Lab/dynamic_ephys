@@ -6,7 +6,6 @@ addParameter(p,'cells',[ 16857 17784 18181 ]);
 addParameter(p,'type','choice'); %evR, chrono
 addParameter(p,'separate_hits',1);
 addParameter(p,'meta',0)
-addParameter(p,'norm','none') %'none','onset','peak'
 addParameter(p,'flip',0)
 addParameter(p,'pause',0)
 addParameter(p,'top_color','')
@@ -20,45 +19,31 @@ addParameter(p,'couttrange',[-1.5 .75])
 addParameter(p, 'cinstr', 'stimstart-cout-mask');
 addParameter(p, 'coutstr', 'cpokeout');
 addParameter(p, 'do_print', 0);
+addParameter(p, 'bin_size', .005);
 parse(p,varargin{:});
 cintrange = p.Results.cintrange;
 couttrange = p.Results.couttrange;
 cinstr = p.Results.cinstr;
 coutstr = p.Results.coutstr;
 
-cell_to_plot = p.Results.cells;
+cellid = p.Results.cells;
 type = p.Results.type;
 meta = p.Results.meta;
-norm = p.Results.norm;
 flip = p.Results.flip;
 do_pause = p.Results.pause;
 edges = p.Results.edges;
 separate_hits = p.Results.separate_hits;
 fig_num     = p.Results.fig_num;
-
-if length(cell_to_plot) > 1 & ~meta
-    for cc = 1:length(cell_to_plot)
-        fprintf('working on cell %i (%i of %i)',...
-            cell_to_plot(cc), cc, length(cell_to_plot))
-        example_cell_raster('cells',cell_to_plot(cc),...
-            'type',type,'meta',meta,'norm',norm,'flip',flip,...
-            'edges',edges);
-        if do_pause
-            pause();
-            disp(cell_to_plot)
-        end
-    end
-    return
-end
+bin_size    = p.Results.bin_size;
 
 
 dp = set_dyn_path;
 %%
 repack = p.Results.repack;
-ncells = length(cell_to_plot);
 
-align_strs  = dyn_align_LUT;
-
+[align_strs, align_args] = dyn_align_LUT(2);
+i = find(strcmp(align_strs,cinstr));
+j = find(strcmp(align_strs,coutstr));
 min_t = p.Results.min_t;
 
 gamma       = [];
@@ -72,52 +57,46 @@ cout_fr     = [];
 norm_f      = [];
 end_state_s = [];
 
-for cc = 1:ncells
-    d       = dyn_cell_packager(cell_to_plot(cc),'repack',repack);
-    
-    if ~isfield(d.trials,'end_state_dur')
-        d = dyn_cell_packager(cell_to_plot(cc),'repack',1);
-    end
-    
-    end_tind = find(ismember(d.align_strs,coutstr));
-    start_tind  = find(ismember(d.align_strs,cinstr));
-    stimind = strmatch('stimend',d.align_strs,'exact');
-    if meta & p.Results.flip == 0
-        flip(cc) = ~d.prefsideright{stimind};
-    end
-    T       = [T; d.trials.T]; %#ok<*AGROW>
-    this_sides = 2.*d.trials.genEndState-1;
-    this_poke_r = d.trials.rat_dir==1;
-    this_gamma  = d.trials.gamma;
-    if flip(cc)==1
-        this_gamma = -this_gamma;
-        this_sides = -this_sides;
-        this_poke_r = ~this_poke_r;
-    end
-    gamma   = [gamma; this_gamma];
-    
-    sides   = [sides; this_sides];
-    poke_r  = [poke_r; this_poke_r];
-    hit     = [hit; d.trials.hit==1];
-    evR     = [evR; d.trials.evidenceRatio(:)];
-    end_state_s = [end_state_s; d.trials.end_state_dur(:)];
-    
-    switch norm
-        case 'onset'
-            norm_mult = d.norm_mean;
-        case 'peak'
-            error('doesn''t work yet')
-        case 'none'
-            norm_mult = 1;
-    end
-    norm_f  = [norm_f; norm_mult*ones(size(d.trials.T))];%;
-    cin_fr  = [cin_fr; d.frate{start_tind}];
-    cout_fr = [cout_fr; d.frate{end_tind}];
-    
-end
-cin_t       = d.frate_t{start_tind};
-cout_t      = d.frate_t{end_tind};
 
+[d, array_data, vec_data]  = dyn_cell_packager(cellid,'repack',repack);
+
+end_tind = find(ismember(d.align_strs,coutstr));
+start_tind  = find(ismember(d.align_strs,cinstr));
+stimind = strmatch('stimend',d.align_strs,'exact');
+if meta & p.Results.flip == 0
+    flip = ~d.prefsideright{stimind};
+end
+T       = [T; d.trials.T]; %#ok<*AGROW>
+this_sides = 2.*d.trials.genEndState-1;
+this_poke_r = d.trials.rat_dir==1;
+this_gamma  = d.trials.gamma;
+if flip==1
+    this_gamma = -this_gamma;
+    this_sides = -this_sides;
+    this_poke_r = ~this_poke_r;
+end
+gamma   = [gamma; this_gamma];
+
+sides   = [sides; this_sides];
+poke_r  = [poke_r; this_poke_r];
+hit     = [hit; d.trials.hit==1];
+evR     = [evR; d.trials.evidenceRatio(:)];
+end_state_s = [end_state_s; d.trials.end_state_dur(:)];
+
+nt = length(array_data);
+
+[cout_fr, cout_t] = make_rate_functions(cellid, ...
+    'array_data', array_data, 'vec_data', vec_data,...
+    'bin_size', bin_size, align_args{j}{:},...
+    'krn_type', 'raster');
+
+[cin_fr, cin_t] = make_rate_functions(cellid, ...
+    'array_data', array_data, 'vec_data', vec_data,...
+    'bin_size', bin_size, align_args{i}{:},...
+    'krn_type', 'raster');
+
+
+%%
 
 switch type
     case 'logR'
@@ -175,12 +154,6 @@ err = hit == 0;
 
 good = T > min_t;
 
-fh = figure(fig_num); clf
-set(fh,'position',[15 5 6 3 ],'papersize',[6 3],'paperpositionmode','auto')
-
-ax(1) = subplot(121);hold(ax(1),'on');
-ax(2) = subplot(122);hold(ax(2),'on');
-
 psths = [];
  
 good_cint   = cin_t > cintrange(1) & cin_t < cintrange(2);
@@ -190,83 +163,73 @@ cin_raster = [];
 cout_raster = [];
 
 trial_markers = [];
+%%
+fh = figure(fig_num); clf
+set(fh,'position',[15 5 6 3 ],'papersize',[6 3],'paperpositionmode','auto')
 
-for bb = 1:nbins
-    this = good & bins == bb;
-    this_color = cm(bb,:);
-    if separate_hits
-        trials = this & hit;
-    else
-        trials = this;
-    end
-    trial_markers = [trial_markers; sum(this)];
-    
-    cin_hit_psth = (cin_fr(trials,good_cint)./norm_f(trials));
-    cout_hit_psth = (cout_fr(trials,good_coutt)./norm_f(trials));
-    psths = [psths ; cin_hit_psth cout_hit_psth];
-    cin_raster = [cin_raster; cin_hit_psth];
-    cout_raster = [cout_raster; cout_hit_psth];
+ax(1) = subplot(121);hold(ax(1),'on');
+ax(2) = subplot(122);hold(ax(2),'on');
+xlim(ax(1),cintrange)
+xlim(ax(2),couttrange)
+go_r    = d.trials.rat_dir==1;
+go_l    = ~go_r;
+[go_r_sort, sort_ind] = sort(go_r);
 
-    if show_errors
-        err_color = this_color;
-        %err_color = cm_(bb,:);
-        cin_err_psth = (cin_fr(this  &  err,good_cint)./norm_f(this&  err));
-        cout_err_psth = (cout_fr(this  & err,good_coutt)./norm_f(this&  err));
-        psths = [psths ; cin_err_psth cout_err_psth];
-        
-        cin_raster = [cin_raster; cin_err_psth];
-        cout_raster = [cout_raster; cout_err_psth];
-        
-        
-    end
-    
+cin_raster = cin_fr(sort_ind,:);
+cout_raster = cout_fr(sort_ind,:);
+cin_raster(isnan(cin_raster)) = 0;
+cout_raster(isnan(cout_raster)) = 0;
+[i j]   = find(cin_raster);
 
-end
+ind_r   = go_r_sort(i);
+ind_l   = ~go_r_sort(i);
 
-trial_markers_ = cumsum(trial_markers(1:end-1));
+nt      = length(go_r);
 
-hold(ax(1),'on')
-hold(ax(2),'on')
+trial_markers_ = sum(ind_l);
 
-imagesc(ax(1), cin_raster, 'x', cin_t(good_cint))
-imagesc(ax(2), cout_raster, 'x', cout_t(good_coutt))
+tic
+plot(ax(1), cin_t(j(ind_r)),i(ind_r),'.',...
+    'color',dp.right_color,'markersize',.1)
 
-plot(ax(1), xlim, trial_markers_*[1 1], 'k')
-plot(ax(2), xlim, trial_markers_*[1 1], 'k')
+plot(ax(1), cin_t(j(ind_l)),i(ind_l),'.',...
+    'color',dp.left_color,'markersize',.1)
+axis(ax(1),'ij')
 
+[i j]   = find(cout_raster);
+ind_r   = go_r_sort(i);
+ind_l   = ~go_r_sort(i);
+plot(ax(2), cout_t(j(ind_r)),i(ind_r),'.',...
+    'color',dp.right_color,'markersize',.1)
+
+plot(ax(2), cout_t(j(ind_l)),i(ind_l),'.',...
+    'color',dp.left_color,'markersize',.1)
+axis ij
+toc
+
+midl      = find(diff(go_r_sort))+.5;
+
+plot(ax(1), cintrange, midl*[1 1], 'k')
+plot(ax(2), couttrange, midl*[1 1], 'k')
+%%
 linkaxes(ax,'y')
 colormap(flipud(bone))
 %ylim(ax(1),([floor(min(psths(:))*10)/10 ceil(max(psths(:))*10)/10]))
 
-xlim(ax(1),cintrange)
-xlim(ax(2),couttrange)
-
-%ax(2).YColor = 'w';
+set(ax(1), 'ytick', [100:100:1000])
+set(ax(2), 'ytick', [100:100:1000])
 ax(1).TickDir = 'out';
 ax(2).TickDir = 'out';
 
-ylabel(ax(1), 'firing rate (spks/s)')
-xlabel(ax(1), 'time from stim onset (s)')
+ylabel(ax(1), 'Trial #')
+xlabel(ax(1), 'Time from stim onset (s)')
 xlabel(ax(2), 'from movement (s)')
 plot(ax(1),[ 0 0], ylim,'k')
 plot(ax(2),[ 0 0], ylim,'k')
-ylim([0 sum(trial_markers)])
-%%
-% drawnow
-% ax1pos  = get(ax(1),'position');
-% ax2pos  = get(ax(2),'position');
-% posrat  = diff(cintrange) ./ diff(couttrange); 
-% set(ax(2),'position',[ax2pos(1) ax1pos(2) ax1pos(3)/posrat ax2pos(4)])
-
-%set(cb,'xtick',0:1,'xticklabel',b([1:2:end])) 
+ylim(ax(1),[0 nt+1])
+ylim(ax(2),[0 nt+1])
 %%
 
-
-if ncells == 1
-    group_name = num2str(cell_to_plot);
-else
-    group_name = 'group';
-end
 if p.Results.do_print
 print(fh, fullfile(dp.psth_fig_dir, ['cell_' group_name '_raster']),...
     '-dsvg', '-painters')
