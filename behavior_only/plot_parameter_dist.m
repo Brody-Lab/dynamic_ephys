@@ -7,29 +7,21 @@ addParameter(p, 'point_plot', 0);
 addParameter(p, 'fig_num', 1);
 parse(p,varargin{:});
 
-dp = set_dyn_path;
+dp              = set_dyn_path;
 bing_boxplot    = p.Results.bing_boxplot;
-dyn_boxplot     = p.Results.dyn_boxplot
+dyn_boxplot     = p.Results.dyn_boxplot;
 point_plot      = p.Results.point_plot;
 fig_num         = p.Results.fig_num;
+bing_color      = [.9 .8 .9];
+dyn_color       = dp.model_color; 
+plot_ratnames   = 1;
+no_sort         = 0;
 
-bing_color = [.8  .9 1];
-
-bing_color = [.95 .8 .9];
-bing_color = [.9 .8 .9];
-dyn_color = dp.model_color; % [1 .55 .55]
-if nargin < 8
-    dyn_boxplot = 0;
-end
-
-plot_ratnames = 1;
-no_sort = 0;
 fh = figure(fig_num);  clf
 plot([.9 3.6],[0 0],'-','color',[1 1 1].*.7)
-box off
+box off;
 hold on;
-set(fh,'position',[5 5 dp.fw dp.fw])
-
+set(fh,'position',[5 5 dp.fw dp.fw]);
 
 P = [];
 if no_sort
@@ -138,7 +130,7 @@ if point_plot
     %%
     box_y = 1;
     h = 1;
-    Px = box_y+h/2+(rand(size(P))-.5)*h/2'
+    Px = box_y+h/2+(rand(size(P))-.5)*h/2';
     if ~dyn_boxplot
         p = median(P);
         plot([box_y box_y+h], [p p], 'k','linewidth',1.5)
@@ -237,8 +229,7 @@ if ~point_plot
     ylabel('Rats','fontsize',dp.fsz);
     xlabel(param_name,'fontsize',dp.fsz);
     set(gca,'fontsize',dp.fsz);
-    version -release
-    test = ans;
+    test = version('-release');
     
     if strcmp(test, '2013b')
         set(gca, 'YTick', [])
@@ -248,7 +239,7 @@ if ~point_plot
     xlim(bounds)
     
 else
-    xlabel('environment','fontsize',dp.fsz);
+    xlabel('Environment','fontsize',dp.fsz);
     ylabel(param_name,'fontsize',dp.fsz);
     set(gca,'fontsize',dp.fsz);
     set(gca,'xtick',[1.5 3],'xticklabel',{'dynamic', 'stationary'})
