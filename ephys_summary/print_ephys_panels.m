@@ -14,7 +14,7 @@ long_trial_dur = 1;
 long_trials_only = false;
 ploterrorbar = 1;
 coutstr = 'cpokeout';
-repack  = 1;
+repack  = 0;
 %% get full cell_list; *all* units recorded in project
 cell_list = dyn_cells_db;   % That has to be run once to create cell_list
 normmnth = 1;
@@ -51,7 +51,7 @@ else
     ratnames = cell2mat(extracting(cell_list, 'ratname', select_str));
     cellids = cell2mat(extracting(cell_list, 'cellid', select_str));
     sessids = cell2mat(extracting(cell_list, 'sessid', select_str));
-
+    
     psr = cell2mat(extracting(cell_list, 'prefsideright', select_str));
     prefp = cell2mat(extracting(cell_list, 'prefp', select_str));
     normmean = cell2mat(extracting(cell_list, 'normmean', select_str));
@@ -63,7 +63,7 @@ else
         if mod(cc,25)==0
             fprintf([num2str(cc) '...'])
         end
-        d=dyn_cell_packager(cellids(cc));
+        d=dyn_cell_packager(cellids(cc),'repack',repack);
         cin_frates = d.frate{cin_align_ind};
         cout_frates = d.frate{cout_align_ind};
         
@@ -151,25 +151,26 @@ fprintf('number of cells: %i \n number of sessions: %i',...
 %%
 rats = dp.ratlist';
 
-ncells = nan(size(rats));
+ncells_per_rat = nan(size(rats));
 nsess = nan(size(rats));
 for rr = 1:length(rats)
     idx = sum(ratnames == rats{rr},2)==4;
-    ncells(rr) = sum(idx);
+    ncells_per_rat(rr) = sum(idx);
     nsess(rr) = length(unique(sessids(idx)));
 end
 fprintf('\nmin/max cells: %i/%i \nmin/max sessions: %i/%i\n',...
-    min(ncells),max(ncells),min(nsess),max(nsess))
+    min(ncells_per_rat),max(ncells_per_rat),min(nsess),max(nsess))
 fprintf('\nmean cells: %.2f \nmean sessions: %.2f\n',...
-    mean(ncells),mean(nsess))
-table(rats,ncells,nsess)
+    mean(ncells_per_rat),mean(nsess))
+table(rats,ncells_per_rat,nsess)
+ncells = sum(ncells_per_rat);
 %% plot example cells in panel B
 ppos = [8 10 fw fht ]
 cellid = 18181;
 [fh, ax] = example_cell_psth('cells',cellid,...
     'cintrange',xlim_on,'couttrange',xlim_off,...
     'coutstr',coutstr,'fig_num',2, ...
-    'ploterrorbar',ploterrorbar,'repack',repack)
+    'ploterrorbar',ploterrorbar,'repack',repack,'errorbarfun',@nansem)
 
 ylim(ax,[14 60])
 xlim(ax(1),xlim_on)
@@ -190,8 +191,8 @@ cellid = 16857;
 [fh, ax] = example_cell_psth('cells',cellid,...
     'cintrange',xlim_on,'couttrange',xlim_off,...
     'coutstr',coutstr,'fig_num',2, ...
-    'ploterrorbar',ploterrorbar,'repack',repack)
-ylim(ax,[0 20])
+    'ploterrorbar',ploterrorbar,'repack',repack,'errorbarfun',@nansem)
+ylim(ax,[0 22.5])
 xlim(ax(1),xlim_on)
 xlim(ax(2),xlim_off)
 % ax(1).YTick = [15:15:60];
@@ -209,8 +210,8 @@ cellid = 17784;
 [fh, ax] = example_cell_psth('cells',cellid,...
     'cintrange',xlim_on,'couttrange',xlim_off,...
     'coutstr',coutstr,'fig_num',2, ...
-    'ploterrorbar',ploterrorbar,'repack',repack)
-ylim(ax,[0 40])
+    'ploterrorbar',ploterrorbar,'repack',repack,'errorbarfun',@nansem)
+ylim(ax,[0 42.5])
 xlim(ax(1),xlim_on)
 xlim(ax(2),xlim_off)
 % ax(1).YTick = [15:15:60];
@@ -222,28 +223,27 @@ set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4])
 print(fh, fullfile(dp.psth_fig_dir, ['cell_' num2str(cellid) ]),...
     '-dsvg', '-painters')
 %% raster plots
-ppos = [8 10 fw fht ]
-cellid = 18181;
-[fh, ax] = example_cell_raster('cells',cellid,...
-    'cintrange',xlim_on,'couttrange',xlim_off,...
-    'coutstr',coutstr,'fig_num',2,'repack',0);
 
-% % ylim(ax,[14 60])
-% % xlim(ax(1),xlim_on)
-% % xlim(ax(2),xlim_off)
-% ax(1).YTick = [15:15:60];
-% ax(2).YTick = [15:15:60];
-% ax(2).YTickLabel = {};
-set(ax(1),'ZLim',get(ax(2),'Zlim'))
-set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],...
-    'papersize',ppos([3 4]))
-pbaspect(ax(1),[1 .8 1])
-pbaspect(ax(2),[1 .8 1])
 %%
-[d, array_data, vec_data]       = dyn_cell_packager(cellid, 'repack', 1)
+ex_cellids = [18181 16857 17784];
+max_nt = 200;
+for cc = 1:length(ex_cellids)
+    %%
+    ppos = [8 10 1.75*fw 1.25*fht ]
+    cellid = ex_cellids(cc);
+    [fh, ax] = example_cell_raster('cells',cellid,...
+        'cintrange',xlim_on,'couttrange',xlim_off,...
+        'coutstr',coutstr,'fig_num',2,'repack',repack,'max_ntrials',max_nt);
+
+    set(ax(1),'ZLim',get(ax(2),'Zlim'))
+    set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],...
+        'papersize',ppos([3 4]))
+%     pbaspect(ax(1),[1 .8 1])
+%     pbaspect(ax(2),[1 .8 1])
 %%
-print(fh, fullfile(dp.psth_fig_dir, ['cell_' num2str(cellid) '_raster' ]),...
-    '-dsvg', '-painters')
+    print(fh, fullfile(dp.psth_fig_dir, ['cell_' num2str(cellid) '_raster' ]),...
+        '-dsvg', '-painters')
+end
 %%
 cin_ind = cin_t>-.25 & cin_t<2;%5;
 good_cells1 = mean(cin_psth_hit(:,cin_ind,1,1),2) > 2;
@@ -253,7 +253,7 @@ active_cells = mn_fr > normmnth;
 sig_cells = prefp < prefpth;
 good_cells  = active_cells & sig_cells;
 fprintf(['n good cells = ' num2str(sum(good_cells))])
-fprintf('\n%.1f %% (%i/%i) of active cells are signficant',...
+fprintf('\n%.1f %% (%i/%i) of active cells are signficant\n',...
     100*sum(good_cells)/sum(active_cells),sum(sig_cells&active_cells),sum(active_cells))
 
 %%
@@ -355,7 +355,7 @@ pbaspect(ax(2),[1 1 1])
 set(fh,'position',ppos,...
     'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]))
 groupname = sprintf('cells_normmnth_%i_prefpth_%.2f.svg',normmnth,prefpth);
-%%
+
 print(fh, fullfile(dp.psth_fig_dir, groupname),...
     '-dsvg', '-painters')
 %% load auc for all neurons
@@ -377,6 +377,7 @@ if ~exist(cout_auc_file) | recompute
     cout_ci  = nan(ngood,n_coutt,2);
     fprintf('working on cell...')
     tic
+    %%
     for cc = 1:ncells
         if mod(cc,5)==0
             toc;
@@ -451,7 +452,7 @@ for gg = 1:length(gnames)
             title({'side-selective cells'},'fontweight','normal')
     end
     drawnow
-    ylabel({'cell # (sorted by latency)'})
+    ylabel({'Cell # (sorted by latency)'})
 
     if gg == 2
         cb = colorbar
@@ -473,308 +474,3 @@ for gg = 1:length(gnames)
     print(fh,fullfile(dp.fig_dir,['coutauc' groupname]),'-dsvg','-painters')
 end
 
-
-%% NOT USED - plot PREF/NONPREF pop average PSTH for panel D
-mn_fr       = nanmean(cin_psth_hit(:,:,1,1),2);
-
-good_cint   = cin_t >= xlim_on(1) & cin_t <= xlim_on(2);
-good_coutt  = cout_t >= xlim_off(1) & cout_t <= xlim_off(2);
-
-switch 0
-    case 0
-        normnth = 1;
-        prefpth = .05;
-        good_cells  = mn_fr > 1 & prefp < .05;
-        pref_r = nanmean(cin_psth_hit(:,:,rind,1),2) > nanmean(cin_psth_hit(:,:,lind,1),2);
-        pref_l = ~pref_r;
-    case 1
-        normnth = 5;
-        prefpth = .01;
-        pref_r = psr == 1;
-        pref_l = 0   == psr;
-    case 2
-        normnth = 1;
-        prefpth = .05;
-        pref_r = psr == 1;
-        pref_l = 0   == psr;
-end
-
-good_cells  = mn_fr > normnth & prefp < prefpth;
-pref_r = psr == 1;
-pref_l = 0   == psr;
-
-fprintf(['n good cells = ' num2str(sum(good_cells))])
-
-cin_pref_psth = [cin_psth_hit(pref_r,good_cint,rind,1); ...
-    cin_psth_hit(pref_l,good_cint,lind,1)];
-cin_npref_psth = [cin_psth_hit(pref_r,good_cint,lind,1); ...
-    cin_psth_hit(pref_l,good_cint,rind,1)];
-
-cout_pref_psth = [cout_psth_hit(pref_r,good_coutt,rind,1); ...
-    cout_psth_hit(pref_l,good_coutt,lind,1)];
-cout_npref_psth = [cout_psth_hit(pref_r,good_coutt,lind,1); ...
-    cout_psth_hit(pref_l,good_coutt,rind,1)];
-
-cin_pref_psth_err = [cin_psth_err(pref_r,good_cint,rind,1); ...
-    cin_psth_err(pref_l,good_cint,lind,1)];
-cin_npref_psth_err = [cin_psth_err(pref_r,good_cint,lind,1); ...
-    cin_psth_err(pref_l,good_cint,rind,1)];
-
-cout_pref_psth_err = [cout_psth_err(pref_r,good_coutt,rind,1); ...
-    cout_psth_err(pref_l,good_coutt,lind,1)];
-cout_npref_psth_err = [cout_psth_err(pref_r,good_coutt,lind,1); ...
-    cout_psth_err(pref_l,good_coutt,rind,1)];
-
-switch 0
-    case 0
-        mn_fr_t0 = 1;
-    case 1
-        mn_fr_t0 = max([cin_pref_psth cout_pref_psth],[],2);
-    case 2
-        mn_fr_t0 = normmean([find(pref_r); find(pref_l)]);
-end
-%good_cells = [cellids(pref_r); cellids(pref_l)] == 18181;
-
-
-cin_pref_psth = cin_pref_psth./mn_fr_t0;
-cin_npref_psth = cin_npref_psth./mn_fr_t0;
-cout_pref_psth = cout_pref_psth./mn_fr_t0;
-cout_npref_psth = cout_npref_psth./mn_fr_t0;
-
-cin_pref_psth_err = cin_pref_psth_err./mn_fr_t0;
-cin_npref_psth_err = cin_npref_psth_err./mn_fr_t0;
-cout_pref_psth_err = cout_pref_psth_err./mn_fr_t0;
-cout_npref_psth_err = cout_npref_psth_err./mn_fr_t0;
-
-cin_pref_psth_good = cin_pref_psth(good_cells,:);
-cin_pref_psth_mn = nanmean(cin_pref_psth_good,1);
-cin_npref_psth_good = cin_npref_psth(good_cells,:);
-cin_npref_psth_mn = nanmean(cin_npref_psth_good,1);
-
-cout_pref_psth_good = cout_pref_psth(good_cells,:);
-cout_pref_psth_mn = nanmean(cout_pref_psth_good,1);
-cout_npref_psth_good = cout_npref_psth(good_cells,:);
-cout_npref_psth_mn = nanmean(cout_npref_psth_good,1);
-
-cin_pref_psth_good_err = nanmean(cin_pref_psth_err(good_cells,:),1);
-cin_npref_psth_good_err = nanmean(cin_npref_psth_err(good_cells,:),1);
-
-cout_pref_psth_good_err = nanmean(cout_pref_psth_err(good_cells,:),1);
-cout_npref_psth_good_err = nanmean(cout_npref_psth_err(good_cells,:),1);
-
-psths = [cin_pref_psth_mn cout_pref_psth_mn; ...
-    cin_npref_psth_mn cout_npref_psth_mn; ...
-    cin_pref_psth_good_err cout_pref_psth_good_err; ...
-    cin_npref_psth_good_err cout_npref_psth_good_err];
-
-pref_combo = [cin_pref_psth_good cout_pref_psth_good];
-
-normsort = @(A,B) sort_by_peak(norm_by_peak(A,B),B);
-%normsort = @(A,B) sort_by_peak(A,B);
-cax = [0 1]
-fh=figure(3); clf
-
-s(1)=subplot(221);
-imagesc(normsort(cin_pref_psth_good, pref_combo),'x',cin_t(good_cint));
-caxis(cax);
-s(2)=subplot(222);
-imagesc(normsort(cout_pref_psth_good, pref_combo),'x',cout_t(good_coutt));
-caxis(cax);
-
-
-%colormap(jet)
-s(3)=subplot(223);
-imagesc(normsort(cin_npref_psth_good, pref_combo),'x',cin_t(good_cint))
-caxis(cax);
-s(4)=subplot(224);
-imagesc(normsort(cout_npref_psth_good, pref_combo),'x',cout_t(good_coutt))
-caxis(cax);
-%colormap(flipud(gray.^.7));
-ylabel(s(3),'cell # (sorted by peak time)')
-%ylabel(subplot(223),'cell # (sorted as above)')
-hold(s(1),'on')
-hold(s(2),'on')
-hold(s(3),'on')
-hold(s(4),'on')
-plot(s(1),[ 0 0], [0 1000],'k')
-plot(s(2),[ 0 0], [0 1000],'k')
-plot(s(3),[ 0 0], [0 1000],'k')
-plot(s(4),[ 0 0], [0 1000],'k')
-
-colormap(colormapLinear([1 1 1].*.0).^.55)
-
-set(subplot(221),'ytick',[300 600])
-set(subplot(223),'ytick',[300 600])
-set(subplot(222),'ytick',[])
-set(subplot(224),'ytick',[])
-set(subplot(222),'ytick',[])
-set(subplot(224),'ytick',[])
-xlabel(subplot(223),'time from stim onset (s)')
-xlabel(subplot(224),'from movement (s)')
-s(2).YTick = sum(good_cells);
-cb = colorbar;
-cb.Position = cb.Position + [.1 .35 .02 -.275];
-set(cb,'ytick',[0 1],'yticklabel',{'0', 'max'},'fontsize',fsz)
-title(cb,'norm FR')
-ppos = [8 10 fw 1.5*fht ]
-set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]))
-
-for ii = 1:4
-    s(ii).TickDir = 'out';
-    box(s(ii),'off')
-    pbaspect(s(ii),[1 .8 1])
-    
-end
-set(s(1),'XTickLabel',[]); set(s(2),'XTickLabel',[])
-%colormap((colormapLinear([1 1 1].*0,50).^.7))
-print(fh, fullfile(dp.psth_fig_dir, 'sequence_plot'),...
-    '-dsvg', '-painters')
-
-
-%%
-[~,i,j] = sort_by_peak(pref_combo);
-pref_combo_t = [cin_t(good_cint) 2+cout_t(good_coutt)];
-figure(100); clf
-plot(pref_combo_t(j),'.-')
-%%
-good_cint   = cin_t >= xlim_on(1) & cin_t <= xlim_on(2);
-good_coutt  = cout_t >= xlim_off(1) & cout_t <= xlim_off(2);
-
-% good_cint   = cin_t >= -.5 & cin_t <= 1.5;
-% good_coutt  = cout_t >= -.5 & cout_t <= .5;
-
-figure(4); clf
-ax = subplot(121)
-A = cin_psth_hit(good_cells,good_cint,1,2);
-B = cout_psth_hit(good_cells,good_coutt,1,2);
-C = [A B];
-imagesc(normsort(A,C),...
-    'x',cin_t(good_cint))
-xlim
-ax = subplot(122)
-imagesc(normsort(B,C),...
-    'x',cout_t(good_coutt))
-
-cm = colormapLinear([0 0 0], 49)
-colormap(flipud(bone))
-colormap(cm)
-%colormap(parula)
-
-
-
-%%
-%%%% PLOT OLD SEQUENCE PLOT
-fh1 = figure(1); clf
-set(fh1,'paperpositionmode','auto')
-subplot(121)
-%imagesc(norm_by_peak(psthL(sortA,:)),'x',tA,[0 1]);
-imagesc(psth_cin(sortA,:),'x',tA,[0 1])
-hold on
-plot([0 0], ylim, 'k', 'linewidth', 2);
-xlim([-0.25 0.98])
-xlabel('Time from stimulus on (s)')
-set(gca,'fontsize',12)
-ylabel('Cell # (sorted by peak time)')
-xticks([0 0.5])
-pbaspect([1 1.5 1])
-pause(1)
-
-subplot(122)
-%imagesc(norm_by_peak(psthR(sortA,:)),'x',tB,[0 1]);
-imagesc(psth_cout(sortA,:),'x',tB,[0 1]);
-hold on
-plot([0 0], ylim, 'k', 'linewidth', 2)
-xlim([-0.25 0.98])
-xlabel('Time from stimulus off (s)')
-pbaspect([1 1.5 1])
-xticks([0 0.5])
-colormap(flipud(bone.^.4))
-%colormap(colormapRedBlue)
-%colormap(flipud(colormapBlues.^.5))
-set(gca,'fontsize',12)
-fig = gcf;
-fig.PaperUnits = 'inches';
-fig.PaperPosition = [0 0 10 10];
-fig.PaperPositionMode = 'Manual';
-fig.PaperSize = [10 10];
-
-seqplotfname = fullfile(dp.psth_fig_dir,'sequence_plot');
-print(fh1, seqplotfname , '-depsc')
-
-corr(sortA, sortB, 'type', 'kendall')
-
-good_cellids = cellids(good_cells);
-sorted_cellids = good_cellids(sortA);
-prestim = find(sortAt>find(tA>0,1),1);
-sorted_stim_cells = sorted_cellids(1:prestim);
-sorted_post_stim_cells = sorted_cellids(prestim+1:end);
-save(fullfile(dp.ephys_summary_dir, 'sorted_cells.mat'),'sorted_cellids','sorted_stim_cells','sorted_post_stim_cells')
-%%
-
-fh = figure(2); clf
-
-
-ax(1) = subplot(121);hold(ax(1),'on');
-ax(2) = subplot(122);hold(ax(2),'on');
-
-plot(ax(1),[ 0 0], [0 100],'k')
-plot(ax(2),[ 0 0], [0 100],'k')
-
-xlim(ax(1), [cin_t(find(good_cint,1,'first')) cin_t(find(good_cint,1,'last'))])
-xlim(ax(2), [cout_t(find(good_coutt,1,'first')) cout_t(find(good_coutt,1,'last'))])
-
-plot(ax(1),cin_t(good_cint),cin_pref_psth_mn,'color',pref_color,'linewidth',2)
-plot(ax(1),cin_t(good_cint),cin_npref_psth_mn,'color',npref_color,'linewidth',2)
-plot(ax(1),cin_t(good_cint),cin_pref_psth_good_err,'--','color',pref_color,'linewidth',1)
-plot(ax(1),cin_t(good_cint),cin_npref_psth_good_err,'--','color',npref_color,'linewidth',1)
-
-
-plot(ax(2),cout_t(good_coutt),cout_pref_psth_mn,'color',pref_color,'linewidth',2)
-plot(ax(2),cout_t(good_coutt),cout_npref_psth_mn,'color',npref_color,'linewidth',2)
-plot(ax(2),cout_t(good_coutt),cout_pref_psth_good_err,'--','color',pref_color,'linewidth',1)
-plot(ax(2),cout_t(good_coutt),cout_npref_psth_good_err,'--','color',npref_color,'linewidth',1)
-
-linkaxes(ax,'y')
-
-ylims = ([floor(min(psths(:))*10)/10 ceil(max(psths(:))*10)/10])
-%ylims = [.65 1];
-ylim(ax(1),ylims)
-ylim(ax(2),ylims)
-
-
-%xlim(ax(1),[-1.1 1.95])
-%xlim(ax(2),[-1.95 1.55])
-
-ax(2).YColor = 'w';
-ax(1).TickDir = 'out';
-ax(2).TickDir = 'out';
-
-%ylabel(ax(1), {'population average' 'normalizeed firing rate'})
-ylabel(ax(1), {'normalizeed firing rate'})
-xlabel(ax(1), 'time from stim onset (s)')
-xlabel(ax(2), 'from movement (s)')
-set(fh,'position',[7 5 6 3 ],'papersize',[5 3],'paperpositionmode','auto')
-
-print(fh, fullfile(dp.psth_fig_dir, 'population_psth'),...
-    '-dsvg', '-painters')
-
-
-
-%%
-figure; histogram(prefp)
-%%
-cm = color_set(2);
-fh = figure(10); clf
-set(fh,'position',[1 1 3 3], 'papersize', [3 3])
-alvl = .05;
-pcts = [sum(psr&prefp<alvl) sum(psr==0&prefp<alvl) sum(prefp>=alvl)];
-labels = {'right' 'left' 'non-selective'};
-p= pie(pcts,labels);
-p(1).FaceColor = cm(2,:);
-p(1).EdgeColor = [1 1 1];
-p(3).FaceColor = cm(1,:);
-p(3).EdgeColor = [1 1 1];
-p(5).FaceColor = [1 1 1].*.9;
-p(5).EdgeColor = [1 1 1];
-piechartname = fullfile(dp.psth_fig_dir,'pie_chart');
-print(fh, piechartname , '-dsvg','-painters')
