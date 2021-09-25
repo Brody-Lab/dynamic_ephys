@@ -29,7 +29,6 @@ for i=1:length(S.pd)
     end
 end
 
-
 % Conjuction of all criteria
 c.include   = c.vio & c.acc & c.nt & c.haz & c.rates & c.hbar & c.T;
 numSession  = sum(c.include);
@@ -38,7 +37,6 @@ trialCount  = sum(S.n_done(c.include));
 
 % Does rat qualify?
 INCLUDE = numSession >= p.include.ns & trialCount >= p.include.nt_total;
-
 if INCLUDE
     disp(['Rat ' rat ' pass inclusion criteria'])
 else
@@ -51,22 +49,14 @@ if find(session == [515515, 517387, 518622])
 end
 
 % save inclusion file with session list, and inclusion yes/no
-
 p.behav_data_filefn(rat)
-% filename = [p.datapath_root rat '/inclusion_' strrep(num2str(p.haz),'.','p')];
-% save(filename, 'INCLUDE', 'session', 'trialCount','numSession','rat','p','c')
-% disp(['Data saved to: ' filename]);
-
-n_done = S.n_done(c.include);
-[S] = load_session_data_(session,n_done,p);
+n_done  = S.n_done(c.include);
+[S]     = load_session_data_(session,n_done,p);
 p.population = [p.population '_' strrep(num2str(p.haz),'.','p') '_'];
 if INCLUDE & p.include.save
     disp(['Saving data formatted for running Bings model'])
-save_data(rat,S,p)
+    save_data(rat,S,p)
 end
-
-
-
 
 function [S] = load_session_data_(sessids,n_done,p)
 
