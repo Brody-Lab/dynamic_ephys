@@ -1,1 +1,0 @@
-example_cell_psth('ploterrorbar',1,'pause',1)
