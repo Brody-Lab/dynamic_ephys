@@ -10,9 +10,10 @@ lag = .1;
 max_t = .55;
 min_t = -.55;
 which_switch = 'model';
-t_buffers = [.2 .2];
+t_buffers = [.2 .2];   
+recompute = 0;
 plot_sta_fn = @(cellid,fig_num) plotSTA(cellid,'which_switch',which_switch,...
-    'lag',lag,'fig_num',fig_num,'recompute',0,'ylims',[-1 1].*11,...
+    'lag',lag,'fig_num',fig_num,'recompute',recompute,'ylims',[-1 1].*11,...
     't_buffers', t_buffers, 'alpha',.05)
 % plot example cell STAs for panel B
 [res, fh, axsta] = plot_sta_fn(18181,1);

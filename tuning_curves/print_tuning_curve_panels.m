@@ -1,3 +1,6 @@
+use_switches = 0;
+which_switch = 'model';
+%%
 krn_width   = 0.1;
 force_frdv  = 1;            % keep as one if rebinning
 force_bin   = 0;
@@ -34,9 +37,9 @@ data = dyn_cell_packager(excellid);
 align_ind = strmatch(alignment,align_strs,'exact');
 nanfrates   = isnan(data.frate{align_ind});
 %%
-use_switches = 0
+
 if use_switches
-    which_switch    = 'model';
+    which_switch    = which_switch;
     switch_params   = struct('t_buffers', [.2 .2]);
 else
     which_switch    = '';
