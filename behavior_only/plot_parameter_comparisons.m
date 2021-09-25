@@ -1,4 +1,4 @@
-function [] = plot_parameter_comparisons(F,group,dyn_boxplot);
+function [allfits, allci] = plot_parameter_comparisons(F,group,dp);
 
 
 
@@ -6,14 +6,14 @@ function [] = plot_parameter_comparisons(F,group,dyn_boxplot);
 bounds = [-12 4;-.1 30; -.1 10; -.1 30; -.1 50;  -.1 1; -.1 .7; -1 1; -.1 0.5];
 
 % load Bing parameters
-load ~/Dropbox/model_fits/FITS/best_fits_v35_rats.mat;
+load(fullfile(dp.model_fits_dir, 'best_fits_v35_rats.mat'));
 B = allfits;
 B(:,3) = B(:,3)./40;
 Bse = allci;
 Bse(:,3) = Bse(:,3)./40;
 
 % parameter names
-param_names = { '\lambda',  '\sigma_a^2', '\sigma_s^2', '\sigma_i^2','B', '\phi', '\tau_{\phi}', 'bias', 'lapse'};
+param_names = { '\lambda',  '\sigma_a^2', '\sigma_s^2', '\sigma_i^2','Bound', '\phi', '\tau_{\phi}', 'B', 'lapse'};
 
 % Remove parameters
 if strcmp(group, 'with_sticky_bounds')
