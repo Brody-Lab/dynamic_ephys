@@ -1,9 +1,7 @@
 close all
 clear all
 dp = set_dyn_path(1)
-%%
-% produce a stim on aligned plot and a center out aligned plot
-align_strs      = dyn_align_LUT;
+[align_strs, align_args]    = dyn_align_LUT;
 cout_align_ind  = find(ismember(align_strs,'cpokeout'));
 cin_align_ind   = find(ismember(align_strs,'stimstart-cout-mask'));
 assert(all([~isempty(cout_align_ind),~isempty(cin_align_ind)]));
@@ -27,15 +25,6 @@ set(0, 'defaultaxesfontsize',fsz);
 set(0,'defaultaxeslinewidth',1)
 xlim_on = [-.55 1.5];
 xlim_off = [-1.55 .5];
-% xlim_on = [-.55 1.25];
-% xlim_off = [-1.25 .55];
-%%
-[~, align_args]      = dyn_align_LUT;
-cellid = 18181;
-[ad, vd] = package_dyn_phys(cellid);
-i = 2;
-[sp_counts{i}, sp_count_T{i}] = calc_sp_counts(cellid, ...
-        'array_data', ad, 'vec_data', vd, align_args{i}{:});
 
 %% load up spikes and make psths for each cell
 recompute = 0;
@@ -146,9 +135,9 @@ else
         'ratnames', 'cellids', 'sessids', 'psr', 'prefp', 'normmean', 'ncells');
 end
 %%
-fprintf('number of cells: %i \n number of sessions: %i',...
-    length(cellids), length(unique(sessids)))
-%%
+fprintf('\nnumber of cells: %i \nnumber of sessions: %i\n',...
+    length(cellids), length(unique(sessids)));
+
 rats = dp.ratlist';
 
 ncells_per_rat = nan(size(rats));
@@ -164,13 +153,24 @@ fprintf('\nmean cells: %.2f \nmean sessions: %.2f\n',...
     mean(ncells_per_rat),mean(nsess))
 table(rats,ncells_per_rat,nsess)
 ncells = sum(ncells_per_rat);
-%% plot example cells in panel B
-ppos = [8 10 fw fht ]
+
+cin_ind         = cin_t > -.25 & cin_t < 2;
+good_cells1     = mean(cin_psth_hit(:,cin_ind,1,1),2) > 2;
+mn_fr           = nanmean(cin_psth(:, cin_t > 0, 1, 1),2);
+active_cells    = mn_fr > normmnth;
+sig_cells       = prefp < prefpth;
+good_cells      = active_cells & sig_cells;
+fprintf(['n good cells = ' num2str(sum(good_cells))])
+fprintf('\n%.1f %% (%i/%i) of active cells are signficant\n',...
+    100*sum(good_cells)/sum(active_cells),sum(sig_cells&active_cells),sum(active_cells))
+
+%% plot example cells in fig 2B
+ppos = [8 10 fw fht ];
 cellid = 18181;
 [fh, ax] = example_cell_psth('cells',cellid,...
     'cintrange',xlim_on,'couttrange',xlim_off,...
     'coutstr',coutstr,'fig_num',2, ...
-    'ploterrorbar',ploterrorbar,'repack',repack,'errorbarfun',@nansem)
+    'ploterrorbar',ploterrorbar,'repack',repack,'errorbarfun',@nansem);
 
 ylim(ax,[14 60])
 xlim(ax(1),xlim_on)
@@ -191,7 +191,7 @@ cellid = 16857;
 [fh, ax] = example_cell_psth('cells',cellid,...
     'cintrange',xlim_on,'couttrange',xlim_off,...
     'coutstr',coutstr,'fig_num',2, ...
-    'ploterrorbar',ploterrorbar,'repack',repack,'errorbarfun',@nansem)
+    'ploterrorbar',ploterrorbar,'repack',repack,'errorbarfun',@nansem);
 ylim(ax,[0 22.5])
 xlim(ax(1),xlim_on)
 xlim(ax(2),xlim_off)
@@ -210,62 +210,41 @@ cellid = 17784;
 [fh, ax] = example_cell_psth('cells',cellid,...
     'cintrange',xlim_on,'couttrange',xlim_off,...
     'coutstr',coutstr,'fig_num',2, ...
-    'ploterrorbar',ploterrorbar,'repack',repack,'errorbarfun',@nansem)
+    'ploterrorbar',ploterrorbar,'repack',repack,'errorbarfun',@nansem);
 ylim(ax,[0 42.5])
 xlim(ax(1),xlim_on)
 xlim(ax(2),xlim_off)
-% ax(1).YTick = [15:15:60];
-% ax(2).YTick = [15:15:60];
 ax(2).YTickLabel = {};
 pbaspect(ax(1),[1 .8 1])
 pbaspect(ax(2),[1 .8 1])
 set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]))
 print(fh, fullfile(dp.psth_fig_dir, ['cell_' num2str(cellid) ]),...
     '-dsvg', '-painters')
-%% raster plots
 
-%%
+%% raster plots for supplement
 ex_cellids = [18181 16857 17784];
 max_nt = 200;
 for cc = 1:length(ex_cellids)
-    %%
-    ppos = [8 10 1.75*fw 1.25*fht ]
+    ppos_ = [8 10 1.75*fw 1.25*fht ];
     cellid = ex_cellids(cc);
     [fh, ax] = example_cell_raster('cells',cellid,...
         'cintrange',xlim_on,'couttrange',xlim_off,...
         'coutstr',coutstr,'fig_num',2,'repack',repack,'max_ntrials',max_nt);
-
-    set(ax(1),'ZLim',get(ax(2),'Zlim'))
-    set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],...
-        'papersize',ppos([3 4]))
-%     pbaspect(ax(1),[1 .8 1])
-%     pbaspect(ax(2),[1 .8 1])
-%%
+    set(ax(1),'ZLim',get(ax(2),'Zlim'));
+    set(fh,'position',ppos_,'paperposition',[0 0 ppos_([3 4])],...
+        'papersize',ppos_([3 4]));
     print(fh, fullfile(dp.psth_fig_dir, ['cell_' num2str(cellid) '_raster' ]),...
-        '-dsvg', '-painters')
+        '-dsvg', '-painters');
 end
-%%
-cin_ind = cin_t>-.25 & cin_t<2;%5;
-good_cells1 = mean(cin_psth_hit(:,cin_ind,1,1),2) > 2;
-mn_fr       = nanmean(cin_psth(:,:,1,1),2);
-mn_fr       = nanmean(cin_psth(:, cin_t > 0, 1, 1),2);
-active_cells = mn_fr > normmnth;
-sig_cells = prefp < prefpth;
-good_cells  = active_cells & sig_cells;
-fprintf(['n good cells = ' num2str(sum(good_cells))])
-fprintf('\n%.1f %% (%i/%i) of active cells are signficant\n',...
-    100*sum(good_cells)/sum(active_cells),sum(sig_cells&active_cells),sum(active_cells))
 
-%%
+%% plot side x outcome population psth for supplement
 [fh, ax] = example_cell_psth('cells',cellids(good_cells),...
     'ploterrorbar',1,'meta',1,...
     'cintrange',xlim_on,'couttrange',xlim_off,...
     'coutstr',coutstr,'fig_num',2, 'norm', 'onset', 'repack',repack)
-
 xlim(ax(1),xlim_on)
 xlim(ax(2),xlim_off)
-% ax(1).YTick = [15:15:60];
-% ax(2).YTick = [15:15:60];
+
 ax(2).YTickLabel = {};
 pbaspect(ax(1),[1 .8 1])
 pbaspect(ax(2),[1 .8 1])
@@ -273,69 +252,7 @@ set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4])
 print(fh, fullfile(dp.psth_fig_dir, 'selective_cells_psth'),...
     '-dsvg', '-painters')
 
-
-
-%% plot center in and out aligned plots sorted
-% for now, I'm abandoning the sequences with these data, because the rank
-% correlations between sequential orderings in splits of the data are quite
-% different and I don't know what to make of that
-
-% determine whether to plot the sequence using the sorting data or using
-% the heldout data
-plot_sorting_data = true;
-% decide which timepoints to use for the plot
-
-cout_ind = cout_t>-.25;
-save_2name = 'sequence_plot';
-
-
-pref_r = nanmean(cin_psth_hit(:,:,rind,1),2) > nanmean(cin_psth_hit(:,:,lind,1),2);
-
-cin_psth_hit_pref           = vertcat(cin_psth_hit(good_cells&pref_r,:,rind,1), ...
-    cin_psth_hit(good_cells&~pref_r,:,lind,1));
-cout_psth_hit_pref          = vertcat(cout_psth_hit(good_cells&pref_r,:,rind,1),...
-    cout_psth_hit(good_cells&~pref_r,:,lind,1));
-cin_psth_hit_pref_xval1     = vertcat(cin_psth_hit(good_cells&pref_r,:,2,2), ...
-    cin_psth_hit(good_cells&~pref_r,:,lind,2));
-cout_psth_hit_pref_xval1    = vertcat(cout_psth_hit(good_cells&pref_r,:,2,2), ...
-    cout_psth_hit(good_cells&~pref_r,:,lind,2));
-cin_psth_hit_pref_xval2     = vertcat(cin_psth_hit(good_cells&pref_r,:,2,3),...
-    cin_psth_hit(good_cells&~pref_r,:,lind,3));
-cout_psth_hit_pref_xval2    = vertcat(cout_psth_hit(good_cells&pref_r,:,2,3),...
-    cout_psth_hit(good_cells&~pref_r,:,lind,3));
-
-combo_psthA = [cin_psth_hit_pref_xval1(:,cin_ind) cout_psth_hit_pref_xval1(:,cout_ind)];
-combo_psthB = [cin_psth_hit_pref_xval2(:,cin_ind) cout_psth_hit_pref_xval2(:,cout_ind)];
-%combo_psthA = [cin_psth_hit_pref_xval1(:,:) cout_psth_hit_pref_xval1(:,:)];
-%combo_psthB = [cin_psth_hit_pref_xval2(:,:) cout_psth_hit_pref_xval2(:,:)];
-
-[combo_sortedA, sortA, sortAt] = sort_by_peak(combo_psthA);
-[combo_sortedB, sortB] = sort_by_peak(combo_psthB);
-if plot_sorting_data
-    psth_all = [cin_psth_hit_pref_xval1(:,cin_ind) cout_psth_hit_pref_xval1(:,cout_ind)];
-    %    psth_all = [cin_psth_hit_pref_xval1(:,:) cout_psth_hit_pref_xval1(:,:)];
-    for i=1:size(psth_all,1)
-        psth_all(i,:) = norm_by_peak(psth_all(i,:));
-    end
-    
-    psth_cin = psth_all(:,1:sum(cin_ind));
-    psth_cout = psth_all(:,sum(cin_ind)+1:end);
-    %    psthL = psth_all(:,1:120);
-    %    psthR = psth_all(:,121:end);
-    %    psthL = psthL(:,cin_ind);
-    %    psthR = psthR(:,cout_ind);
-    
-else
-    psth_cin = cin_psth_hit_pref_xval2(:,cin_ind);
-    psth_cout = cout_psth_hit_pref_xval2(:,cout_ind);
-end
-
-tA = cin_t(cin_ind);
-tB = cout_t(cout_ind);
-
-
-%% plot chronometric population psth 
-
+%% plot chronometric population psth for fig 2D
 edges = [-2 -.5 -.25  0  .25 .5  2];
 pref_color  = [.8 .25 .8];
 npref_color = [.8 .65 .25];
@@ -405,7 +322,7 @@ else
     load(cout_auc_file);
 end
 
-%% plot sorted auc
+%% plot sorted auc fig 2C
 %box(s(ii),'off')
     %pbaspect(s(ii),[1 .8 1])
 n_consec_sig = 8;

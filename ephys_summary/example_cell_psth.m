@@ -83,7 +83,7 @@ end_state_s = [];
 
 
 for cc = 1:ncells
-    fprintf('cell %i (%i/%i)...',     cell_to_plot(cc), cc, ncells);
+    fprintf('cell %i (%i/%i)...\n',     cell_to_plot(cc), cc, ncells);
     d       = dyn_cell_packager(cell_to_plot(cc),'repack',repack);
     
     if ~isfield(d.trials,'end_state_dur')
@@ -230,7 +230,7 @@ for bb = 1:nbins
 %         
             if ploterrorbar
                 %%
-                hsvcolor = rgb2hsv(this_color)
+                hsvcolor = rgb2hsv(this_color);
                 this_color_light = hsv2rgb([hsvcolor(1) .35 .9]);
                 set(fh,'currentaxes',ax(1))
                 shadedErrorBar(cin_t(good_cint),cin_err_psth,cin_err_psth_sem,...
