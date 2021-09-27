@@ -23,19 +23,21 @@ addParameter(p,'model_smooth_wdw', 100);
 addParameter(p,'change_bounds', [0 0]);
 addParameter(p,'recompute_switches', 0);
 addParameter(p,'change_thresh', []);
+addParameter(p,'ratname', []);
 
 
 parse(p,varargin{:});
 p = p.Results;
 
+ratname     = p.ratname;
 array_data  = p.array_data;
 vec_data    = p.vec_data;
 dp = set_dyn_path;
 
-if isempty(array_data) || isempty(vec_data)
+if isempty(array_data) || isempty(vec_data) || isempty(ratname)
     [array_data, vec_data, this_sessid, ratname] = package_dyn_phys(cellid);
 else
-    this_sessid = bdata('select sessid from cells where cellid={S}',cellid);
+    [this_sessid, ratname] = bdata('select sessid, ratname from cells where cellid={S}',cellid);
     if iscell(this_sessid)
         this_sessid = this_sessid{1};
     end
