@@ -66,7 +66,7 @@ if ~repack && exist(save_path, 'file')
         error('need to repack, but you didn''t fully specify the kernel')
     end
 end;
-
+fprintf('\npackaging phys data for cell %i \n', cellid)
 % get packaged data from cell. This includes event times and spike times
 % without any further processing.
 [array_data, vec_data, sessid, ratname] = package_dyn_phys(cellid,...
@@ -79,30 +79,34 @@ data.ratname      = ratname;
 data.sessid       = sessid;
 % boolean that specifies in the recording was on right side of brain; if
 % false, it was on left
-data.brainsideright = bdata('select recorded_on_right from cells where cellid="{S}"', cellid);
-[data.ntot_trials, data.sessiondate] = ...
-	bdata('select n_done_trials, sessiondate from sessions where sessid="{S}"', sessid);
-data.sessiondate  = data.sessiondate{1};
+if ~exist('bdata')
+    data.brainsideright     = nan;
+    data.ntot_trials        = nan;
+    data.sessiondate        = nan;
+    data.region             = 'fof';
+else
+    data.brainsideright = bdata('select recorded_on_right from cells where cellid="{S}"', cellid);
+    [data.ntot_trials, data.sessiondate] = ...
+        bdata('select n_done_trials, sessiondate from sessions where sessid="{S}"', sessid);
+    data.sessiondate  = data.sessiondate{1};
+    eibid = bdata('select eibid from cells where cellid="{S}"',cellid);
+    % assigns a region if it is from the following "regions" list.
+    % NOTE: For this code to work, the string listed in the EIBs table must
+    % contain a case-insensitive version of one of the items from the following
+    % list and it must not contain more than item from that list.
+    regions = {'fof'};
+    for i=1:numel(regions)
+        region_eibs = bdata('select eibid from ratinfo.eibs where region like "{S}"',['%' regions{i} '%']);
+        if(ismember(eibid, region_eibs))
+            data.region = regions{i};
+        end
+    end
+end
 data.ngood_trials = numel(vec_data.good);
 % smoothing and binning info
 data.krn_width  = krn_width;
 data.bin_size   = bin_size;
 data.krn_type   = krn_type;
-
-eibid = bdata('select eibid from cells where cellid="{S}"',cellid);
-
-% assigns a region if it is from the following "regions" list.
-% NOTE: For this code to work, the string listed in the EIBs table must
-% contain a case-insensitive version of one of the items from the following
-% list and it must not contain more than item from that list. 
-regions = {'ppc','fof','sc','striatum'};
-for i=1:numel(regions)
-    region_eibs = bdata('select eibid from ratinfo.eibs where region like "{S}"',['%' regions{i} '%']);
-    if(ismember(eibid, region_eibs))
-        data.region = regions{i};
-    end
-end
-
 
 % Calculate individual trial rate functions and get spike counts for different alignments
 

@@ -32,27 +32,37 @@ function [y, x, opts] = make_rate_functions(cellid, varargin)
 
 
 %% Default Parameters
-ex_cbreak_end = 1;      % excludes trials with NIC ending with legal_cbreak
-pre = 1;                % time before aligment event to include
-post = 1;               % time after aligment event to include
-krn_width = 0.1;        % kernel std in secs
-krn_type = 'halfgauss'; % either 'halfgauss' causal filter or 'fullgauss' acausal filter
-bin_size = 0.025;       % sampling distance after smoothing in secs
+p = inputParser;
+addParameter(p, 'pre', 1)
+addParameter(p, 'post', 1)
+addParameter(p, 'krn_width', .1)
+addParameter(p, 'krn_type', 'halfgauss')
+addParameter(p, 'bin_size', .025)
+addParameter(p, 'ref_event', 'cpoke_end')
+addParameter(p, 'post_mask_event', '')
+addParameter(p, 'pre_mask_event', '')
+addParameter(p, 'pre_mask_offset', 0)
+addParameter(p, 'post_mask_offset', 0)
+addParameter(p, 'vec_data', [])
+addParameter(p, 'array_data', [])
+addParameter(p, 'mask_other_trials', [])
+parse(p,varargin{:})
+p = p.Results;
+pre             = p.pre;                % time before aligment event to include
+post            = p.post;               % time after aligment event to include
+krn_width       = p.krn_width;        % kernel std in secs
+krn_type        = p.krn_type; % either 'halfgauss' causal filter or 'fullgauss' acausal filter
+bin_size        = p.bin_size;       % sampling distance after smoothing in secs
 % must be a string for a time event from vec_data
 % these include: 'cpoke_start', 'cpoke_end', 'cpoke_out', 'spoke_in', 'stim_start'
-ref_event = 'cpoke_end'; 
-post_mask_event = '';   % same strings as above
-pre_mask_event = '';    % same strings as above
-post_mask_offset = 0;   % offset added to post-mask event
-pre_mask_offset = 0;    % offset added to pre-mask event
-vec_data = [];          % pass in vec_data (must be passed array_data!)
-array_data = [];        % pass in array_data (must be passed with vec_data!)
-mask_othertrials = 1;
-
-
-% override based on varargin
-opts = overridedefaults(who, varargin);
-
+ref_event           = p.ref_event; 
+post_mask_event     = p.post_mask_event;   % same strings as above
+pre_mask_event      = p.pre_mask_event;    % same strings as above
+post_mask_offset    = p.post_mask_offset;   % offset added to post-mask event
+pre_mask_offset     = p.pre_mask_offset;    % offset added to pre-mask event
+vec_data            = p.vec_data;          % pass in vec_data (must be passed array_data!)
+array_data          = p.array_data;        % pass in array_data (must be passed with vec_data!)
+mask_other_trials   = p.mask_other_trials;
 
 % get the packaged phys data if it isn't passed already
 if isempty(vec_data) || isempty(array_data)
@@ -100,20 +110,20 @@ end
 % mask spikes; mask should be relative to ref because we are operating on
 % output of spike_filter, which is ref-aligned
 if ~isempty(post_mask_event) && ~isempty(pre_mask_event)
-    post_mask = eval(['vec_data.' post_mask_event]) - ref + post_mask_offset;
-    pre_mask = eval(['vec_data.' pre_mask_event]) - ref + pre_mask_offset;
-    [y x]=maskraster(x,y,pre_mask,post_mask);
+    post_mask   = eval(['vec_data.' post_mask_event]) - ref + post_mask_offset;
+    pre_mask    = eval(['vec_data.' pre_mask_event]) - ref + pre_mask_offset;
+    [y x]       = maskraster(x,y,pre_mask,post_mask);
 elseif ~isempty(post_mask_event)
-    post_mask = eval(['vec_data.' post_mask_event]) - ref + post_mask_offset;
-    [y x]=maskraster(x,y,-Inf,post_mask);
+    post_mask   = eval(['vec_data.' post_mask_event]) - ref + post_mask_offset;
+    [y x]       = maskraster(x,y,-Inf,post_mask);
 elseif ~isempty(pre_mask_event)
-    pre_mask = eval(['vec_data.' pre_mask_event]) - ref + pre_mask_offset;
-    [y x]=maskraster(x,y,pre_mask,Inf);
+    pre_mask    = eval(['vec_data.' pre_mask_event]) - ref + pre_mask_offset;
+    [y x]       = maskraster(x,y,pre_mask,Inf);
 end
 
 
-if mask_othertrials
-    [y x]=maskraster(x,y,-ref,trial_end);
+if mask_other_trials
+    [y x] = maskraster(x,y,-ref,trial_end);
     
 end
 

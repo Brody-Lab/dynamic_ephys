@@ -20,9 +20,11 @@ end
 switch user
     case 'Tyler'
         project_dir         = '~/projects/pbups_dyn/';
+        code_dir            = fullfile(project_dir, 'code');
+        project_dir         = '~/projects/test_pbups_dyn/';
         spikes_dir          = fullfile(project_dir, 'data/phys');
         fig_dir             = fullfile(project_dir,'figures');
-        code_dir            = fullfile(project_dir, 'code');
+
     case 'Alex'
         project_dir         = '~/Dropbox/spikes/';
         spikes_dir          = project_dir;
@@ -147,7 +149,6 @@ dp.optimal.plotNoiseOptimal = 0;
 dp.model.compute     = 0;
 dp.model.plot        = 0;
 
-
 dp.fw = 2.5;
 dp.msz = 12;
 dp.fsz = 10.5;
@@ -155,8 +156,8 @@ set(0, 'defaultaxesfontsize',dp.fsz);
 set(0,'defaultaxeslinewidth',1)
 set(0,'DefaultAxesTitleFontWeight','normal');
 
-
 if pathup
+    if 0
     addpath(tim_code_dir, fullfile(tim_code_dir, 'Carlosbin'))
     addpath(fullfile(ratter_dir, 'ExperPort/bin'))
     addpath(fullfile(ratter_dir, 'ExperPort/MySQLUtility'))
@@ -167,15 +168,11 @@ if pathup
     
     addpath(fullfile(ratter_dir, 'Analysis/Pbups'))
     addpath(fullfile(ratter_dir, 'Analysis/helpers'))
-    
     addpath(celldat_dir)
     addpath(spikes_bin_dir)
-    addpath(tuning_curves_dir)
-    
+    end  
     addpath(genpath(code_dir));
-
 end
-
 
 if ~exist(dp.psth_fig_dir)
     mkdir(dp.psth_fig_dir);

@@ -13,7 +13,7 @@ msz = 12;
 dp = set_dyn_path;
 if ~strcmp(group, 'BING')
 for i=1:length(C)
-    plot(C{i}.noise, -C{i}.lambda,'.','color',[1 1 1].*.025,'markersize',.8*msz)
+    plot(C{i}.noise, -C{i}.lambda,'.','color',[1 1 1].*.025,'markersize',.8*msz);
 end
 else
     plot([0 .5], [0 0], 'k-','linewidth',2);
@@ -51,8 +51,8 @@ xlabel('rat noise level (n)');
 %ylabel('$\tau ( = 1/\lambda$, sec)','Interpreter','latex','fontsize',20)
 
 ax.TickDir = 'out';
+axis('square');
 
-axis square
 fh.PaperUnits = 'inches';
 pbaspect([1 1 1])
 fh.Position = [3 3 3 3];
