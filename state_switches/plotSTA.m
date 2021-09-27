@@ -27,10 +27,10 @@ fig_type = ['-d' p.fig_type];
 
 if isempty(p.fig_num)
     fh = figure; clf;
-    fpos = [4 4]
+    fpos = [4 4];
 else
     fh = figure(p.fig_num); clf
-    fpos = get(fh,'position')
+    fpos = get(fh,'position');
 end
 set(fh,'position',[fpos([1 2]) 6 3],'papersize',[6 3],'paperpositionmode','auto')
 

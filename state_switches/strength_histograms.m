@@ -1,7 +1,7 @@
 % Set Workspace
 close all; clear all;
 
-dp = set_dyn_path(1);
+dp = set_dyn_path();
 
 datapath = dp.data_dir;
 figpath  = dp.fig_dir;
@@ -42,15 +42,20 @@ for i=1:10:length(cells)
     array_data = compute_state_switches(array_data);
     
     % load just mean model trajectory for each trial
-    load(['../model/model_mean_' num2str(this_sessid) '.mat'])
+    load(fullfile(dp.model_mean_dir, ['model_mean_' num2str(this_sessid) '.mat']))
     model_mean = model_mean(vec_data.good);
     for j = 1:length(model_mean)
         model_mean(j).mean = movmean(model_mean(j).mean, p.model_smooth_wdw);
     end
   
     array_data = compute_model_state(array_data, model_mean);
-    array_data = quantify_model_state_strength(array_data,p);
-    array_data = smooth_model_state(array_data,p);
+    array_data = quantify_model_state_strength(array_data,'eval_dt',p.eval_dt,...
+        'strength_window', p.strength_window, 'fit_line', p.fit_line);
+    array_data = smooth_model_state(array_data, ...
+        'remove_initial_choice', p.remove_initial_choice, ...
+        'clear_bad_strengths', p.clear_bad_strengths, ...
+        'bad_strength', p.bad_strength);
+
     array_data = compute_gen_state(array_data);
     to0 =[to0 [array_data.model_switch_to_0_strength]];
     to1 =[to1 [array_data.model_switch_to_1_strength]];
