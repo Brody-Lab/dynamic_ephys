@@ -1,33 +1,15 @@
-sessid  = 508439; %original figure used this session
-cellid  = 16905;
-rat = 'H037';
-lag = .1;
-% %% use to check H037 converges now
-% for ff = 1:10
-%     fit{ff} = fit_rat_analytical(rat,'data_dir', dp.behav_data_dir, 'reload',0);
-% end
+clear
 
-%%
 dp      = set_dyn_path;
-
 cellid  = 18181;
-[sessid, rat]   = bdata('select sessid, ratname from cells where cellid={S}',cellid);
-rat             = rat{1};
-S               = load_session_data(sessid);
-data_full       = format_data(S);
-violix          = find(S.pd{1}.violations);
-
-
-%%
-align_strs = dyn_align_LUT;
+sessid  = 599345;
+rat     = 'H066';
+lag     = .1;
+fit     = fit_rat_analytical(rat,'results_dir',dp.model_fits_dir);
+params  = fit.final;
+d       = dyn_cell_packager(cellid);
+align_strs      = dyn_align_LUT;
 cin_align_ind   = find(ismember(align_strs,'stimstart-cout-mask'));
-
-%%
-fit = fit_rat_analytical(rat,'results_dir',dp.model_fits_dir);
-params = fit.final;
-%%
-d = dyn_cell_packager(cellid);
-%%
 % compute model output for each trial
 p_in.error_tolerance    = 1e-4;
 p_in.compute_dist       = 1;
@@ -36,32 +18,6 @@ p_in.da                 = 0.1;
 p_in.avals              = -10:p_in.da:10;
 p_in.just_pdf           = 1;
 p_in.return_backwards   = 1;
-
-nswitches = cellfun(@length,{data_full.genSwitchTimes})';
-cellpref = 'l';
-pd = S.pd{1};
-good = pd.hits & pd.sides==cellpref & ~pd.violations;
-which_trials = find(nswitches > 1 & pd.samples > 1 & good);
-ii = 1;
-%egtrial = 51;
-tt = 2;
-which_trial = which_trials(tt)
-data = data_full(which_trial);
-[model1,p]          = accumulation_model(data, params, ...
-    'return_backwards',1,'forward', p_in, 'compute_dist', 1);
-model1(ii).backwards = compute_pdf(model1(ii).backwards,p.avals,p,'mixture');
-% plot left and right clicks
-model1(ii).forward.title = 'Forward';
-model1(ii).backwards.title = 'Backward';
-
-switch data(ii).pokedR
-    case 0
-        chosen = 'left';
-        unchosen = 'right';
-    case 1
-        chosen = 'right';
-        unchosen = 'left';
-end
 %%
 sp = struct('clear_bad_strengths',1,'bad_strength',0,'fit_line',1,...
     'exclude_final',0,'final_only',0,...
@@ -77,14 +33,49 @@ sp = struct('clear_bad_strengths',1,'bad_strength',0,'fit_line',1,...
     'min_pre_dur',sp.min_pre_dur,'min_post_dur',sp.min_post_dur,...
     'model_smooth_wdw', sp.model_smooth_wdw,...
     't_buffers', sp.t_buffers);
+%%
+testdat         = load(fullfile(dp.behav_data_dir,rat));
+this_sess_ind   = find([testdat.data.sessid]' == sessid);
+testdat         = testdat.data(this_sess_ind);
+nswitches       = cellfun(@length,{testdat.genSwitchTimes})';
+T               = [testdat.T]';
+valid           = false(size(T));
+valid(vec_data.good) = true;
+wt              = find(nswitches > 1 & T > 1 & valid);
 
+which_trial     = wt(6); 
+data            = testdat(which_trial);
+wt      = find(vec_data.good == which_trial);
+this_ts = d.trials.spike_times{wt}';
+cend_ts = d.trials.cpoke_end(wt)';
 tn = find([array_data.trialnum]==which_trial);
 ad = array_data(tn);
+%%
+% S           = load_session_data(sessid);
+% data_full   = format_data(S);
+% violix      = find(S.pd{1}.violations);
+% cellpref        = 'l';
+% pd              = S.pd{1};
+% good            = pd.hits & pd.sides==cellpref & ~pd.violations;
+% which_trials    = find(nswitches > 1 & pd.samples > 1 & good);
+[model1,p]          = accumulation_model(data, params, ...
+    'return_backwards',1,'forward', p_in, 'compute_dist', 1);
+ii = 1;
+model1(ii).backwards = compute_pdf(model1(ii).backwards,p.avals,p,'mixture');
+% plot left and right clicks
+model1(ii).forward.title = 'Forward';
+model1(ii).backwards.title = 'Backward';
+
+switch data(ii).pokedR
+    case 0
+        chosen = 'left';
+        unchosen = 'right';
+    case 1
+        chosen = 'right';
+        unchosen = 'left';
+end
 
 %% plot accumulator distribution and clicks for this trial
-SD  = get_sessdata(sessid);
-peh = SD.peh{1};
-
 D = model1(ii).posterior;
 D.title = 'Posterior';
 D.left_clicks = data(ii).leftbups;
@@ -101,7 +92,7 @@ D.state_switches = data.genSwitchTimes;
 D.model_switch_y = -3.75;
 D.state_switch_y = -4.75;
 
-fig = figure(1); clf
+
 D.plot_mean_line = 0;
 D.plot_zero_line = 0;
 D.plot_bias_line = 1;
@@ -112,6 +103,9 @@ D_ = rmfield(D_,'model_switches');
 D_ = rmfield(D_, 'state_switches');
 D_ = rmfield(D_, 'left_clicks');
 D_ = rmfield(D_, 'right_clicks');
+
+
+fig = figure(1); clf
 plot_pdf(D_)
 
 pbaspect([2.5 1 1])
@@ -122,26 +116,19 @@ fw  = 3.75;
 set(fig,'position',[5 5 fw fht],'papersize', [fw fht])
 set(gca,'fontsize',dp.fsz)
 
-% fig.Position = [5 5 6 3]
-% fig.PaperUnits = 'inches';
-% fig.PaperPosition = [0 0 3 3];
-% fig.PaperPositionMode = 'Auto';
-% fig.PaperSize = [3 3];
 end_color = dp.model_color;
 
-colormap(colormapLinear(end_color).^1.5)
+colormap(colormapLinear(end_color).^1.5);
 
-%colormap(flipud(gray))
 box off
-ax = gca
-%ax.YColor = 'w'
-ax.TickDir = 'out'
+ax = gca;
+ax.TickDir = 'out';
 caxis([0 round(max(D.pdf(:))*10)/10])
 caxis([0 max(D.pdf(:))])
 
 pos = ax.Position;
 xlim([-0.05 max(xlim)])
-cb = colorbar
+cb = colorbar;
 
 cb.Position = cb.Position+[.0 .35 -.025 -.25];
 title(cb,{ 'p(a)'})
@@ -150,15 +137,6 @@ ylabel('accumulated evidence (a)')
 title('')
 xlabel('time from stim onset (s)')
 
-%
-ts = bdata('select ts from spktimes where cellid={S}',cellid);
-ts = ts{1};
-
-cin_ts = peh(which_trial).states.cpoke1(1);
-cend_ts = cin_ts + data.T;
-this_ts = ts(ts > (cin_ts -5) & ts < (cend_ts + 5))';
-this_ts = this_ts - cin_ts;
-
 % plot spikes and smoothed rates from same trial
 fh2 = figure(2); clf
 fh2.Position = [5 9 6 3];
@@ -166,16 +144,13 @@ ax2 = axes;
 ax2.Position = [pos(1) .125 pos(3) .2];
 hold(ax2,'on');
 state_switches = data.genSwitchTimes;
-
 D.model_switches = sort([ad.model_switch_to_0 ad.model_switch_to_1]);
-
 
 xlabel(ax2,'time from stim onset (s)');
 ax2.TickDir = 'out';
 box(ax2,'off');
 ax2.YColor = 'w';
 xlim(get(ax,'xlim'));
-
 
 left_color  = [48 127 255]./255;
 right_color = [0 140 54]./255 ;
@@ -193,19 +168,14 @@ plot([D.model_switches; D.model_switches],4-[0;1],...
 
 plot(ax2,[this_ts; this_ts],5-[0;1],'k');
 
-
-ylim(ax2,[0 5])
-
-
+ylim(ax2,[0 5]);
 ax3 = axes;
 ax3.Position = [pos(1) .55 pos(3) .25];
 t = d.frate_t{cin_align_ind};
 fr = d.frate{cin_align_ind}(which_trial,:);
 
-
-xlim(ax3,get(ax2,'xlim'))
-linkaxes([ax,ax2,ax3],'x')
-%ax3.XTickLabels = [];
+xlim(ax3,get(ax2,'xlim'));
+linkaxes([ax,ax2,ax3],'x');
 ax3.TickDir = 'out';
 krn_width = 0.1;
 bin_size = 0.005;
@@ -213,10 +183,8 @@ dx=ceil(5*krn_width/bin_size);
 krn=normpdf(-dx:dx,0,krn_width/bin_size);
 krn(1:dx)=0;
 krn=(krn)/sum(krn)/bin_size;
-[y x] = spike_filter(cin_ts, ts, krn, 'pre', 1, 'post', 3,...
+[y x] = spike_filter(0, this_ts, krn, 'pre', 1, 'post', 3,...
     'kernel_bin_size', bin_size, 'normalize_krn',1);
-%plot(ax3,x,y)
-%plot(ax3,t, fr,'k')
 hold(ax3,'on')
 
 model_mean = movmean(D.mean,100);
@@ -243,9 +211,9 @@ for ss = 1:length(blocks)-1
         this_color = dp.left_color;
     end
     
-    patch(ax3,x([a a:b b a]),[0 y(a:b) 0 0],this_color,'edgecolor',this_color)
-    plot(ax3,x(a:b),y(a:b),'color',this_color,'linewidth',1)
-    alpha(.5)
+    patch(ax3,x([a a:b b a]),[0 y(a:b) 0 0],this_color,'edgecolor',this_color);
+    plot(ax3,x(a:b),y(a:b),'color',this_color,'linewidth',1);
+    alpha(.5);
     
     this_t_ = D.T >= blocks(ss) & D.T <= blocks(ss+1);
     a_ = find(this_t_,1,'first');
@@ -271,9 +239,9 @@ ylim(ax3,[-5 100])
 fht = 2.5;
 fw  = 3.5;
 
-axpos = get(ax3,'position')
-set(fig, 'position', [5 5 fw fht])
-set(fh2, 'position', [5 10 fw fht])
+axpos = get(ax3,'position');
+set(fig, 'position', [5 5 fw fht]);
+set(fh2, 'position', [5 10 fw fht]);
 
 fh2_name = fullfile(dp.fig_dir,['spikes_posterior_' chosen '_choice']);
 fig_name = fullfile(dp.fig_dir,['model_posterior_' chosen '_choice']);

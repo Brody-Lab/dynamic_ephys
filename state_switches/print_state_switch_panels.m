@@ -1,6 +1,3 @@
-check_switch_inclusion;
-%%
-strength_histograms;
 %% plot example trial for explaining analysis for panel A
 posterior_example;
 %%
@@ -67,3 +64,7 @@ set(fh,'position',get(figure(1),'position'),...
 %set(ax,'position',get(axpopsta,'position'))
 %set(ax,'position',[2 5 fw fht])
 print(fh, fullfile(dp.fig_dir,['STA_comparison_' which_correction_str ]),fig_type,'-painters')
+%%
+check_switch_inclusion;
+%%
+strength_histograms;
