@@ -1,0 +1,3 @@
+[submodule "accumulation-model"]
+	path = accumulation-model
+	url = https://github.com/Brody-Lab/accumulation-model
