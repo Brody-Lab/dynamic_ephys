@@ -57,6 +57,7 @@ for i=start_trial:length(array_data)
         end 
     end
 
-    keyboard;
+    fprintf('press any key to continue to the next test trial')
+    pause();
 end
 

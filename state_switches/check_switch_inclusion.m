@@ -17,7 +17,7 @@ p.min_post_dur          = 0;
 p.which_switch          = 'model' ;
 cellid   = 18181;
 % cellid = 16898;
-
+cellid = 16818;
 
 p.remove_initial_choice = 0; %1;
 p.change_bounds = [-1 1].*0;
@@ -37,7 +37,8 @@ p.change_bounds = [-1 1].*0;
     'remove_initial_choice',p.remove_initial_choice);
 %%
 smooth_level = [1 100 250 500];
-figure(1); clf
+f = figure(2); clf
+set(f,'position',[1 1 12 6])
 s = [];
 dur_x = 0:.1:2;
 rate_x = 0:.2:5;
@@ -108,14 +109,18 @@ p.min_post_dur = 0;
     'remove_initial_choice',p.remove_initial_choice,...
     't_buffers',p.t_buffers);
 %%
-
-bad_trials = [9 15 95]
-model_switch_browser(array_data,p,bad_trials);
-%%
-which_trials = [10 13 15 17 29 32 80]
-which_trials = [6, 15, 17, 34, 65, 81];
-which_trials = [6, 15, 17, 34, 65, 81 10 13 15 17 29 32 80]
+which_trials = [8 30];
 model_switch_browser(array_data,p,which_trials);
-%%
-model_switch_browser(array_data,p)
+% % 
+% % %%
+% % bad_trials = [9 15 95]
+% % model_switch_browser(array_data,p,bad_trials);
+% % %%
+% % which_trials = [10 13 15 17 29 32 80]
+% % which_trials = [6, 15, 17, 34, 65, 81];
+% % which_trials = [6, 15, 17, 34, 65, 81 10 13 15 17 29 32 80]
+% % %%
+% % 
+% % %%
+% model_switch_browser(array_data,p)
 %%

@@ -20,7 +20,9 @@ for i=which_trials
     clf;
     hold on;
     plot(array_data(i).model_T([1 end]),[0 0], 'color',[1 1 1].*.5)
-    plot(array_data(i).model_T, array_data(i).raw_model_mean, '-','color',[1 1 1].*.5);
+    if isfield(array_data, 'raw_model_mean')
+        plot(array_data(i).model_T, array_data(i).raw_model_mean, '-','color',[1 1 1].*.5);
+    end
     plot(array_data(i).model_T, array_data(i).model_mean, '-',...
         'color',dp.model_color,'linewidth',2);
     plot(array_data(i).model_T, model_state, ':', 'color', [.5 .5 .5])
@@ -108,6 +110,7 @@ for i=which_trials
         end
     end
     title(['Trial ' num2str(i)])
+    fprintf('press any key to continue to the next test trial')
     pause()
 end
 
