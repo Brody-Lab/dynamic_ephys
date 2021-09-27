@@ -249,6 +249,7 @@ if p.shuffle_trials | p.shuffle_trials_fixing_choice | p.shuffle_switches
     end
 end
 
+fprintf('building p(r,a,t) for cell %i', cellid)
 
 % compute the joint probability distribution p(t,f,a)
 res = compute_joint_frdvt(fr_norm, ft, model, p.t0s, mt_offset, ...

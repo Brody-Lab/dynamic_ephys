@@ -25,12 +25,16 @@
 % if there are nans in ref, that row of y is nans
 %
 % Vetted by B. Brunton and J. Erlich 2009/10/5
-
-pairs = {'kernel_bin_size'			5e-4	; ...
-    'pre'						2		; ...
-    'post'						3		; ...
-    'normalize_krn'             1       ; ...
-    }; parseargs(varargin, pairs);
+p = inputParser;
+addParameter(p, 'kernel_bin_size',	5e-4);
+addParameter(p, 'pre', 2);
+addParameter(p, 'post', 3); 
+addParameter(p, 'normalize_krn',1);
+parse(p, varargin{:})
+kernel_bin_size = p.Results.kernel_bin_size;
+pre             = p.Results.pre;
+post            = p.Results.post;
+normalize_krn   = p.Results.normalize_krn;
 
 if normalize_krn
     kernel = kernel/sum(abs(kernel))/kernel_bin_size; % normalize

@@ -1,4 +1,4 @@
-function [y, x, opts] = make_rate_functions(cellid, varargin)
+function [y, x, opts] = dyn_make_rate_functions(cellid, varargin)
 % function [y, x, opts] = make_rate_functions(cellid, varargin)
 %
 % INPUT:
