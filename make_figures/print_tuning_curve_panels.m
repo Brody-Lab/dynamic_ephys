@@ -3,7 +3,9 @@ close
 % This script produces the figures from figure 3 or 5
 % To produce panels from figure 3, set use_switches = 0
 % To produce panels from figure 5, set use_switches = 1
-use_switches = 0;
+if ~exist('use_switches','var')
+    use_switches = 0;
+end
 % which_switch determines whether to use 'model' switches or 'generative'
 % switches. This is only relevant if use_switches = 1
 which_switch = 'model';

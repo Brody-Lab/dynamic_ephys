@@ -9,43 +9,42 @@ function dp = set_dyn_path(pathup, user)
 % themself as a user, change the default user to their own name, and define
 % the variables project_dir, spikes_dir, fig_dir, code_dir
 
-
 if nargin < 1
     pathup = false;
 end
 if nargin < 2
-    user    = 'Tyler';
+    user    = 'new_user';
 end
 
 switch user
     case 'Tyler'
-        project_dir         = '~/projects/pbups_dyn/';
-        code_dir            = fullfile(project_dir, 'code');
-        project_dir         = '~/projects/test_pbups_dyn/';
-        spikes_dir          = fullfile(project_dir, 'data/phys');
-        fig_dir             = fullfile(project_dir,'figures');
-
-    case 'Alex'
-        project_dir         = '~/Dropbox/spikes/';
-        spikes_dir          = project_dir;
-        fig_dir             = fullfile(project_dir,'figures');
-    otherwise
-        fprintf('you should pick a spikes directory')
+        project_dir     = '~/projects/test_pbups_dyn/';
+        code_dir        = fullfile(project_dir, 'code', 'dynamic_ephys');
+    case 'new_user'
+        fprintf(['you need to configure dthe directory structure by '...
+            'entering a project directory and a code directory'])
         keyboard
+        % NEW USER: type in the path to the parent directory for the project
+        % this should contain <project_dir>/data and <project_dir>/results
+        project_dir     = ''; 
+        % NEW USER: type in the path to the directory for the dynamic ephys
+        % code repository
+        code_dir        = '';
+
 end
-celldat_filename    = 'dyn_multi_db.mat';
-celldat_dir         = fullfile(spikes_dir, 'cell_packager_data');
-spikes_bin_dir      = fullfile(spikes_dir, 'bin');
+dp.data_dir          = fullfile(project_dir, 'data');
+dp.behav_data_dir    = dp.data_dir;
+spikes_dir           = fullfile(dp.data_dir, 'phys');
+fig_dir              = fullfile(project_dir,'figures');
+celldat_filename     = 'dyn_multi_db.mat';
+celldat_dir          = fullfile(spikes_dir, 'cell_packager_data');
+spikes_bin_dir       = fullfile(spikes_dir, 'bin');
 dp.ratlist           = ratlist;
-tuning_curves_dir   = fullfile(spikes_bin_dir, 'tuning_curves');
-ratter_dir          = '~/ratter';
-tim_code_dir        = fullfile(ratter_dir, 'Manuscripts/TimHanks/PBupsPhys/Code/');
+tuning_curves_dir    = fullfile(spikes_bin_dir, 'tuning_curves');
 dp.code_dir          = code_dir;
 dp.project_dir       = project_dir;
 dp.check_rats_dir    = fullfile(dp.project_dir, 'check_rats');
 dp.check_rats_figdir = fullfile(dp.check_rats_dir, 'rat_figures/');
-dp.behav_data_dir    = fullfile(project_dir, 'data');
-dp.data_dir          = dp.behav_data_dir;
 dp.example_data_dir  = fullfile(fileparts( mfilename('fullpath')),'example_data');
 dp.behav_data_filefn = @(rat) fullfile(dp.behav_data_dir, [rat '.mat']);
 dp.behav_incl_filefn = @(rat, haz) fullfile(behav_data_dir, [rat '_inclusion' num2str(haz) '.mat']);
@@ -65,8 +64,6 @@ dp.celldat_filename  = celldat_filename;
 dp.celldat_dir       = celldat_dir;
 dp.spikes_bin_dir    = spikes_bin_dir;
 dp.tuning_curves_dir = tuning_curves_dir;
-dp.ratter_dir        = ratter_dir;
-dp.tim_code_dir      = tim_code_dir;
 dp.ephys_summary_dir = fullfile(spikes_bin_dir, 'ephys_summary');
 dp.population        = 'ephys';
 % parameters for which sessions to include
