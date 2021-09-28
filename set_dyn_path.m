@@ -18,28 +18,42 @@ end
 
 switch user
     case 'Tyler'
-        project_dir     = '~/projects/test_pbups_dyn/';
+        project_dir     = '~/projects/boydmeredith_piet_data';
+        project_dir_    = '~/projects/pbups_dyn/';
         code_dir        = fullfile(project_dir, 'code', 'dynamic_ephys');
+        fig_dir         = fullfile(project_dir,'figures');
+
     case 'new_user'
         fprintf(['you need to configure dthe directory structure by '...
-            'entering a project directory and a code directory'])
+           'entering a project directory and a code directory'])
         keyboard
-        % NEW USER: type in the path to the parent directory for the project
-        % this should contain <project_dir>/data and <project_dir>/results
-        project_dir     = ''; 
-        % NEW USER: type in the path to the directory for the dynamic ephys
-        % code repository
-        code_dir        = '';
-
+        % NEW USER: You need to pick a few directories so the code knows
+        % where to find things
+        
+        % project_dir is the parent directory that contains the folder
+        % /data That should point to wherever you unzipped this dataset
+        % make sure that <project_dir>/data and <project_dir./results are
+        % both valid paths
+        
+        % code_dir is wherever you cloned this git repository. Make sure
+        % that <code_dir>/behavior_only is a valid path, for example
+        
+        % fig_dir is wherever you want to save out the figures
+        project_dir     = '/path/to/boydmeredith_piet_data'; 
+        code_dir        = '/path/to/dynamic_ephys';
+        fig_dir         = '/path/to/figures/';
 end
+
+if pathup | ~exist('ratlist','file')
+    addpath(genpath(code_dir));
+end
+
 dp.data_dir          = fullfile(project_dir, 'data');
 dp.behav_data_dir    = dp.data_dir;
 spikes_dir           = fullfile(dp.data_dir, 'phys');
-fig_dir              = fullfile(project_dir,'figures');
 celldat_filename     = 'dyn_multi_db.mat';
 celldat_dir          = fullfile(spikes_dir, 'cell_packager_data');
 spikes_bin_dir       = fullfile(spikes_dir, 'bin');
-dp.ratlist           = ratlist;
 tuning_curves_dir    = fullfile(spikes_bin_dir, 'tuning_curves');
 dp.code_dir          = code_dir;
 dp.project_dir       = project_dir;
@@ -81,9 +95,6 @@ dp.color             = 'b';
 dp.compare_color     = ['b', 'r'];
 dp.optimal_color     = 'k';
 dp.model_color       = [255 140 140]/255.;
-cm2                 = color_set(2);
-dp.left_color        = cm2(1,:);
-dp.right_color        = cm2(2,:);
 dp.pref_color  = [.8 .25 .8];
 dp.npref_color = [.8 .65 .25];
 
@@ -150,26 +161,15 @@ dp.fw = 2.5;
 dp.msz = 12;
 dp.fsz = 10.5;
 set(0, 'defaultaxesfontsize',dp.fsz);
-set(0,'defaultaxeslinewidth',1)
+set(0,'defaultaxeslinewidth',1);
 set(0,'DefaultAxesTitleFontWeight','normal');
 
-if pathup
-    if 0
-    addpath(tim_code_dir, fullfile(tim_code_dir, 'Carlosbin'))
-    addpath(fullfile(ratter_dir, 'ExperPort/bin'))
-    addpath(fullfile(ratter_dir, 'ExperPort/MySQLUtility'))
-    
-    addpath(fullfile(ratter_dir, 'ExperPort/Analysis'))
-    addpath(fullfile(ratter_dir, 'ExperPort/SameDifferent'))
-    addpath(fullfile(ratter_dir, 'ExperPort/HandleParam'))
-    
-    addpath(fullfile(ratter_dir, 'Analysis/Pbups'))
-    addpath(fullfile(ratter_dir, 'Analysis/helpers'))
-    addpath(celldat_dir)
-    addpath(spikes_bin_dir)
-    end  
-    addpath(genpath(code_dir));
-end
+
+dp.ratlist           = ratlist;
+cm2                 = color_set(2);
+dp.left_color        = cm2(1,:);
+dp.right_color        = cm2(2,:);
+
 
 if ~exist(dp.psth_fig_dir)
     mkdir(dp.psth_fig_dir);
