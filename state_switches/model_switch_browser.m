@@ -110,7 +110,7 @@ for i=which_trials
         end
     end
     title(['Trial ' num2str(i)])
-    fprintf('press any key to continue to the next test trial')
-    pause()
+    %fprintf('press any key to continue to the next test trial')
+    pause(.1)
 end
 

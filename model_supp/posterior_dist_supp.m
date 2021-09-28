@@ -2,12 +2,10 @@
 % close all; clear all;
 
 % load example fit and dataset
-dp = set_dyn_path(1);
-ex_rat = 'H084';
-model_fit_fn = fullfile(dp.model_fits_dir, ['fit_analytical_' ex_rat '.mat'])
-
-fit = fit_rat_analytical(ex_rat,'data_dir',dp.data_dir,'results_dir',dp.model_fits_dir);
-load(fit.datafile)
+dp      = set_dyn_path(1);
+ex_rat  = 'H084';
+fit     = fit_rat_analytical(ex_rat,'data_dir',dp.data_dir,'results_dir',dp.model_fits_dir);
+load(fullfile(dp.data_dir, ex_rat))
 %%
 
 % set up parameters
