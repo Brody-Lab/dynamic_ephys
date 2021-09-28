@@ -60,7 +60,7 @@ ad = array_data(tn);
 % good            = pd.hits & pd.sides==cellpref & ~pd.violations;
 % which_trials    = find(nswitches > 1 & pd.samples > 1 & good);
 fprintf(['\ncomputing the backward distribution for this example trial. ' ...
-    'This will take a minute']);
+    'This will take a few minutes\n']);
 [model1,p]          = accumulation_model(data, params, ...
     'return_backwards',1,'forward', p_in, 'compute_dist', 1);
 ii = 1;

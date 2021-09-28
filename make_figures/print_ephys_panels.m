@@ -264,7 +264,7 @@ npref_color = [.8 .65 .25];
 
 xlim(ax(1),xlim_on)
 xlim(ax(2),xlim_off)
-txt = text(ax(1), .5, 2, ['n = ' num2str(sum(good_cells))])
+txt = text(ax(1), .5, 2, ['n = ' num2str(sum(good_cells))]);
 ax(2).YTickLabel = {};
 ylim(ax(1),[.9 2.5])
 pbaspect(ax(1),[1 1 1])
@@ -294,13 +294,10 @@ if ~exist(cout_auc_file) | recompute
     cout_p   = nan(ngood,n_coutt);
     cout_ci  = nan(ngood,n_coutt,2);
     fprintf('working on cell...')
-    tic
     %%
     for cc = 1:ncells
         if mod(cc,5)==0
-            toc;
             fprintf('%i of %i...',cc,ncells);
-            tic;
         end
         this_id = cellids(good_cell_ix(cc));
         

@@ -1,17 +1,12 @@
-function [fh ax] = example_cell_psth(varargin)
-
-
+function [fh, ax] = example_cell_raster(varargin)
 p = inputParser;
 addParameter(p,'cells',[ 16857 17784 18181 ]);
-addParameter(p,'type','choice'); %evR, chrono
-addParameter(p,'separate_hits',1);
 addParameter(p,'meta',0)
 addParameter(p,'flip',0)
 addParameter(p,'pause',0)
 addParameter(p,'top_color','')
 addParameter(p,'bot_color','')
 addParameter(p,'max_ntrials',Inf)
-addParameter(p,'edges',[])
 addParameter(p,'min_t',0)
 addParameter(p,'fig_num',1)
 addParameter(p,'repack',0)
@@ -28,12 +23,8 @@ cinstr = p.Results.cinstr;
 coutstr = p.Results.coutstr;
 
 cellid = p.Results.cells;
-type = p.Results.type;
 meta = p.Results.meta;
 flip = p.Results.flip;
-do_pause = p.Results.pause;
-edges = p.Results.edges;
-separate_hits = p.Results.separate_hits;
 fig_num     = p.Results.fig_num;
 bin_size    = p.Results.bin_size;
 max_nt      = p.Results.max_ntrials;
@@ -89,9 +80,6 @@ if sum(good) > max_nt
     good = good & subsamp;   
 end
 nt = sum(good);
-
-
-
 go_r    = d.trials.rat_dir==1;
 rng(0);
 [go_r_sort, sort_ind] = sort(1000*go_r+T);
@@ -106,10 +94,7 @@ ind_l   = go_r_sort(i)<1000;
 
 trial_markers_ = sum(ind_l);
 
-tic
-
 fh = figure(fig_num); clf
-%set(fh,'position',[15 5 6 3 ],'papersize',[6 3],'paperpositionmode','auto')
 
 ax(1) = subplot(121);hold(ax(1),'on');
 ax(2) = subplot(122);hold(ax(2),'on');
@@ -118,22 +103,12 @@ axis(ax(2),'ij')
 xlim(ax(1),cintrange)
 xlim(ax(2),couttrange)
 
-% N = arrayfun(@(x) x < cin_t, vec_data.cpoke_out,'uniformoutput',0);
-% N = vertcat(N{:});
-% 
-% N = N([ find(go_r_sort);find(~go_r_sort)],:);
-% N = N([ find(~go_r_sort);find(go_r_sort)],:);
-% h = imagesc(ones(size(N)),'x',cin_t, 'Alphadata',N, 'parent', ax(1));
-
 plot(ax(1), cin_t(j(ind_r)), i(ind_r),'.',...
     'color',dp.right_color,'markersize',1)
-
 plot(ax(1), cin_t(j(ind_l)), i(ind_l),'.',...
     'color',dp.left_color,'markersize',.1)
-
 plot(ax(1), tmarker(sort_ind), 1:nt,'.r',...
     'markersize', 6)
-
 
 %%
 cout_raster = cout_fr(sort_ind,:);
@@ -153,7 +128,6 @@ plot(ax(2), tmarker(sort_ind), 1:nt,'.r',...
     'markersize',6)
 
 axis ij
-toc
 
 midl      = find(diff(go_r_sort<1000))+.5;
 

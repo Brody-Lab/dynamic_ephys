@@ -4,7 +4,7 @@ if isempty(strmatch(group, char('a_fits_3','a_no_sa','a_no_si','a_x_stream','syn
 end
 dp = set_dyn_path;
 
-fn = fullfile(dp.data_dir, 'group_analysis.mat')
+fn = fullfile(dp.data_dir, 'group_analysis.mat');
 if exist(fn,'file')
     load(fn, 'F', 'analysis')
     return
@@ -120,7 +120,7 @@ catch
 end
 %%%%%%%%%%%%%%%%%%%%%%% SAVE DATA SUMMARY
 
-save(fn, 'F','analysis')
+save(fn, 'F','analysis');
 
 %%%%%%%%%%%%%%%%%%%%%%% PLOTTING SECTION
 %keyboard

@@ -43,8 +43,8 @@ B = STR_right(indB,:);
 NA = ~isnan(A);
 NB = ~isnan(B);
 
-ax1 = subplot(211)
-ax2 = subplot(212)
+ax1 = subplot(211);
+ax2 = subplot(212);
 
 bg_color = [1 1 1] .* .85;
 
