@@ -93,7 +93,7 @@ end_state_s = [];
 
 fn          = sprintf('meta_psth_%s.mat',type);
 savename    = fullfile(dp.spikes_dir, fn);
-if exist(savename, 'file')
+if meta & exist(savename, 'file')
     load(savename)
 else
     
