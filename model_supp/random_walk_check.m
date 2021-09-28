@@ -2,8 +2,7 @@
 close all;
 clear all;
 dp = set_dyn_path(1);
-%%
-dev_script; 
+
 %%
 % parameters of simulation
 nt = 10;
