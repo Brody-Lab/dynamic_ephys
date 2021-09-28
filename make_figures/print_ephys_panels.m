@@ -1,6 +1,6 @@
 close all
 clear all
-dp = set_dyn_path(1)
+dp = set_dyn_path(1);
 [align_strs, align_args]    = dyn_align_LUT;
 cout_align_ind  = find(ismember(align_strs,'cpokeout'));
 cin_align_ind   = find(ismember(align_strs,'stimstart-cout-mask'));
@@ -8,11 +8,11 @@ assert(all([~isempty(cout_align_ind),~isempty(cin_align_ind)]));
 
 % turn long_trials_only on if you want to only use the long trials for the
 % figures
-long_trial_dur = 1;
-long_trials_only = false;
-ploterrorbar = 1;
-coutstr = 'cpokeout';
-repack  = 0;
+long_trial_dur      = 1;
+long_trials_only    = false;
+ploterrorbar        = 1;
+coutstr             = 'cpokeout';
+repack              = 0;
 %% get full cell_list; *all* units recorded in project
 cell_list = dyn_cells_db;   % That has to be run once to create cell_list
 normmnth = 1;
@@ -241,7 +241,8 @@ end
 [fh, ax] = example_cell_psth('cells',cellids(good_cells),...
     'ploterrorbar',1,'meta',1,...
     'cintrange',xlim_on,'couttrange',xlim_off,...
-    'coutstr',coutstr,'fig_num',2, 'norm', 'onset', 'repack',repack);
+    'coutstr',coutstr,'fig_num',2, 'norm', 'onset',...
+    'dyn_path', dp, 'repack',repack);
 xlim(ax(1),xlim_on)
 xlim(ax(2),xlim_off)
 
@@ -259,7 +260,7 @@ npref_color = [.8 .65 .25];
 [fh, ax] = example_cell_psth('separate_hits', 0, 'min_t', 0, ...
     'cells', cellids(good_cells), 'meta', 1, 'type', 'chrono', ...
     'edges', edges, 'norm', 'onset', 'top_color', pref_color, ...
-    'bot_color', npref_color,'fig_num', 1);
+    'bot_color', npref_color,'fig_num', 1, 'dyn_path', dp);
 
 xlim(ax(1),xlim_on)
 xlim(ax(2),xlim_off)

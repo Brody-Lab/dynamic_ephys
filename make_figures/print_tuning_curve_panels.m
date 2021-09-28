@@ -1,5 +1,4 @@
-clear
-close
+
 % This script produces the figures from figure 3 or 5
 % To produce panels from figure 3, set use_switches = 0
 % To produce panels from figure 5, set use_switches = 1
@@ -443,10 +442,13 @@ fgta_line_plot(tempres,'goodtind',~badtind,'ax',ax,...
 ylabel(ax,'\Delta FR (z-score)')
 xlabel(ax,xlab)
 title('population average','interpreter','latex')
-if zscore_frates
+if use_switches
+    ylim([-1 1].*.175)
+elseif zscore_frates
     ylim([-1 1].*.13)
     set(ax, 'ytick', [-.1 0 .1])
 end
+
 print_fn(fh,'pop_fgta',fig_type)
 %% population average residual map
 fh      = figure(20); clf

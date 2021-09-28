@@ -53,6 +53,7 @@ ylabel(ax,'% significant')
 set(fh,'position',get(figure(1),'position'),...
     'papersize',get(figure(1),'papersize'),...
     'paperposition',get(figure(1),'paperposition'))
+figure(fh)
 print(fh, fullfile(dp.fig_dir,['STA_comparison_' which_correction_str ]),fig_type,'-painters')
 %% this was used to produce the supplementary figure on state changes
 % and is useful for looking at different sets of inclusion parameters
