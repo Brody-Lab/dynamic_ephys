@@ -279,5 +279,5 @@ time_vec        = plot_lags(pval_plot_lags);
 
 datasavefname   = ['fraction_data_' which_switch correction_str '.mat'];
 % Save data from this analysis
-save(fullfile(dp.sta_fig_dir, datasavefname), 'time_vec','average_siggy','n')
+save(fullfile(dp.sta_dir, datasavefname), 'time_vec','average_siggy','n')
 

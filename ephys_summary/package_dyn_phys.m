@@ -58,7 +58,7 @@ parse(p, varargin{:});
 dp = set_dyn_path;
 save_path       = p.Results.save_path;
 if isempty(save_path)
-    save_path   = dp.spikes_dir;
+    save_path   = dp.spikes_bin_dir;
 end
 save_to_file    = p.Results.save_to_file;
 repack          = p.Results.repack;

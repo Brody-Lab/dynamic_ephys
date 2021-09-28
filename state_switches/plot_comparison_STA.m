@@ -19,12 +19,12 @@ ppos    = [fw fht];
 ns      = 1;
 gen_clr = [.5 .5 .5];
 set(fh1,'position',[2 5 fw fht],'papersize', [fw fht]);
-load(fullfile(dp.sta_fig_dir,...
+load(fullfile(dp.sta_dir,...
     ['fraction_data_generative' which_correction_str '.mat']))
 time_gen = time_vec;
 p_gen = movmean(average_siggy,ns);
 se_gen = sqrt((p_gen.*(1-p_gen))./n);
-load(fullfile(dp.sta_fig_dir,...
+load(fullfile(dp.sta_dir,...
     ['fraction_data_model' which_correction_str '.mat']))
 p_mod = movmean(average_siggy,ns);
 se_mod = sqrt((p_mod.*(1-p_mod))./n);
