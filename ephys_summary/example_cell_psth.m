@@ -26,6 +26,8 @@ addParameter(p, 'cinstr', 'stimstart-cout-mask');
 addParameter(p, 'coutstr', 'cpokeout');
 addParameter(p, 'ploterrorbar', 0);
 addParameter(p, 'errorbarfun', @nansem);
+addParameter(p, 'dyn_path',  []);
+
 parse(p,varargin{:});
 cintrange = p.Results.cintrange;
 couttrange = p.Results.couttrange;
@@ -44,6 +46,13 @@ separate_hits = p.Results.separate_hits;
 fig_num     = p.Results.fig_num;
 ploterrorbar = p.Results.ploterrorbar;
 errorbarfun = p.Results.errorbarfun;
+dp          = p.Results.dyn_path;
+repack      = p.Results.repack;
+
+
+if isempty(dp)
+    dp = set_dyn_path;
+end
 
 if length(cell_to_plot) > 1 & ~meta
     for cc = 1:length(cell_to_plot)
@@ -51,7 +60,8 @@ if length(cell_to_plot) > 1 & ~meta
             cell_to_plot(cc), cc, length(cell_to_plot))
         example_cell_psth('cells',cell_to_plot(cc),...
             'type',type,'meta',meta,'norm',norm,'flip',flip,...
-            'edges',edges,'ploterrorbar',ploterrorbar,'repack',repack);
+            'edges',edges,'ploterrorbar',ploterrorbar,...
+            'dyn_path', dp, 'repack', repack);
         if do_pause
             pause();
             disp(cell_to_plot)
@@ -61,9 +71,9 @@ if length(cell_to_plot) > 1 & ~meta
 end
 
 
-dp = set_dyn_path;
+
 %%
-repack = p.Results.repack;
+
 ncells = length(cell_to_plot);
 
 align_strs  = dyn_align_LUT;
@@ -81,54 +91,62 @@ cout_fr     = [];
 norm_f      = [];
 end_state_s = [];
 
-
-for cc = 1:ncells
-    fprintf('cell %i (%i/%i)...\n',     cell_to_plot(cc), cc, ncells);
-    d       = dyn_cell_packager(cell_to_plot(cc),'repack',repack);
+fn          = sprintf('meta_psth_%s.mat',type);
+savename    = fullfile(dp.spikes_dir, fn);
+if exist(savename, 'file')
+    load(savename)
+else
     
-    if ~isfield(d.trials,'end_state_dur')
-        d = dyn_cell_packager(cell_to_plot(cc),'repack',1);
-    end
-    
-    end_tind = find(ismember(d.align_strs,coutstr));
-    start_tind  = find(ismember(d.align_strs,cinstr));
-    stimind = strmatch('stimend',d.align_strs,'exact');
-    if meta & p.Results.flip == 0
-        flip(cc) = ~d.prefsideright{stimind};
-    end
-    T       = [T; d.trials.T]; %#ok<*AGROW>
-    this_sides = 2.*d.trials.genEndState-1;
-    this_poke_r = d.trials.rat_dir==1;
-    this_gamma  = d.trials.gamma;
-    if flip(cc)==1
-        this_gamma = -this_gamma;
-        this_sides = -this_sides;
-        this_poke_r = ~this_poke_r;
-    end
-    gamma   = [gamma; this_gamma];
-    
-    sides   = [sides; this_sides];
-    poke_r  = [poke_r; this_poke_r];
-    hit     = [hit; d.trials.hit==1];
-    evR     = [evR; d.trials.evidenceRatio(:)];
-    end_state_s = [end_state_s; d.trials.end_state_dur(:)];
-    
-    switch norm
-        case 'onset'
-            norm_mult = d.norm_mean;
-        case 'peak'
-            error('doesn''t work yet')
-        case 'none'
+    for cc = 1:ncells
+        fprintf('cell %i (%i/%i)...\n',     cell_to_plot(cc), cc, ncells);
+        d       = dyn_cell_packager(cell_to_plot(cc),'dyn_path',dp,'repack',repack);
+        
+        if ~isfield(d.trials,'end_state_dur')
+            d = dyn_cell_packager(cell_to_plot(cc),'repack',1);
+        end
+        
+        end_tind = find(ismember(d.align_strs,coutstr));
+        start_tind  = find(ismember(d.align_strs,cinstr));
+        stimind = strmatch('stimend',d.align_strs,'exact');
+        if meta & p.Results.flip == 0
+            flip(cc) = ~d.prefsideright{stimind};
+        end
+        T       = [T; d.trials.T]; %#ok<*AGROW>
+        this_sides = 2.*d.trials.genEndState-1;
+        this_poke_r = d.trials.rat_dir==1;
+        this_gamma  = d.trials.gamma;
+        if flip(cc)==1
+            this_gamma = -this_gamma;
+            this_sides = -this_sides;
+            this_poke_r = ~this_poke_r;
+        end
+        gamma   = [gamma; this_gamma];
+        
+        sides   = [sides; this_sides];
+        poke_r  = [poke_r; this_poke_r];
+        hit     = [hit; d.trials.hit==1];
+        evR     = [evR; d.trials.evidenceRatio(:)];
+        end_state_s = [end_state_s; d.trials.end_state_dur(:)];
+        
+        switch norm
+            case 'onset'
+                norm_mult = d.norm_mean;
+            case 'peak'
+                error('doesn''t work yet')
+            case 'none'
                 norm_mult = 1;
+        end
+        norm_f  = [norm_f; norm_mult*ones(size(d.trials.T))];%;
+        cin_fr  = [cin_fr; d.frate{start_tind}];
+        cout_fr = [cout_fr; d.frate{end_tind}];
+        
     end
-    norm_f  = [norm_f; norm_mult*ones(size(d.trials.T))];%;
-    cin_fr  = [cin_fr; d.frate{start_tind}];
-    cout_fr = [cout_fr; d.frate{end_tind}];
+    cin_t       = d.frate_t{start_tind};
+    cout_t      = d.frate_t{end_tind};
+    save(savename, 'gamma', 'T', 'sides', 'poke_r', 'hit', 'evR', ...
+        'cin_t', 'cin_fr', 'cout_t', 'cout_fr', 'norm_f', 'end_state_s');
     
 end
-cin_t       = d.frate_t{start_tind};
-cout_t      = d.frate_t{end_tind};
-
 
 switch type
     case 'logR'
@@ -195,7 +213,7 @@ ax(2) = subplot(122);hold(ax(2),'on');
 plot(ax(1),[ 0 0], [0 100],'k')
 plot(ax(2),[ 0 0], [0 100],'k')
 
-psths = [];
+psths       = [];
  
 good_cint   = cin_t > cintrange(1) & cin_t < cintrange(2);
 good_coutt  = cout_t > couttrange(1) & cout_t < couttrange(2);
