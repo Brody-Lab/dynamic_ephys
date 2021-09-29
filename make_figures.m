@@ -3,6 +3,7 @@
 
 % Before running this code, you should
 % open set_dyn_path.m and edit the path configuration fields
+
 edit set_dyn_path
 
 % you also need to make sure to init and update the accumulation-model
@@ -51,6 +52,8 @@ rank1_review_response
 %% fig s11
 % this was used to produce the supplementary figure on state changes
 % and is useful for looking at different sets of inclusion parameters
+close all
+clear
 check_switch_inclusion;
 %%
 % strength_histograms;

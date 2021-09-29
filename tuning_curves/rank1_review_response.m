@@ -247,7 +247,7 @@ scatter(nsigt, rank_var(:,1),'o','markerfacecolor',...
     [1 1 1].*.75,'markeredgecolor', [1 1 1].*.75,'linewidth',1.5)
 hold on
 scatter(nsigt(idx_), rank_var(idx_,1),'o','markerfacecolor',...
-    [.65 .25 .65],'markeredgecolor', colors('purple'),'linewidth',1.5)
+    [.65 .25 .65],'markeredgecolor', [.502 0 .502],'linewidth',1.5)
 ylabel('Rank 1 variance explained')
 xlabel('Total duration of side-selectivity (s)')
 
@@ -265,7 +265,7 @@ hold on
 plot([1 1].*mean(rank_var(:,1)),ylim,'k')
 ylims = ylim;
 plot(rank_var(idx_,1), max(ylims)+ 1, 'v', ...
-    'markeredgecolor', colors('purple'), 'markerfacecolor', colors('purple'))
+    'markeredgecolor', [.502 0 .502], 'markerfacecolor', [.502 0 .502])
 ylim(ylims+[0 1])
 %xlim([.45 1.05])
 
