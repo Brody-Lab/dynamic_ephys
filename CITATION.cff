@@ -1,0 +1,10 @@
+cff-version: 1.1.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Boyd-Meredith
+    given-names: Tyler
+  - family-names: Piet
+    given-names: Alex
+title: Brody-Lab/dynamic_ephys: v1.1
+version: v1.1
+date-released: 2022-03-02
