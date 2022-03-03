@@ -22,3 +22,5 @@ To reproduce the figures from the manuscript (under review; preprint here https:
 
 # Software dependencies and operating systems
 This code has been tested with MATLAB 2016b on Mac OS 11.4. We expect it to be compatible with Windows and Linux and more recent versions of MATLAB, but this has not been tested. There are no dependencies beyond the standard MATLAB functions and the accumulation-model, which is included here as a submodule.
+
+[![DOI](https://zenodo.org/badge/346761117.svg)](https://zenodo.org/badge/latestdoi/346761117)
