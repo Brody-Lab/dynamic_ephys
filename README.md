@@ -18,7 +18,7 @@ Code for analysis of the FOF recordings from the dynamic clicks accumulation tas
 
 # Reproduce the figures from the manuscript
 
-To reproduce the figures from the manuscript (under review; preprint here https://www.biorxiv.org/content/10.1101/2021.05.13.444020v2) and demo the code, run the script `make_figures.m` to generate all figures from the main text and supplement. The entire script takes less than 10 minutes to run on a Mac with 16GB memory, but you can run individual cells of the script to produce panels associated with the relevant.
+To reproduce the figures from the manuscript (under review; preprint here https://www.biorxiv.org/content/10.1101/2021.05.13.444020v2) and demo the code, run the script `make_figures.m` to generate all figures from the main text and supplement. The entire script takes less than 10 minutes to run on a Mac with 16GB memory, but you can run individual cells of the script to produce panels associated with the relevant figure.
 
 # Software dependencies and operating systems
 This code has been tested with MATLAB 2016b on Mac OS 11.4. We expect it to be compatible with Windows and Linux and more recent versions of MATLAB, but this has not been tested. There are no dependencies beyond the standard MATLAB functions and the accumulation-model, which is included here as a submodule.
