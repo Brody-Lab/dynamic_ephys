@@ -1,6 +1,6 @@
 
 dp = set_dyn_path;
-%%
+
 fw  = dp.fw;
 msz = dp.msz;
 fsz = dp.fsz;
@@ -14,6 +14,7 @@ d   = [];
 
 example_rat = 'H037';
 all_rats = dp.ratlist;
+[~, delivery_date] = ratlist;
 which_rats = 'all';
 switch which_rats
     case 'example'
@@ -23,32 +24,49 @@ switch which_rats
 end
 nrats = length(rats);
 %% get all rats' data
+NT = zeros(length(rats),1);
+NS = zeros(length(rats),1);
 for rr = 1:nrats
+    
     ratname = rats{rr};
     fn      = fullfile(dp.behav_data_dir, [ratname '.mat']);
     fitfn   = fullfile(dp.model_fits_dir, ['fit_analytical_' ratname '.mat']);
     f{rr}   = fit_rat_analytical(ratname,'results_dir', dp.model_fits_dir,...
         'data_dir',dp.behav_data_dir,'overwrite',over); %#ok<*SAGROW>
     d{rr}   = load(fn,'data');
-end
-%% compute number of trials and sessions for each rat
-NT = zeros(length(rats),1);
-NS = zeros(length(rats),1);
-
-for rr = 1:nrats
     NT(rr) = length(d{rr}.data);
     NS(rr) = length(unique([d{rr}.data.sessid]));
 end
+%%
+for rr = 1:nrats
+    fprintf('\n%s has %i trials from %i sessions\n',...
+        rats{rr}, NT(rr), NS(rr))
+    
+    first_date =  d{rr}.data(1).sessiondate;
+    last_date =  d{rr}.data(end).sessiondate;
+    fprintf('collected between %s and %s\n', first_date, last_date)
+    first_days =  datenum(first_date) - datenum(delivery_date{rr});
+    last_days = datenum(last_date) -  datenum(delivery_date{rr}) ;
+    fprintf('\t aged %.1f - %.1f months\n', 1+first_days/30,...
+        1+last_days/30)
+
+end
+
+
+%% compute number of trials and sessions for each rat
+
 fprintf('\nmean %.2f \t SD %.2f trials min %.2f max %.2f',...
     mean(NT), std(NT), min(NT), max(NT))
 fprintf('\nmean %.2f \t SD %.2f sessions min %.2f max %.2f \n', ...
     mean(NS), std(NS), min(NS), max(NS))
+
 %% get the fits for each rat and make sure it has the optimal lambda  
 F = analyze_fits('ephys');
 %% plot the comparison to bing's rats
 fprintf('plotting distributions for every parameter...')
 close all
 [allfits, allci] = plot_parameter_comparisons(F,'ephys',dp);
+
 
 B           = allfits;
 B(:,3)      = B(:,3)./40;
@@ -79,6 +97,19 @@ end
 fprintf('\nlambda different than zero. p < %.3f', p);
 [h, p, ci] = ttest2(lambda, B(1,:));
 fprintf('\nlambda different than Brunton. p < %.3f\n', p);
+%%
+bing_param_names = { '\lambda',  '\sigma_a^2', '\sigma_s^2', '\sigma_i^2','Bound', '\phi', '\tau_{\phi}', 'B', 'lapse'};
+source_data = struct();
+source_data.static_param_names = bing_param_names;
+source_data.static_bf_params = B;
+source_data.static_se = Bse;
+soure_data.dynamic_param_names = {'\lambda', '\sigma_a', '\sigma_s', '\sigma_i', '\phi',  '\tau', 'bias', 'lapse'};
+
+for rr = 1:length(F)
+    source_data.dynamic_bf_params(rr,:) = F{rr}.final;
+    source_data.dynamic_se(rr,:) = F{rr}.se;
+    source_data.dynamic_ratnames{rr} = F{rr}.rat;
+end
 
 %% figure out how many switches there are
 n_gen_switches = cell(nrats,1);
@@ -111,7 +142,8 @@ box off
 xlabel('# state changes')
 ylabel('% trials')
 print(fh, fullfile(dp.fig_dir, ['n_gen_switch_hist.svg']),'-dsvg','-painters')
-
+%%
+source_data.n_state_switches = n_gen_switches;
 %% make psychometric and chronometric plot for each rat
 for rr = 1:length(rats)
     ratname = rats{rr};
@@ -134,7 +166,7 @@ for rr = 1:length(rats)
     r       = [data.pokedR]';
     h       = [data.hit]';
     
-    %% plot log odds psychometric used in panel C
+    % plot log odds psychometric used in panel C
     gamma   = [data.gamma]';
     evR     = [data.evidenceRatio]';
     r       = [data.pokedR]';
@@ -172,7 +204,7 @@ for rr = 1:length(rats)
     text(-.5, 1, ratname,'FontSize',fsz);
     pbaspect(ax,[1 1.2 1]);
     print(fh, fullfile(dp.fig_dir, [ratname '_odds_psycho.svg']),'-dsvg','-painters')
-    %% plot chrono for panel D
+    % plot chrono for panel D
     dt = .2;
     fh = figure(2); clf
     set(fh,'position',[7 5 fw fw], 'paperposition',[0 0 fw fw], ...
@@ -210,18 +242,35 @@ for rr = 1:length(rats)
 
     print(fh, fullfile(dp.fig_dir, [ratname '_chrono_nswitches.svg']),'-dsvg',...
         '-painters')
+    
+    
+    source_data.pokedR{rr} =    r;
+    source_data.hit{rr} =    h;
+    source_data.T{rr} =    T;
+    source_data.time_from_last_switch{rr} = time_from_last;
+    source_data.n_switches{rr} = switch_count;
+    source_data.log_odds{rr} = s_;
+    source_data.model_pokedR{rr} = model_r;
+    source_data.model_hit{rr} = model_h;
+    
 end
+
+
 %% plot excess clicks
+overwrite_excess = 1;
 for rr = 1:length(rats)
     ratname = rats{rr};
     %% excess clicks for panel F
     excess_path = fullfile(dp.data_dir, ratname, 'excess1.mat');
-    if ~exist(excess_path,'file')
+    if ~exist(excess_path,'file') | overwrite_excess
         S       = load_data(ratname, dp);
         dp.include.save = 0;
         S       = save_good_data(ratname, S, dp);
-        clicks  = analyze_excess_rates(ratname, S, dp);
+        %%
+        clicks  = analyze_excess_rates(S, dp);
+        
     end
+    %%
     load(excess_path,'clicks');
     %%
     figure(4); clf
@@ -240,6 +289,11 @@ for rr = 1:length(rats)
     xlabel(ax,'time from end of trial (s)');
     ylabel('stimulus weighting');
     print(fh, fullfile(dp.fig_dir, [ratname '_excess']),'-dsvg','-painters')
+    
+    source_data.excess_rate.Rmean{rr} = clicks.RexRat;
+    source_data.excess_rate.Lmean{rr} = clicks.LexRat;
+    source_data.excess_rate.Rstd{rr} = clicks.RstdRat;
+    source_data.excess_rate.Lstd{rr} = clicks.LstdRat;
 end
 
 %% population chrono - not used
