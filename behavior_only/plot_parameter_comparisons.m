@@ -63,10 +63,10 @@ AB = [];
 
 %%F(8) = [];
 
-for i=1:length(param_names)
-    [h,p,avg_rat,avg_bing] = plot_parameter_dist(F,i,...
-        param_names(i),B(:,i),Bse(:,i),bounds(i,:),group,...
-        'fig_num',i,'point_plot',0);
+for ii=1:length(param_names)
+    [h,p,avg_rat,avg_bing] = plot_parameter_dist(F,ii,...
+        param_names(ii),B(:,ii),Bse(:,ii),bounds(ii,:),group,...
+        'fig_num',ii,'point_plot',0);
     H=[H h];
     P=[P p];
     AR=[AR avg_rat];

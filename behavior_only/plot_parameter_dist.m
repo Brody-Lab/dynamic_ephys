@@ -1,4 +1,4 @@
-function [h,p,avg_rat, avg_bing,fh] = plot_parameter_dist(F,i,param_name,...
+function [h,p,avg_rat, avg_bing,fh] = plot_parameter_dist(F,ii,param_name,...
     B,Bse, bounds, group, varargin);
 p = inputParser;
 addParameter(p, 'bing_boxplot', 0);
@@ -34,13 +34,13 @@ if no_sort
     
     for j=1:length(F)
         if isstruct(F{j})
-            lb = F{j}.final(i) - F{j}.se(i);
-            width = F{j}.se(i)*2;
+            lb = F{j}.final(ii) - F{j}.se(ii);
+            width = F{j}.se(ii)*2;
             if isnan(lb)
                 lb = eps;
                 width = eps*2;
             end
-            p = F{j}.final(i);
+            p = F{j}.final(ii);
             P = [P; p];
             if ~dyn_boxplot & ~point_plot
                 rectangle('Position', [lb start*j+sp width h],...
@@ -56,9 +56,9 @@ else
     ratnames = {};
     for j=1:length(F)
         if isstruct(F{j})
-            lb = F{j}.final(i) - F{j}.se(i);
-            width = F{j}.se(i)*2;
-            p = F{j}.final(i);
+            lb = F{j}.final(ii) - F{j}.se(ii);
+            width = F{j}.se(ii)*2;
+            p = F{j}.final(ii);
             if isnan(lb)
                 lb = eps;
                 width = eps*2;
@@ -259,7 +259,7 @@ axis square
 % fig.PaperSize = [6 6];
 %%%%%%%%%%%%%%%%%%%%%55
 dp = set_dyn_path;
-fname = fullfile(dp.fig_dir, [group '_param_comparison_' num2str(i)]);
+fname = fullfile(dp.fig_dir, [group '_param_comparison_' num2str(ii)]);
 
 print(fh,fname,'-dsvg')
 
