@@ -66,16 +66,22 @@ F = analyze_fits('ephys');
 fprintf('plotting distributions for every parameter...')
 close all
 [allfits, allci] = plot_parameter_comparisons(F,'ephys',dp);
-
-
+bing_param_names = { '\lambda',  '\sigma_a^2', '\sigma_s^2', '\sigma_i^2','Bound', '\phi', '\tau_{\phi}', 'B', 'lapse'};
 B           = allfits;
-B(:,3)      = B(:,3)./40;
 Bse         = allci;
-Bse(:,3)    = Bse(:,3)./40;
-pi          = 1;
+% remove the bound parameter
+bound_ind = find(ismember(bing_param_names,'Bound'));
+B(:,bound_ind)      = [];
+bing_param_names(bound_ind) = [];
+% scale the per click noise by the generative click rate
+si_ind = find(ismember(bing_param_names,'\sigma_i^2'));
+B(:,si_ind)      = B(:,si_ind)./40;
+Bse(:,si_ind)    = Bse(:,si_ind)./40;
+% index of the lambda parameter
+lambda_ind          = find(ismember(bing_param_names,'\lambda'));
 
-[h,p,~,~,fh] = plot_parameter_dist(F,pi,...
-    '\lambda',B(:,pi),Bse(:,pi),[-7.5 1.75],'ephys',...
+[h,p,~,~,fh] = plot_parameter_dist(F,lambda_ind,...
+    '\lambda',B(:,lambda_ind),Bse(:,lambda_ind),[-7.5 1.75],'ephys',...
      'point_plot', 1 );
 set(fh,'position',[5 5 fw fw], 'paperposition',[0 0 fw fw], ...
         'papersize',[fw+.5 fw+.5]);
@@ -98,21 +104,21 @@ fprintf('\nlambda different than zero. p < %.3f', p);
 [h, p, ci] = ttest2(lambda, B(1,:));
 fprintf('\nlambda different than Brunton. p < %.3f\n', p);
 %%
-bing_param_names = { '\lambda',  '\sigma_a^2', '\sigma_s^2', '\sigma_i^2','Bound', '\phi', '\tau_{\phi}', 'B', 'lapse'};
+
 source_data = struct();
-source_data.static_param_names = bing_param_names;
-source_data.static_bf_params = B;
-source_data.static_se = Bse;
-soure_data.dynamic_param_names = {'\lambda', '\sigma_a', '\sigma_s', '\sigma_i', '\phi',  '\tau', 'bias', 'lapse'};
+source_data.model_param_names = bing_param_names;
+source_data.static_param_fits = B;
+source_data.static_param_stderr = Bse;
+soure_data.dynamic_param_names = {'\lambda', '\sigma_a^2', '\sigma_s%2', '\sigma_i^2', '\phi',  '\tau_{\phi}', 'B', 'lapse'};;
 
 for rr = 1:length(F)
-    source_data.dynamic_bf_params(rr,:) = F{rr}.final;
-    source_data.dynamic_se(rr,:) = F{rr}.se;
+    source_data.dynamic_param_fits(rr,:) = F{rr}.final;
+    source_data.dynamic_param_stderr(rr,:) = F{rr}.se;
     source_data.dynamic_ratnames{rr} = F{rr}.rat;
 end
 
 %% figure out how many switches there are
-n_gen_switches = cell(nrats,1);
+n_gen_switches = cell(1,nrats);
 for rr = 1:nrats
     n_gen_switches{rr} = cellfun(@length, {d{rr}.data.genSwitchTimes});
     rat_sess = unique([d{rr}.data.sessid]);
@@ -142,7 +148,7 @@ box off
 xlabel('# state changes')
 ylabel('% trials')
 print(fh, fullfile(dp.fig_dir, ['n_gen_switch_hist.svg']),'-dsvg','-painters')
-%%
+
 source_data.n_state_switches = n_gen_switches;
 %% make psychometric and chronometric plot for each rat
 for rr = 1:length(rats)
@@ -247,9 +253,9 @@ for rr = 1:length(rats)
     source_data.pokedR{rr} =    r;
     source_data.hit{rr} =    h;
     source_data.T{rr} =    T;
-    source_data.time_from_last_switch{rr} = time_from_last;
+    source_data.final_state_duration{rr} = time_from_last;
     source_data.n_switches{rr} = switch_count;
-    source_data.log_odds{rr} = s_;
+    source_data.log_odds_for_go_right{rr} = s_;
     source_data.model_pokedR{rr} = model_r;
     source_data.model_hit{rr} = model_h;
     
@@ -257,7 +263,7 @@ end
 
 
 %% plot excess clicks
-overwrite_excess = 1;
+overwrite_excess = 0;
 for rr = 1:length(rats)
     ratname = rats{rr};
     %% excess clicks for panel F
@@ -266,8 +272,8 @@ for rr = 1:length(rats)
         S       = load_data(ratname, dp);
         dp.include.save = 0;
         S       = save_good_data(ratname, S, dp);
-        %%
-        clicks  = analyze_excess_rates(S, dp);
+        
+        clicks  = analyze_excess_rates(ratname, S, dp);
         
     end
     %%
@@ -283,18 +289,26 @@ for rr = 1:length(rats)
     set(ax , 'XTick', [-.5:.1:0], 'XTickLabel', {'-.5' '' '' '' '' '0'}, ...
         'TickDir', 'out', 'YTick', [-8:2:8], 'YTickLabel', {'-8' '' '' '' '0' '' '' '' '8'});
     pbaspect(ax,[1.1 1.2 1]);
+    txt = text( -.5,-4, 'model','color',dp.model_color,'FontSize',fsz);
     txt = text( -.5,-7, 'go left','color',dp.left_color,'FontSize',fsz);
     text(-.5, -5.5, 'go right','color',dp.right_color,'FontSize',fsz);
     text(-.3125, max(ylim), ratname,'FontSize',fsz);
-    xlabel(ax,'time from end of trial (s)');
-    ylabel('stimulus weighting');
+    xlabel(ax,'Time from end of trial (s)');xlabel(ax,'Time from end of trial (s)');
+    ylabel('Stimulus weighting');
     print(fh, fullfile(dp.fig_dir, [ratname '_excess']),'-dsvg','-painters')
     
-    source_data.excess_rate.Rmean{rr} = clicks.RexRat;
-    source_data.excess_rate.Lmean{rr} = clicks.LexRat;
-    source_data.excess_rate.Rstd{rr} = clicks.RstdRat;
-    source_data.excess_rate.Lstd{rr} = clicks.LstdRat;
+    source_data.excess_rate{rr}.Rmean = clicks.RexRat;
+    source_data.excess_rate{rr}.Lmean = clicks.LexRat;
+    source_data.excess_rate{rr}.Rstd = clicks.RstdRat;
+    source_data.excess_rate{rr}.Lstd = clicks.LstdRat;
+    source_data.excess_rate{rr}.model.Rmean = clicks.RexM;
+    source_data.excess_rate{rr}.model.Lmean = clicks.LexM;
+    source_data.excess_rate{rr}.model.Rstd = clicks.RstdM;
+    source_data.excess_rate{rr}.model.Lstd = clicks.LstdM;
 end
+
+source_data_file = fullfile(dp.data_dir, 'fig1_source_data.mat');
+save(source_data_file,'source_data')
 
 %% population chrono - not used
 fh = figure(3); clf
