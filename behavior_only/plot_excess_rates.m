@@ -2,12 +2,14 @@ function [fig, ax] = plot_excess_rates(clicks,varargin)
 
 p = inputParser;
 addParameter(p, 'plot_model', 0);
+addParameter(p, 'plot_optimal', 0);
 addParameter(p,'fig_num',[]);
 addParameter(p,'left_color',[48 127 255]./255);
 addParameter(p,'right_color',[0 140 54]./255);
 addParameter(p,'model_color',[]);
 parse(p,varargin{:});
 plot_model = p.Results.plot_model;
+plot_optimal = p.Results.plot_optimal;
 
 if ~isempty(p.Results.fig_num)
     fig = figure(p.Results.fig_num);
@@ -23,7 +25,17 @@ L = movmean(clicks.LexRat,smoothing);
 Rs= movmean(clicks.RstdRat,smoothing);
 Ls= movmean(clicks.LstdRat,smoothing);
 
-if plot_model & isfield(clicks, 'RexN')
+if plot_model & isfield(clicks, 'RexM')
+Rn = movmean(clicks.RexM,smoothing);
+Ln = movmean(clicks.LexM,smoothing);
+Rsn= movmean(clicks.RstdM,smoothing);
+Lsn= movmean(clicks.LstdM,smoothing);
+
+shadedErrorBar(clicks.timepoint,Rn,Rsn,{'color',p.Results.model_color},0)  
+shadedErrorBar(clicks.timepoint,Ln,Lsn, {'color',p.Results.model_color},0)  
+end
+
+if plot_optimal & isfield(clicks, 'RexN')
 Rn = movmean(clicks.RexN,smoothing);
 Ln = movmean(clicks.LexN,smoothing);
 Rsn= movmean(clicks.RstdN,smoothing);
