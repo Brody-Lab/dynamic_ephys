@@ -14,6 +14,7 @@ p.final_only            = 0;
 p.min_pre_dur           = 0;
 p.min_post_dur          = 0;
 
+
 p.which_switch          = 'model' ;
 cellid   = 18181;
 % cellid = 16898;
@@ -110,7 +111,27 @@ p.min_post_dur = 0;
     't_buffers',p.t_buffers);
 %%
 which_trials = [8 30];
-model_switch_browser(array_data,p,which_trials);
+ex_trial_switches.which_trials = which_trials;
+ex_trial_switches.smoothed = model_switch_browser(array_data,p,which_trials);
+
+
+p.model_smooth_wdw = 1;
+[switch_to_0, switch_to_1, array_data, vec_data] = ...
+    get_switches(cellid, ...
+    'array_data',array_data_,'vec_data',vec_data_,...
+    'which_switch',p.which_switch,...
+    'clear_bad_strengths', p.clear_bad_strengths, ...
+    'bad_strength', p.bad_strength, 'fit_line', p.fit_line,...
+    'exclude_final', p.exclude_final, 'final_only', p.final_only,...
+    'min_pre_dur',p.min_pre_dur,'min_post_dur',p.min_post_dur,...
+    'model_smooth_wdw', p.model_smooth_wdw,...
+    'change_bounds',p.change_bounds,...
+    'remove_initial_choice',p.remove_initial_choice,...
+    't_buffers',p.t_buffers);
+
+
+ex_trial_switches.unsmoothed = model_switch_browser(array_data,p,which_trials);
+
 % % 
 % % %%
 % % bad_trials = [9 15 95]

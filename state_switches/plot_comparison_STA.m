@@ -1,4 +1,4 @@
-function [fh1 ax] = plot_comparison_STA(which_correction_str,savefig)
+function [fh1, ax, res] = plot_comparison_STA(which_correction_str,savefig)
 fig_type = '-dsvg';
 
 if nargin < 1
@@ -19,11 +19,13 @@ ppos    = [fw fht];
 ns      = 1;
 gen_clr = [.5 .5 .5];
 set(fh1,'position',[2 5 fw fht],'papersize', [fw fht]);
+
 load(fullfile(dp.sta_dir,...
     ['fraction_data_generative' which_correction_str '.mat']))
 time_gen = time_vec;
 p_gen = movmean(average_siggy,ns);
 se_gen = sqrt((p_gen.*(1-p_gen))./n);
+
 load(fullfile(dp.sta_dir,...
     ['fraction_data_model' which_correction_str '.mat']))
 p_mod = movmean(average_siggy,ns);
@@ -46,5 +48,10 @@ text(-.45, .98*max(ylim)-.1*diff(ylim), 'generative switches','color',gen_clr,'f
 text(-.45, .98*max(ylim)-.2*diff(ylim), 'model switches','color',dp.model_color,'fontsize',dp.fsz)
 ax = gca;
 xlim(ax,[-.55 .55])
+
+res.model_summary = struct('frac_significant_mn', p_mod*100, ...
+    'frac_significant_sem', se_mod*100, 'time', time_mod);
+res.gen_summary = struct('frac_significant_mn', p_gen*100, ...
+    'frac_significant_sem', se_gen*100, 'time', time_gen);
 
 

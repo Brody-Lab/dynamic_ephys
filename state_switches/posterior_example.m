@@ -47,6 +47,7 @@ wt              = find(nswitches > 1 & T > 1 & valid);
 which_trial     = wt(6); 
 data            = testdat(which_trial);
 wt      = find(vec_data.good == which_trial);
+% spike times
 this_ts = d.trials.spike_times{wt}';
 cend_ts = d.trials.cpoke_end(wt)';
 tn = find([array_data.trialnum]==which_trial);
@@ -110,6 +111,7 @@ D_ = rmfield(D_, 'right_clicks');
 
 
 fig = figure(1); clf
+% PLOT POSTERIOR DISTRIBUTION
 plot_pdf(D_)
 
 pbaspect([2.5 1 1])
@@ -187,7 +189,8 @@ dx=ceil(5*krn_width/bin_size);
 krn=normpdf(-dx:dx,0,krn_width/bin_size);
 krn(1:dx)=0;
 krn=(krn)/sum(krn)/bin_size;
-[y x] = spike_filter(0, this_ts, krn, 'pre', 1, 'post', 3,...
+% plot smoothed spike rate
+[fr x] = spike_filter(0, this_ts, krn, 'pre', 1, 'post', 3,...
     'kernel_bin_size', bin_size, 'normalize_krn',1);
 hold(ax3,'on')
 
@@ -215,8 +218,8 @@ for ss = 1:length(blocks)-1
         this_color = dp.left_color;
     end
     
-    patch(ax3,x([a a:b b a]),[0 y(a:b) 0 0],this_color,'edgecolor',this_color);
-    plot(ax3,x(a:b),y(a:b),'color',this_color,'linewidth',1);
+    patch(ax3,x([a a:b b a]),[0 fr(a:b) 0 0],this_color,'edgecolor',this_color);
+    plot(ax3,x(a:b),fr(a:b),'color',this_color,'linewidth',1);
     alpha(.5);
     
     this_t_ = D.T >= blocks(ss) & D.T <= blocks(ss+1);
@@ -252,4 +255,19 @@ fig_name = fullfile(dp.fig_dir,['model_posterior_' chosen '_choice']);
 
 print(fh2, fh2_name,'-dsvg','-painters')
 print(fig, fig_name,'-dsvg','-painters')
+
+
+%%
+source_data.example.gen_switches = state_switches;
+source_data.example.model_switches = D.model_switches;
+source_data.example.clicks.left = D.left_clicks;
+source_data.example.clicks.right = D.left_clicks;
+source_data.example.posterior_a.time_from_stim_on = D.T;
+source_data.example.posterior_a.mean = D.mean;
+source_data.example.posterior_a.pdf = D.pdf;
+source_data.example.posterior_a.abins = D.avals;
+source_data.example.spike_times = this_ts;
+source_data.example.spike_rate = fr;
+
+
 

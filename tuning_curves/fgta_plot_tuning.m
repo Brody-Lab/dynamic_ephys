@@ -1,4 +1,4 @@
-function ax = fgta_plot_tuning(res,varargin)
+function [ax, plotres] = fgta_plot_tuning(res,varargin)
 p = inputParser;
 addParameter(p,'linewidth',1)
 addParameter(p,'clrs',[])
@@ -7,7 +7,7 @@ addParameter(p,'up_clr',[])
 addParameter(p,'ax',[])
 addParameter(p,'mvmnsz',1)
 addParameter(p,'plot_field','fga_tmn')
-addParameter(p,'errorbar_field','fga_std')
+addParameter(p,'errorbar_field','fga_sem')
 addParameter(p,'plot_colorbar',1)
 addParameter(p,'dvlims',[])
 addParameter(p,'linecolor','k')
@@ -46,8 +46,8 @@ t0s         = res.t0s;
 if ~isempty(p.dvlims)
     plot_mean = plot_mean(dv_keep);
     if ~isempty(p.errorbar_field)
-        plot_std  = res.(p.errorbar_field);
-        plot_std  = plot_std(dv_keep);
+        plot_errbar  = res.(p.errorbar_field);
+        plot_errbar  = plot_errbar(dv_keep);
     end
 end
 
@@ -96,12 +96,16 @@ plot(dv_axis,plot_mean,p.linestyle,'color',p.linecolor,'linewidth',lw,...
     'markersize',p.markersize)
 end
 
+plotres.dv_axis = dv_axis;
+plotres.plot_mean = plot_mean;
+
 for i=1:mvmnsz:numel(dv_axis)
     hold on;
     if ~isempty(p.errorbar_field)
         eh = errorbar(ax,dv_axis(i), plot_mean(i), ...
-            plot_std(i), '.', 'markersize',10,'Color', clrs(i,:),'linewidth',2,...
+            plot_errbar(i), '.', 'markersize',10,'Color', clrs(i,:),'linewidth',2,...
             'capsize',0);
+        plotres.plot_errbar(i) = plot_errbar(i);
     else
         eh = plot(ax,dv_axis(i), plot_mean(i), ...
         '.', 'markersize',10,'Color', clrs(i,:),'linewidth',2);

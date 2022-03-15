@@ -37,22 +37,22 @@ off = 0;%-200;
 indA = -off + size(STR_left,1) + [0:-1:-n+1];
 indB = -off + size(STR_right,1) + [0:-1:-n+1];
 
-A = STR_left(indA,:);
-B = STR_right(indB,:);
+STR_left_examples = STR_left(indA,:);
+STR_right_examples = STR_right(indB,:);
 
-NA = ~isnan(A);
-NB = ~isnan(B);
+NA = ~isnan(STR_left_examples);
+NB = ~isnan(STR_right_examples);
 
 ax1 = subplot(211)
 ax2 = subplot(212)
 
 bg_color = [1 1 1] .* .85;
 
-imagesc((A),'x',lags,'Alphadata',NA,'parent',ax1)
+imagesc((STR_left_examples),'x',lags,'Alphadata',NA,'parent',ax1)
 title(ax1,'1 $\rightarrow$ 2','interpreter','latex')
 title(ax1,'go right $\rightarrow$ go left','interpreter','latex')
 
-imagesc((B),'x',lags,'Alphadata',NB,'parent',ax2)
+imagesc((STR_right_examples),'x',lags,'Alphadata',NB,'parent',ax2)
 title(ax2,'2 $\rightarrow$ 1','interpreter','latex')
 title(ax2,'go left $\rightarrow$ go right','interpreter','latex')
 
@@ -85,3 +85,7 @@ caxis(ax1,cx)
 caxis(ax2,cx)
 
 print(fh, fullfile(dp.fig_dir, 'example_sta_trials'), '-dsvg','-painters')
+%%
+source_data.example.example_switches.to_state_2 = STR_left_examples;
+source_data.example.example_switches.to_state_1 = STR_right_examples;
+source_data.example.example_switches.time_from_change = lags;

@@ -73,15 +73,36 @@ negdex = lags <  0.001 & lags > min_t;
 sat = .7; % .9
 satdiff = 0; % .2
 ax.TickDir = 'out';
-shadedErrorBar(lags(negdex),nanmean(STR_left(:,negdex)),...
-    nansem(STR_left(:,negdex)),{'color', dp.right_color,'parent',ax},[],sat)
-shadedErrorBar(lags(negdex),nanmean(STR_right(:,negdex)),...
-    nansem(STR_right(:,negdex)),{'color', dp.left_color},[],sat)
-shadedErrorBar(lags(posdex),nanmean(STR_left(:,posdex)),...
-    nansem(STR_left(:,posdex)),{'color', dp.left_color},[],sat-satdiff)
-shadedErrorBar(lags(posdex),nanmean(STR_right(:,posdex)),...
-    nansem(STR_right(:,posdex)),{'color', dp.right_color},[],sat-satdiff)
+
+
+STR_left_mn = nanmean(STR_left);
+STR_right_mn = nanmean(STR_right);
+STR_left_sem = nansem(STR_left);
+STR_right_sem = nansem(STR_right);
+
+% plot switch to state 2
+shadedErrorBar(lags(negdex),STR_left_mn(:,negdex),...
+    STR_left_sem(:,negdex),{'color', dp.right_color,'parent',ax},[],sat)
+shadedErrorBar(lags(posdex),STR_left_mn(:,posdex),...
+    STR_left_sem(:,posdex),{'color', dp.left_color},[],sat-satdiff)
+
+% plot switch to state 1
+shadedErrorBar(lags(negdex),STR_right_mn(:,negdex),...
+    STR_right_sem(:,negdex),{'color', dp.left_color},[],sat)
+shadedErrorBar(lags(posdex),STR_right_mn(:,posdex),...
+    STR_right_sem(:,posdex),{'color', dp.right_color},[],sat-satdiff)
 %%
+% 
+% 
+% shadedErrorBar(lags(negdex),nanmean(STR_left(:,negdex)),...
+%     nansem(STR_left(:,negdex)),{'color', dp.right_color,'parent',ax},[],sat)
+% shadedErrorBar(lags(negdex),nanmean(STR_right(:,negdex)),...
+%     nansem(STR_right(:,negdex)),{'color', dp.left_color},[],sat)
+% shadedErrorBar(lags(posdex),nanmean(STR_left(:,posdex)),...
+%     nansem(STR_left(:,posdex)),{'color', dp.left_color},[],sat-satdiff)
+% shadedErrorBar(lags(posdex),nanmean(STR_right(:,posdex)),...
+%     nansem(STR_right(:,posdex)),{'color', dp.right_color},[],sat-satdiff)
+% %%
 ylabel('\Delta Firing Rate (Hz)')
 xlabel(['time from ' which_switch ' state change (s)'])
 %pbaspect([2 1 1])
@@ -120,4 +141,10 @@ if p.save_fig
     fig_name = [ num2str(res.cellid) '_' which_switch '_STA'];
     print(gcf,  fullfile(dp.fig_dir,fig_name),fig_type,'-painters')
 end
+%%
+res.STR_lags = lags;
+res.STR_left_mn = STR_left_mn;
+res.STR_right_mn = STR_right_mn;
+res.STR_left_sem = STR_left_sem;
+res.STR_right_sem = STR_right_sem;
 

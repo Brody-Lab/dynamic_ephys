@@ -1,4 +1,4 @@
-function [axsta ] = plot_population_STA(varargin)
+function [axsta, pop_res ] = plot_population_STA(varargin)
 p = inputParser;
 addParameter(p, 'which_switch', 'model')
 addParameter(p, 'savefig', 1)
@@ -100,15 +100,23 @@ negdex = plot_lags <  0.001 & plot_lags > min_t;
 sat = .7; % .9
 satdiff = 0; % .2
 
+STR_npref_mn = nanmean(STR_npref_good);
+STR_npref_sem = nansem(STR_npref_good);
+STR_pref_mn = nanmean(STR_pref_good);
+STR_pref_sem = nansem(STR_pref_good);
+
 axsta.TickDir = 'out';
-shadedErrorBar(plot_lags(negdex),nanmean(STR_npref_good(:,negdex)),...
-    nansem(STR_npref_good(:,negdex)),{'color', dp.pref_color,'parent',axsta},[],sat)
-shadedErrorBar(plot_lags(negdex),nanmean(STR_pref_good(:,negdex)),...
-    nansem(STR_pref_good(:,negdex)),{'color', dp.npref_color},[],sat)
-shadedErrorBar(plot_lags(posdex),nanmean(STR_npref_good(:,posdex)),...
-    nansem(STR_npref_good(:,posdex)),{'color', dp.npref_color},[],sat-satdiff)
-shadedErrorBar(plot_lags(posdex),nanmean(STR_pref_good(:,posdex)),...
-    nansem(STR_pref_good(:,posdex)),{'color', dp.pref_color},[],sat-satdiff)
+% plot switch to non-preferred side
+shadedErrorBar(plot_lags(negdex),STR_npref_mn(:,negdex),...
+    STR_npref_sem(:,negdex),{'color', dp.pref_color,'parent',axsta},[],sat)
+shadedErrorBar(plot_lags(posdex),STR_npref_mn(:,posdex),...
+    STR_npref_sem(:,posdex),{'color', dp.npref_color},[],sat-satdiff)
+% plot switch to preferred side
+shadedErrorBar(plot_lags(negdex),STR_pref_mn(:,negdex),...
+    STR_pref_sem(:,negdex),{'color', dp.npref_color},[],sat)
+shadedErrorBar(plot_lags(posdex),STR_pref_mn(:,posdex),...
+    STR_pref_sem(:,posdex),{'color', dp.pref_color},[],sat-satdiff)
+
 axis tight
 ylim([-1 1]*.425)
 set(axsta, 'ytick', [-.4 -.2 0 .2 .4])
@@ -156,11 +164,11 @@ ppos = [fw fht];
 set(fh,'position',[3 7 ppos],'papersize',[ppos],'paperpositionmode','auto')
 
 %STR_diff = STR_pref_good - STR_npref_good;
-STR_diff = rightSTAz - leftSTAz;
-STR_diff = STR_diff(good_cells,:);
-STR_diff = [STR_diff(psr(good_cells),:); STR_diff(~psr(good_cells),:)];
-STR_diff(:,plot_lags < 0) = -STR_diff(:,plot_lags < 0) ;
-imagesc(STR_diff,'x',plot_lags)
+STR_diffz = rightSTAz - leftSTAz;
+STR_diffz = STR_diffz(good_cells,:);
+STR_diffz = [STR_diffz(psr(good_cells),:); STR_diffz(~psr(good_cells),:)];
+STR_diffz(:,plot_lags < 0) = -STR_diffz(:,plot_lags < 0) ;
+imagesc(STR_diffz,'x',plot_lags)
 
 
 hold on
@@ -195,16 +203,16 @@ fw  = 3.75;
 ppos = [fw fht];
 set(fh,'position',[3 7 ppos],'papersize',[ppos],'paperpositionmode','auto')
 
-STR_diff = rightSTAz - leftSTAz;
-STR_diff = STR_diff(good_cells,:);
-STR_diff(:,plot_lags < 0) = -STR_diff(:,plot_lags < 0) ;
+STR_diffz = rightSTAz - leftSTAz;
+STR_diffz = STR_diffz(good_cells,:);
+STR_diffz(:,plot_lags < 0) = -STR_diffz(:,plot_lags < 0) ;
 
 ax1 = subplot(211);
-imagesc(STR_diff(psr(good_cells),:),'x',plot_lags)
+imagesc(STR_diffz(psr(good_cells),:),'x',plot_lags)
 caxis([-1 1]*1)
 xlim([ min_t max_t])
 ax2 = subplot(212);
-imagesc(STR_diff(~psr(good_cells),:),'x',plot_lags)
+imagesc(STR_diffz(~psr(good_cells),:),'x',plot_lags)
 caxis([-1 1]*1)
 xlim([ min_t max_t])
 nr = sum(psr(good_cells));
@@ -280,4 +288,10 @@ time_vec        = plot_lags(pval_plot_lags);
 datasavefname   = ['fraction_data_' which_switch correction_str '.mat'];
 % Save data from this analysis
 save(fullfile(dp.sta_dir, datasavefname), 'time_vec','average_siggy','n')
-
+%%
+pop_res.STR_time = plot_lags;
+pop_res.STR_npref_mn = STR_npref_mn;
+pop_res.STR_npref_sem = STR_npref_sem;
+pop_res.STR_pref_mn  = STR_pref_mn;
+pop_res.STR_pref_sem = STR_pref_sem;
+pop_res.STR_diff = STR_diff;

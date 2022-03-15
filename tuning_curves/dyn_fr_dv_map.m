@@ -518,35 +518,35 @@ good_tind   = frm_time > ops.min_fr_mod;
 % average residual normalized fgta over time
 fga_rn_tmn  = nanmean(fgta_resid_n(good_tind,:),1);
 % average residual normalized fgta over time
-fga_rn_std = nansem(fgta_resid_n(good_tind,:));
-fga_rn_std = fga_rn_std ./ fgta_rn_max;
+fga_rn_sem = nansem(fgta_resid_n(good_tind,:));
+fga_rn_sem = fga_rn_sem ./ fgta_rn_max;
 
 % compute 1d tuning curve by averaging fgta over time
 fga_tmn      = nanmean(fgta(time_bins,:) - ...
     nanmean(fgta(time_bins,:),2),1);
-fga_std  = nansem(fgta(time_bins,:) - ...
+fga_sem  = nansem(fgta(time_bins,:) - ...
     nanmean(fgta(time_bins,:),2));
 fr_mod   = max(fga_tmn) - min(fga_tmn);
 fga_tmn_n       = fga_tmn -  min(fga_tmn);
 fga_tmn_n_max   = max(fga_tmn_n);
 fga_tmn_n       = fga_tmn_n / fga_tmn_n_max;
-fga_std_n       = fga_std ./ fga_tmn_n_max;
+fga_sem_n       = fga_sem ./ fga_tmn_n_max;
 
 fga_resid_tmn   = nanmean(fgta_resid(time_bins,:));
-fga_resid_std  = nansem(fgta_resid(time_bins,:));
+fga_resid_sem  = nansem(fgta_resid(time_bins,:));
 fga_tmn         = nanmean(fgta(time_bins,:));
-fga_std        = nansem(fgta(time_bins,:));
+fga_sem        = nansem(fgta(time_bins,:));
 
 res.fgta_resid      = fgta_resid;
 res.fgta_resid_n    = fgta_resid_n;
 res.fga_rn_tmn      = fga_rn_tmn;
-res.fga_rn_std      = fga_rn_std;
+res.fga_rn_sem      = fga_rn_sem;
 res.fga_resid_tmn   = fga_resid_tmn;
-res.fga_resid_std   = fga_resid_std;
+res.fga_resid_sem   = fga_resid_sem;
 res.fga_tmn         = fga_tmn;
-res.fga_std         = fga_std;
+res.fga_sem         = fga_sem;
 res.fga_tmn_n       = fga_tmn_n;
-res.fga_std_n       = fga_std_n;
+res.fga_sem_n       = fga_sem_n;
 res.good_tind       = good_tind;
 res.frm_time        = frm_time;
 res.fr_mod          = fr_mod;

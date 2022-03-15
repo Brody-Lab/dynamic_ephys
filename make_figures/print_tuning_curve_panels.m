@@ -164,9 +164,10 @@ ra          = [res.(ra_field)]';
 fh = figure(1); clf
 set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]));
 ax = axes;
-[~, cb] = fgta_line_plot(res, 'goodtind',~badtind, ...
+plot_field = 'fr_given_ta';
+[~, cb, plotres] = fgta_line_plot(res, 'goodtind',~badtind, ...
     'linewidth', lw, 'ax', ax, ...
-    'plot_field','fr_given_ta','dvlims',dvlims);
+    'plot_field',plot_field,'dvlims',dvlims);
 title(title_str,'fontweight','normal', 'interpreter', 'latex');
 xlabel(xlab);
 if demean_frates
@@ -181,15 +182,20 @@ d = 1/length(res.dv_axis);
 cb.Ticks = [0 1] + [1 -1]*(d*1.5);
 cb.Position = cb.Position + [0.02 .15 -.02 -.4];
 cb.TickLabels = round(10*res.dv_axis([2 end-1]))/10;
-
 set(ax,'position',axpos);
 print_fn(fh,'example_fgta',fig_type);
+%%
+source_data.example.fr_given_a_t = plotres.plot;
+source_data.example.time_from_stim_on  = plotres.time;
+source_data.example.mean_a  = plotres.dvs;
+
+
 %% example residual
 fh = figure(2); clf
 ppos = [0 6 fw fht ];
 set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]));
 ax_r = axes;
-fgta_line_plot(res,'goodtind',~badtind,...
+[~,~,plotres] = fgta_line_plot(res,'goodtind',~badtind,...
     'ax',ax_r,'plot_field','fgta_resid','dvlims',dvlims);
 xlabel(xlab)
 ylabel({'\Delta FR (spikes/s)'})
@@ -207,6 +213,8 @@ hold on
 plot([0 0],ylim,'-k','linewidth',.1,'color',[1 1 1].*.5)
 axpos = get(gca,'position');
 print_fn(fh,'example_fgta_resid',fig_type);
+%%
+source_data.example.fr_given_a_t_resid = plotres.plot;
 
 %% print average tuning curve
 fh = figure(4); clf
@@ -215,8 +223,8 @@ set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],...
     'papersize',ppos([3 4]));
 axt = axes;
 set(axt,'fontsize',12);
-fgta_plot_tuning(res,'plot_field','fga_resid_tmn', ...
-    'errorbar_field','fga_resid_std','ax',axt,'dvlims',dvlims,...
+[~, plotres] = fgta_plot_tuning(res,'plot_field','fga_resid_tmn', ...
+    'errorbar_field','fga_resid_sem','ax',axt,'dvlims',dvlims,...
     'linewidth', 1);
 pbaspect(axt, [1 1 1]);
 
@@ -232,6 +240,10 @@ title('$E[\Delta r|a]$','fontsize',tfsz,'fontweight','normal','interpreter','lat
 axt.Position([2 4]) = axpos([2 4]);
 print_fn(fh,'example_fga_tmn',fig_type);
 
+%%
+source_data.example.mean_fr_given_a_resid = plotres.plot_mean;
+source_data.example.sem_fr_given_a_resid = plotres.plot_errbar;
+
 %% plot rank 1 approximation
 ppos    = [5 6 fw fht ];
 res     = compute_rank1_fgta_approx(res);
@@ -239,7 +251,7 @@ fh      = figure(3); clf
 ax      = axes;
 
 set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]));
-fgta_line_plot(res,'goodtind',~badtind,'ax',ax,'plot_field','map_hat','dvlims',dvlims);
+[~,~,plotres]=fgta_line_plot(res,'goodtind',~badtind,'ax',ax,'plot_field','map_hat','dvlims',dvlims);
 title('rank 1 approximation');
 xlabel(xlab);
 ylabel({'\Delta FR (spikes/s)'});
@@ -253,13 +265,16 @@ ra_field    = 'rank1_ra_n';
 mt_field    = 'rank1_mt_n';
 ra_ylab     = {'normalized FR'};
 mt_ylab     = 'FR modulation (spikes/s)';
+%%
+source_data.example.rank1_fr_given_a_t = plotres.plot;
+
 %% Print rank 1 tuning curve
 fh      = figure(5); clf
 ppos    = [5 2 fw fht ];
 ax      = axes;
 set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]));
 
-fgta_plot_tuning(res,'plot_field',ra_field, ...
+[~, plotres] = fgta_plot_tuning(res,'plot_field',ra_field, ...
     'errorbar_field','','ax',ax,'dvlims',dvlims, 'linewidth', 1);
 pbaspect(ax, [1 1 1]);
 title('rank 1 $\hat{f}(a)$','interpreter','latex');
@@ -272,6 +287,10 @@ hold on
 plot([0 0],ylim,'-k')
 set(ax,'XTick',aticks,'TickDir', 'out')
 print_fn(fh,'example_rank1_tuning',fig_type);
+%%
+source_data.example.rank1_fr_given_a = plotres.plot_mean;
+
+
 %% Print rank 1 modulation
 ppos    = [10 2 fw fht ];
 fh      = figure(6); clf
@@ -291,7 +310,9 @@ if ~isempty(badtind)
     plot(xx([bad0 badn]), yy([bad0 badn]), ':k', 'linewidth', 1)
     plot([0 0],ylim,':k')
 else
-    plot(res.t0s, res.(mt_field), 'k', 'linewidth', 1)
+    xx = res.t0s;
+    yy = res.(mt_field);
+    plot(res.t0s, yy, 'k', 'linewidth', 1)
     hold on
 end
 if isempty(which_switch)
@@ -313,6 +334,9 @@ pos = get(ax,'position');
 delete(cb);
 set(ax,'position',pos, 'TickDir', 'out');
 print_fn(fh,'example_rank1_mod',fig_type);
+%%
+source_data.example.rank1_fr_given_t = yy;
+
 
 %% population level tuning curves
 % load up population level results
@@ -367,6 +391,7 @@ else
     fn = fullfile(stadir, ['pop_' fig_prefix...
         'tuning_res.mat']);
 end
+%%
 if refit | ~exist(fn,'file')
     % get the list of good cells
     cout_auc_file   = fullfile(dp.ephys_summary_dir,'cout_auc.mat');
@@ -436,7 +461,7 @@ fh = figure(21); clf
 
 set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]))
 ax = axes;
-fgta_line_plot(tempres,'goodtind',~badtind,'ax',ax,...
+[~, ~, plotres] = fgta_line_plot(tempres,'goodtind',~badtind,'ax',ax,...
     'plot_field','fr_given_ta','dvlims',dvlims,...
     'up_clr', pref_clr, 'down_clr', npref_clr);
 ylabel(ax,'\Delta FR (z-score)')
@@ -450,13 +475,16 @@ elseif zscore_frates
 end
 
 print_fn(fh,'pop_fgta',fig_type)
+%%
+
+
 %% population average residual map
 fh      = figure(20); clf
 ppos    = [1 1 fw fht ];
 set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]))
 ax      = axes;
 
-[ax, cb] = fgta_line_plot(tempres,'goodtind',~badtind,'ax',ax,...
+[ax, cb, plotres] = fgta_line_plot(tempres,'goodtind',~badtind,'ax',ax,...
     'plot_field','fgta_resid','dvlims',dvlims,...
     'up_clr', [.8 .25 .8], 'down_clr', [.8 .65 .25]);
 ylabel(ax,'\Delta FR (z-score)')
@@ -482,7 +510,9 @@ cb.TickLabels = round(10*tempres.dv_axis([2 end-1]))/10;
 
 set(ax,'position',get(ax_r,'position'))
 print_fn(fh,'pop_fgta_resid',fig_type)
-
+%%
+source_data.population.fr_given_a_t = plotres.plot;
+source_data.population.time_from_stim_on = plotres.time;
 %% POP TUNING 
 this_tmn = tempres.(ra_field);
 
@@ -498,7 +528,7 @@ ppos = [5 2 fw fht ];
 set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],...
     'papersize',ppos([3 4]))
 ax = axes;
-fgta_plot_tuning(tempres,'linecolor','k',...
+[~,plotres] = fgta_plot_tuning(tempres,'linecolor','k',...
     'plot_field',ra_field, ...
     'errorbar_field','','ax',ax,'dvlims',dvlims,'linewidth',1,...
     'up_clr',pref_clr, 'dwn_clr', npref_clr);
@@ -521,6 +551,8 @@ xx = tempres.dv_axis;
 %this_b = fit_four_param_psycho(xx(:),this_tmn(:));
 %slope_pop_mean = prod(this_b([2 3]))/4;
 print_fn(fh,'pop_ra',fig_type)
+%%
+source_data.population.rank1_fr_given_a = plotres.plot_mean;
 %% POP MODULATION
 fh = figure(8); clf
 ppos = [5 5 fw fht ];
@@ -541,7 +573,9 @@ if ~isempty(badtind)
     ylim([0 max(ylim)])
     plot([0 0],ylim,'-', 'color', [1 1 1].*.8)
 else
-    plot(tempres.t0s, tempres.(mt_field), 'k', 'linewidth', 1)
+    xx=tempres.t0s;
+    yy=tempres.(mt_field);
+    plot(xx, yy, 'k', 'linewidth', 1)
     hold on
     plot([.5 .5],ylim, '-k', 'linewidth', 1)
 end
@@ -556,7 +590,16 @@ set(ax,'position',pos, 'TickDir', 'out');
 
 print_fn(fh,'pop_frm',fig_type)
 
+%%
 
+source_data.population.fr_given_t = yy;
+if use_switches
+    save(fullfile(dp.data_dir, 'fig5_source_data'),'source_data')
+else
+    save(fullfile(dp.data_dir, 'fig3_source_data'),'source_data')
+end
+
+%%
 
 
 if 0

@@ -1,4 +1,4 @@
-function [ax cb] = fgta_line_plot(res,varargin)
+function [ax, cb, out] = fgta_line_plot(res,varargin)
 p = inputParser;
 addParameter(p,'linewidth',2)
 addParameter(p,'clrs',[])
@@ -33,6 +33,7 @@ dv_keep     = res.dv_axis >= p.dvlims(1) & res.dv_axis <= p.dvlims(end);
 dv_axis     = res.dv_axis(dv_keep);
 n_dv_bins   = length(dv_axis);
 t0s         = res.t0s;
+
 if length(res) > 1
     cellid = [];
     cellidstr = 'population';
@@ -64,7 +65,6 @@ if ~all(p.goodtind)
     badxn =  res.t0s(find(badtind,1,'last')) + diff(res.t0s([1 2]))/2;
     
 end
-
 
 
 
@@ -149,4 +149,10 @@ if exist('badx0','var')
     
 
 end
+
+
+out.time = t0s;
+out.plot = to_plot;
+out.dvs = dv_axis;
+
 
