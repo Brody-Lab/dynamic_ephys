@@ -165,12 +165,17 @@ fprintf('\n%.1f %% (%i/%i) of active cells are signficant\n',...
     100*sum(good_cells)/sum(active_cells),sum(sig_cells&active_cells),sum(active_cells))
 
 %% plot example cells in fig 2B
+source_data = [];
+overwrite = 1;
+example_cells = [18181, 16857, 17784];
 ppos = [8 10 fw fht ];
-cellid = 18181;
-[fh, ax] = example_cell_psth('cells',cellid,...
+ii = 1;
+cellid = example_cells(ii);
+[fh, ax, source_data.example_cell(ii)] = example_cell_psth('cells',cellid,...
     'cintrange',xlim_on,'couttrange',xlim_off,...
     'coutstr',coutstr,'fig_num',2, ...
-    'ploterrorbar',ploterrorbar,'repack',repack,'errorbarfun',@nansem);
+    'ploterrorbar',ploterrorbar,...
+    'overwrite',overwrite,'repack',repack,'errorbarfun',@nansem);
 
 ylim(ax,[14 60])
 xlim(ax(1),xlim_on)
@@ -187,11 +192,14 @@ pbaspect(ax(2),[1 .8 1])
 print(fh, fullfile(dp.psth_fig_dir, ['cell_' num2str(cellid) ]),...
     '-dsvg', '-painters')
 %%
-cellid = 16857;
-[fh, ax] = example_cell_psth('cells',cellid,...
+ii = 2;
+cellid = example_cells(ii);
+[fh, ax, source_data.example_cell(ii)] = example_cell_psth('cells',cellid,...
     'cintrange',xlim_on,'couttrange',xlim_off,...
     'coutstr',coutstr,'fig_num',2, ...
-    'ploterrorbar',ploterrorbar,'repack',repack,'errorbarfun',@nansem);
+    'ploterrorbar',ploterrorbar,...
+    'overwrite',overwrite,'repack',repack,'errorbarfun',@nansem);
+
 ylim(ax,[0 22.5])
 xlim(ax(1),xlim_on)
 xlim(ax(2),xlim_off)
@@ -206,11 +214,13 @@ print(fh, fullfile(dp.psth_fig_dir, ['cell_' num2str(cellid) ]),...
     '-dsvg', '-painters')
 
 %%
-cellid = 17784;
-[fh, ax] = example_cell_psth('cells',cellid,...
+ii = 3;
+cellid = example_cells(ii);
+[fh, ax, source_data.example_cell(ii)] = example_cell_psth('cells',cellid,...
     'cintrange',xlim_on,'couttrange',xlim_off,...
     'coutstr',coutstr,'fig_num',2, ...
-    'ploterrorbar',ploterrorbar,'repack',repack,'errorbarfun',@nansem);
+    'ploterrorbar',ploterrorbar,...
+    'overwrite',overwrite,'repack',repack,'errorbarfun',@nansem);
 ylim(ax,[0 42.5])
 xlim(ax(1),xlim_on)
 xlim(ax(2),xlim_off)
@@ -222,27 +232,29 @@ print(fh, fullfile(dp.psth_fig_dir, ['cell_' num2str(cellid) ]),...
     '-dsvg', '-painters')
 
 %% raster plots for supplement
-ex_cellids = [18181 16857 17784];
 max_nt = 200;
-for cc = 1:length(ex_cellids)
+for cc = 1:length(example_cells)
     ppos_ = [8 10 1.75*fw 1.25*fht ];
-    cellid = ex_cellids(cc);
-    [fh, ax] = example_cell_raster('cells',cellid,...
+    cellid = example_cells(cc);
+    [fh, ax, res] = ...
+        example_cell_raster('cells',cellid,...
         'cintrange',xlim_on,'couttrange',xlim_off,...
         'coutstr',coutstr,'fig_num',2,'repack',repack,'max_ntrials',max_nt);
+    %%
     set(ax(1),'ZLim',get(ax(2),'Zlim'));
     set(fh,'position',ppos_,'paperposition',[0 0 ppos_([3 4])],...
         'papersize',ppos_([3 4]));
     print(fh, fullfile(dp.psth_fig_dir, ['cell_' num2str(cellid) '_raster' ]),...
         '-dsvg', '-painters');
+    source_data.example_cell(cc).raster = res;
 end
 
 %% plot side x outcome population psth for supplement
-[fh, ax] = example_cell_psth('cells',cellids(good_cells),...
+[fh, ax, res] = example_cell_psth('cells',cellids(good_cells),...
     'ploterrorbar',1,'meta',1,...
     'cintrange',xlim_on,'couttrange',xlim_off,...
     'coutstr',coutstr,'fig_num',2, 'norm', 'onset',...
-    'dyn_path', dp, 'repack',repack);
+    'dyn_path', dp, 'repack',repack, 'overwrite', overwrite);
 xlim(ax(1),xlim_on)
 xlim(ax(2),xlim_off)
 
@@ -252,12 +264,14 @@ pbaspect(ax(2),[1 .8 1])
 set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]))
 print(fh, fullfile(dp.psth_fig_dir, 'selective_cells_psth'),...
     '-dsvg', '-painters')
+%%
+source_data.population_psth.choice = res;
 
 %% plot chronometric population psth for fig 2D
 edges = [-2 -.5 -.25  0  .25 .5  2];
 pref_color  = [.8 .25 .8];
 npref_color = [.8 .65 .25];
-[fh, ax] = example_cell_psth('separate_hits', 0, 'min_t', 0, ...
+[fh, ax, res] = example_cell_psth('separate_hits', 0, 'min_t', 0, ...
     'cells', cellids(good_cells), 'meta', 1, 'type', 'chrono', ...
     'edges', edges, 'norm', 'onset', 'top_color', pref_color, ...
     'bot_color', npref_color,'fig_num', 1, 'dyn_path', dp);
@@ -276,6 +290,8 @@ groupname = sprintf('cells_normmnth_%i_prefpth_%.2f.svg',normmnth,prefpth);
 
 print(fh, fullfile(dp.psth_fig_dir, groupname),...
     '-dsvg', '-painters')
+%%
+source_data.population_psth.chronometric = res;
 %% load auc for all neurons
 cout_auc_file = fullfile(dp.ephys_summary_dir,'cout_auc.mat');
 recompute = 0;
@@ -322,6 +338,7 @@ if ~exist(cout_auc_file) | recompute
 else
     load(cout_auc_file);
 end
+%%
 
 %% plot sorted auc fig 2C
 %box(s(ii),'off')
@@ -363,12 +380,20 @@ for gg = 1:length(gnames)
     set(gca,'color',[1 1 1].*.85)
     colormap(colormapRedBlue.^.6)
     axpos = get(gca,'position');
+    res =  struct('cout_t',cout_t, 'cout_auc', sorted_heatplot);
     switch gg
         case 1
             title({'all active cells'},'fontweight','normal')
+            fieldname = 'all';
+            
+               
         case 2
             title({'side-selective cells'},'fontweight','normal')
+            fieldname='selective';
+            
     end
+    source_data.population_auc.(fieldname) = ...
+                struct('cout_t',cout_t, 'cout_auc', sorted_heatplot);
     drawnow
     ylabel({'Cell # (sorted by latency)'})
 
@@ -392,3 +417,6 @@ for gg = 1:length(gnames)
     print(fh,fullfile(dp.fig_dir,['coutauc' groupname]),'-dsvg','-painters')
 end
 
+%%
+source_data_file = fullfile(dp.data_dir, 'fig2_source_data.mat');
+save(source_data_file,'source_data')

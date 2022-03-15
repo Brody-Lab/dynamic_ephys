@@ -1,4 +1,4 @@
-function [fh ax] = example_cell_psth(varargin)
+function [fh, ax, res] = example_cell_psth(varargin)
 
 
 p = inputParser;
@@ -40,6 +40,7 @@ max_nt      = p.Results.max_ntrials;
 
 dp = set_dyn_path;
 %%
+res = [];
 repack = p.Results.repack;
 
 min_t = p.Results.min_t;
@@ -118,17 +119,17 @@ axis(ax(2),'ij')
 xlim(ax(1),cintrange)
 xlim(ax(2),couttrange)
 
-% N = arrayfun(@(x) x < cin_t, vec_data.cpoke_out,'uniformoutput',0);
-% N = vertcat(N{:});
-% 
-% N = N([ find(go_r_sort);find(~go_r_sort)],:);
-% N = N([ find(~go_r_sort);find(go_r_sort)],:);
-% h = imagesc(ones(size(N)),'x',cin_t, 'Alphadata',N, 'parent', ax(1));
 
-plot(ax(1), cin_t(j(ind_r)), i(ind_r),'.',...
+cin_spk_times_right = cin_t(j(ind_r));
+cin_spk_trial_right = i(ind_r);
+cin_spk_times_left = cin_t(j(ind_l));
+cin_spk_trial_left = i(ind_l);
+cin_trial_marker = tmarker(sort_ind);
+
+plot(ax(1), cin_spk_times_right, cin_spk_trial_right,'.',...
     'color',dp.right_color,'markersize',1)
 
-plot(ax(1), cin_t(j(ind_l)), i(ind_l),'.',...
+plot(ax(1), cin_spk_times_left, cin_spk_trial_left,'.',...
     'color',dp.left_color,'markersize',.1)
 
 plot(ax(1), tmarker(sort_ind), 1:nt,'.r',...
@@ -142,14 +143,21 @@ cout_raster(isnan(cout_raster)) = 0;
 ind_r   = go_r_sort(i)>=1000;
 ind_l   = go_r_sort(i)<1000;
 
-plot(ax(2), cout_t(j(ind_r)),i(ind_r),'.',...
+cout_spk_times_right = cout_t(j(ind_r));
+cout_spk_trial_right = i(ind_r);
+cout_spk_times_left = cout_t(j(ind_l));
+cout_spk_trial_left = i(ind_l);
+tmarker = vec_data.stim_start-vec_data.cpoke_out;
+cout_trial_marker = tmarker(sort_ind);
+
+plot(ax(2), cout_spk_times_right,cout_spk_trial_right,'.',...
     'color',dp.right_color,'markersize',.1)
 
-plot(ax(2), cout_t(j(ind_l)),i(ind_l),'.',...
+plot(ax(2), cout_spk_times_left,cout_spk_trial_left,'.',...
     'color',dp.left_color,'markersize',.1)
 
-tmarker = vec_data.stim_start-vec_data.cpoke_out;
-plot(ax(2), tmarker(sort_ind), 1:nt,'.r',...
+
+plot(ax(2), cout_trial_marker, 1:nt,'.r',...
     'markersize',6)
 
 axis ij
@@ -178,6 +186,26 @@ ylim(ax(1),[0 nt+1])
 ylim(ax(2),[0 nt+1])
 %%
 
+cin_spk_ts =  {cin_spk_times_left, cin_spk_times_right};
+cin_spk_tn = {cin_spk_trial_left, cin_spk_trial_right};
+
+cout_spk_ts = {cout_spk_times_left, cout_spk_times_right};
+cout_spk_tn =  {cout_spk_trial_left, cout_spk_trial_right} ;
+
+res.cin.choice_bin = {'left', 'right'};
+res.cin.spike_trial = cin_spk_tn;
+res.cin.spike_times = cin_spk_ts;
+res.cin.trial_marker = cin_trial_marker;
+
+res.cout.choice_bin = {'left', 'right'};
+res.cout.spike_trial = cout_spk_tn;
+res.cout.spike_times = cout_spk_ts;
+res.cout.trial_marker = cout_trial_marker;
+
+
+
+
+%%
 if p.Results.do_print
 print(fh, fullfile(dp.psth_fig_dir, ['cell_' group_name '_raster']),...
     '-dsvg', '-painters')

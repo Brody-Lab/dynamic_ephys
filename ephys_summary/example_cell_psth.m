@@ -1,4 +1,4 @@
-function [fh ax] = example_cell_psth(varargin)
+function [fh, ax, res] = example_cell_psth(varargin)
 % function [fh ax] = example_cell_psth(varargin) 
 % example usage 
 % [fh, ax] = example_cell_psth('cells', cellid,...
@@ -27,6 +27,7 @@ addParameter(p, 'coutstr', 'cpokeout');
 addParameter(p, 'ploterrorbar', 0);
 addParameter(p, 'errorbarfun', @nansem);
 addParameter(p, 'dyn_path',  []);
+addParameter(p, 'overwrite',  0);
 
 parse(p,varargin{:});
 cintrange = p.Results.cintrange;
@@ -48,7 +49,8 @@ ploterrorbar = p.Results.ploterrorbar;
 errorbarfun = p.Results.errorbarfun;
 dp          = p.Results.dyn_path;
 repack      = p.Results.repack;
-
+overwrite = p.Results.overwrite;
+res = struct('cellid',cell_to_plot);
 
 if isempty(dp)
     dp = set_dyn_path;
@@ -90,10 +92,13 @@ cin_fr      = [];
 cout_fr     = [];
 norm_f      = [];
 end_state_s = [];
-
-fn          = sprintf('meta_psth_%s.mat',type);
+if meta
+    fn          = sprintf('meta_psth_%s.mat',type);
+else
+    fn = sprintf('%i_psth_%s.mat',cell_to_plot,type);
+end
 savename    = fullfile(dp.spikes_dir, fn);
-if exist(savename, 'file')
+if exist(savename, 'file') & ~overwrite
     load(savename)
 else
     
@@ -165,6 +170,7 @@ switch type
         bins = poke_r + 1;
         show_errors = 1;
         cblab = 'choice';
+        edges = {'left', 'right'};
     case 'chrono'
         chrono = end_state_s .* sides;
         if isempty(edges)
@@ -177,6 +183,9 @@ switch type
         cblab = {'final state' 'duration (s)'};
         
 end
+res.bin_type =  type;
+res.bins =  edges;
+
 nbins = length(unique(bins));
 
 if meta
@@ -217,6 +226,8 @@ psths       = [];
  
 good_cint   = cin_t > cintrange(1) & cin_t < cintrange(2);
 good_coutt  = cout_t > couttrange(1) & cout_t < couttrange(2);
+res.cin_t = cin_t(good_cint);
+res.cout_t = cout_t(good_coutt);
 
 
 for bb = 1:nbins
@@ -233,6 +244,13 @@ for bb = 1:nbins
     cout_hit_psth = nanmean(cout_fr(trials,good_coutt)./norm_f(trials));
     cout_hit_psth_sem = errorbarfun(cout_fr(trials,good_coutt)./norm_f(trials));
     psths = [psths ; cin_hit_psth cout_hit_psth];
+    
+    % build results output 
+    res.cin_hit_psth{bb} = cin_hit_psth;
+    res.cin_hit_psth_sem{bb} = cin_hit_psth_sem;
+    res.cout_hit_psth{bb} = cout_hit_psth;
+    res.cout_hit_psth_sem{bb} = cout_hit_psth_sem;
+    
     if show_errors
         err_color = this_color;
         %err_color = cm_(bb,:);
@@ -241,11 +259,11 @@ for bb = 1:nbins
         cout_err_psth = nanmean(cout_fr(this  & err,good_coutt)./norm_f(this&  err));
         cout_err_psth_sem = errorbarfun(cout_fr(this  & err,good_coutt)./norm_f(this&  err));
         psths = [psths ; cin_err_psth cout_err_psth];
-        
-%         
-%         plot(ax(1),cin_t(good_cint),cin_err_psth,'--','color',err_color,'linewidth',1.5);
-%         plot(ax(2),cout_t(good_coutt),cout_err_psth,'--','color',err_color,'linewidth',1.5);
-%         
+        % add to results output
+        res.cin_err_psth{bb} = cin_err_psth;
+        res.cin_err_psth_sem{bb} = cin_err_psth_sem;
+        res.cout_err_psth{bb} = cout_err_psth;
+        res.cout_err_psth_sem{bb} = cout_err_psth_sem;
             if ploterrorbar
                 %%
                 hsvcolor = rgb2hsv(this_color);
