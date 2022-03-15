@@ -23,3 +23,7 @@ close all
 clear 
 use_switches = 1;
 print_tuning_curve_panels;
+%%
+% generate fig S10, which answers a reviewer's question about rank 1
+% decomposition
+rank1_review_response

@@ -1,3 +1,4 @@
+source_data = [];
 dp = set_dyn_path(1);
 %%
 fht = 2.5;
@@ -33,13 +34,10 @@ idx_    = ve_sort_ind(idx);
 
 
 %%
-% plot worst cell
-
-
-% find(pop_cellids(ve_sort_ind)==18181)
-% find(pop_cellids(ve_sort_ind)==16857)
-% find(pop_cellids(ve_sort_ind)==18839)
-for ii = idx;
+% plot worst, middle, and best cells
+example_cell = [];
+for jj = 1:length(idx);
+    ii = idx(jj);
     this_ve_ind = ve_sort_ind(ii);
     
     res     = pop_res(this_ve_ind);
@@ -78,7 +76,7 @@ for ii = idx;
     fh = figure(3); clf
     set(fh,'position',ppos+[5 0 0 0],'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]));
     ax_r = axes;
-    fgta_line_plot(res,'goodtind',~badtind,...
+    [~,~,plotsresdata] = fgta_line_plot(res,'goodtind',~badtind,...
         'ax',ax_r,'plot_field','fgta_resid','dvlims',dvlims);
     ylim([-1 1].*max(abs(ylim)))
     
@@ -87,7 +85,7 @@ for ii = idx;
     fh = figure(4); clf
     set(fh,'position',ppos+[0 -4 0 0],'paperposition',[0 0 ppos([3 4])],'papersize',ppos([3 4]));
     ax = axes;
-    fgta_line_plot(res,'goodtind',~badtind,'ax',ax,'plot_field','map_hat','dvlims',dvlims)
+    [~,~,plotres1] = fgta_line_plot(res,'goodtind',~badtind,'ax',ax,'plot_field','map_hat','dvlims',dvlims)
     title('rank 1 approximation')
     ylim([-1 1].*max(abs(ylim)))
     text(.25, .9*max(ylim), sprintf('VE=%.1f%%',100*res.rank_var(1)));
@@ -100,7 +98,7 @@ for ii = idx;
     res = compute_rank1_fgta_approx(res);
     rn = 5;
     res.map_hat_5 = (res.u(:,1:rn)'.*res.s(1:rn))'*res.v(:,1:rn)';
-    fgta_line_plot(res,'goodtind',~badtind,'ax',ax,...
+    [~,~,plotres5] = fgta_line_plot(res,'goodtind',~badtind,'ax',ax,...
         'plot_field','map_hat_5','dvlims',dvlims)
     title(sprintf('rank %i approximation',rn))   
     ra_field = 'rank1_ra_n';
@@ -197,6 +195,14 @@ for ii = idx;
     print_fn(fh,'example_fga_tmn',fig_type);
     % plot a psth
     example_cell_psth('cells',res.cellid, 'fpos', ppos + [-4.5 0 0 0])
+    
+    
+    example_cell(ii).cellid = res.cellid;
+    example_cell(ii).mean_a = plotsresdata.dvs;
+    example_cell(ii).time = plotsresdata.time;
+    example_cell(ii).fr_given_ta_data = plotsresdata.plot;
+    example_cell(ii).fr_given_ta_rank1 = plotres1.plot;
+    example_cell(ii).fr_given_ta_rank5 = plotres5.plot;
 end
 %% test for relationship between # selective timesteps and goodness of rank1
 cell_list   = dyn_cells_db;   % That has to be run once to create cell_list
@@ -255,12 +261,13 @@ xlabel('Total duration of side-selectivity (s)')
 text(1, .65, sprintf('\\rho = %.2f', rho),'fontsize',13)
 
 print_fn(fh,'rank1_dur_corr',fig_type);
+
 %%
 fh = figure(1); clf
 set(fh,'position',ppos,'paperposition',[0 0 ppos([3 4])],'papersize',ppos_([3 4]));
 ax_ = axes;
 set(ax_,'position',get(ax,'position'))
-histogram(rank_var(:,1),20,'facecolor',[1 1 1].*.5)
+h = histogram(rank_var(:,1),20,'facecolor',[1 1 1].*.5)
 hold on
 plot([1 1].*mean(rank_var(:,1)),ylim,'k')
 ylims = ylim;
@@ -289,3 +296,18 @@ xlabel('Rank')
 %plot(1:size(rank_var,2), rank_var(idx_,:), 'b')
 fn = fullfile(dp.fig_dir, 'rank_ve_lines');
 print(fh, fn, '-dsvg', '-painters')
+
+%%
+source_data.example_cell = example_cell;
+source_data.rank1_idx = idx_;
+source_data.rank1_ve = rank_var(:,1);
+source_data.rank1_ve_histy = h.Values;
+source_data.rank1_ve_histx = h.BinEdges;
+source_data.rank1_ve_mn = mean(rank_var(:,1));
+source_data.rank1to5_ve = rank_var';
+source_data.rank1to5_ve_mn = mean(rank_var);
+source_data.rank1to5_ve_ci = 1.96*sem(rank_var);
+source_data.total_dur_side_selective = nsigt;
+
+save(fullfile(dp.data_dir, 'figS10_source_data'), 'source_data')
+
