@@ -87,11 +87,16 @@ forward.click_height = 5;
 %%
 
 alim = Inf*p.a_sign;
-fh = figure(1); 
+fh = figure(1);  clf
 clf; 
 subplot(2,4,1);
 plot_pdf(forward);
-
+source_data=[];
+source_data.clicks.left = forward.left_clicks;
+source_data.clicks.right = forward.right_clicks;
+source_data.time = forward.T;
+source_data.forward_pdf = forward.pdf;
+%%
 plott = plott + toc;
 % compute backwards pass
 if p.compute_back;
@@ -100,7 +105,7 @@ p = get_grid(data(TN), forward, params,p);
 [back, posterior] = compute_backwards_pass(data(TN),params,p,forward);
 computet = computet + toc;
 
-%%
+%
 bdex = find(back.a_grid == p.d_dex); % which mode to compute
 back = compute_pdf(back,p.avals,p,'mode',bdex);
 posterior = compute_pdf(posterior, p.avals,p,'mode',bdex);
@@ -108,7 +113,7 @@ back.s = ones(size(back.ma))./50; %% DOES NOTHING
 backF = compute_pdf(back,p.avals,p,'mixture');
 posteriorF = compute_pdf(posterior, p.avals,p,'mixture');
 particle = compute_particles(data(TN), params, p);
-%%
+%
 % visualize backwards pass - one delta solution
 tic
 back.plot_zero_line = true;
@@ -121,10 +126,13 @@ back.right_clicks = data(TN).rightbups;
 back.right_click_y = 25;
 back.left_click_y = -25;
 back.click_height = 5;
+
+
+%%
 subplot(2,4,2);
 plot_pdf(back);
-
-% visualize posterior - one delta solution
+source_data.back_pdf = back.pdf;
+%% visualize posterior - one delta solution
 subplot(2,4,3);
 posterior.plot_zero_line = true;
 posterior.plot_mean_line = false;
@@ -137,20 +145,8 @@ posterior.right_click_y = 25;
 posterior.left_click_y = -25;
 posterior.click_height = 5;
 plot_pdf(posterior);
-% 
-% % visualize entire backwards pass
-% backF.plot_zero_line = true;
-% backF.plot_mean_line = false;
-% backF.title = 'Backward Full';
-% backF.right_click_marker = '|';
-% backF.left_click_marker = '|';
-% backF.left_clicks = data(TN).leftbups;
-% backF.right_clicks = data(TN).rightbups;
-% backF.right_click_y = 25;
-% backF.left_click_y = -25;
-% backF.click_height = 5;
-% subplot(2,4,5);
-% plot_pdf(backF);
+source_data.posterior_pdf = posterior.pdf;
+%% 
 
 % visualize entire posterior 
 subplot(2,4,4);
@@ -174,10 +170,11 @@ posteriorF.right_click_y = 25;
 posteriorF.left_click_y = -25;
 posteriorF.click_height = 5;
 plot_pdf(posteriorF);
+source_data.full_posterior_pdf = posteriorF.pdf;
 plott = plott + toc;
 end
 
-% particles
+%% particles
 tic
 particlet = particlet + toc;
 tic
@@ -196,7 +193,9 @@ forwardP.right_click_y = 25;
 forwardP.left_click_y = -25;
 forwardP.click_height = 5;
 plot_pdf(forwardP)
+source_data.particle_forward_pdf = forwardP.pdf;
 
+%%
 subplot(2,4,6);
 backP.pdf = particle.bpdf;
 backP.avals = particle.avals;
@@ -213,7 +212,9 @@ backP.right_click_y = 25;
 backP.left_click_y = -25;
 backP.click_height = 5;
 plot_pdf(backP)
+source_data.particle_backward_pdf = backP.pdf;
 
+%%
 subplot(2,4,7);
 posteriorD.pdf = particle.dpdf;
 posteriorD.avals = particle.avals;
@@ -229,8 +230,9 @@ posteriorD.right_click_y = 25;
 posteriorD.left_click_y = -25;
 posteriorD.click_height = 5;
 plot_pdf(posteriorD)
+source_data.particle_posterior_pdf = posteriorD.pdf;
 
-
+%%
 ax = subplot(2,4,8);
 posteriorP.pdf = particle.ppdf;
 posteriorP.avals = particle.avals;
@@ -251,6 +253,9 @@ posteriorP.right_click_y = 25;
 posteriorP.left_click_y = -25;
 posteriorP.click_height = 5;
 plot_pdf(posteriorP)
+source_data.full_particle_posterior_pdf = posteriorP.pdf;
+
+
 plott = plott + toc;
 axpos = get(ax,'position');
 cb = colorbar
@@ -278,4 +283,5 @@ if p.a_sign > 0
 else
     print(fullfile(dp.fig_dir, 'dist_check_supp_left'), '-dsvg','-painters')
 end
-
+%%
+save(fullfile(dp.data_dir, 'figS8_source_data'),'source_data')

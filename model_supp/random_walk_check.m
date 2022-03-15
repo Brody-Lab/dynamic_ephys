@@ -3,7 +3,7 @@ close all;
 clear all;
 dp = set_dyn_path(1);
 %%
-dev_script; 
+%dev_script; 
 %%
 % parameters of simulation
 nt = 10;
@@ -119,13 +119,16 @@ if plot_old_panels
 else
     nrow = 2;
 end
-
+source_data = [];
 subplot(nrow,3,1);
 imagesc(tvec,xvec,f)
 title('Forward Distribution, a_0=0')
 ylabel('a value')
 xlabel('time')
 caxis(cax)
+
+source_data.time = tvec; 
+source_data.forward_dist = f;
 
 subplot(nrow,3,2);
 imagesc(tvec,xvec,squeeze(bd(:,:,2)))
@@ -134,12 +137,17 @@ ylabel('a value')
 xlabel('time')
 caxis(cax)
 
+source_data.backward_dist = squeeze(bd(:,:,2));
+
 subplot(nrow,3,3);
 imagesc(tvec,xvec,sf)
 title('Forward Particle')
 ylabel('a value')
 xlabel('time')
 caxis(cax)
+
+source_data.forward_particle = sf;
+
 
 if plot_old_panels
     subplot(nrow,3,4);
@@ -195,6 +203,11 @@ else
     ylabel('Probability')
     xlabel('a value')
     
+    source_data.slice_at_5_line = R(:,5);
+    source_data.slice_at_5_circle = sb(:,5);
+    source_data.slice_at_5_x = Rd(:,5);
+    
+    
     subplot(nrow,3,5);
     imagesc(tvec,xvec,R)
     title('Posterior Distribution')
@@ -202,12 +215,15 @@ else
     xlabel('time')
     caxis(cax)
     
+    source_data.posterior = R;
+    
     subplot(nrow,3,6);
     imagesc(tvec,xvec,sb)
     title('Posterior Particle')
     ylabel('a value')
     xlabel('time')
     caxis(cax)
+    source_data.posterior_particle = sb;
 end
 end_color = dp.model_color;
 colormap(colormapLinear(end_color).^2)
@@ -220,5 +236,7 @@ if DEMONSTRATE_WEIGHTING_BAD
     disp('WARNING, THESE RESULTS SHOULD BE WRONG')
 end
 
+
+save(fullfile(dp.data_dir, 'figS7_source_data'), 'source_data')
 
 
